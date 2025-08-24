@@ -2,91 +2,330 @@
 <html lang="sl">
 <head>
   <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>NearGo – dogodki & ponudbe</title>
-        <meta name="theme-color" content="#00a7c6" />
-          <style>
-              :root { --c1:#0099cc; --c2:#00b3b3; --bg:#f4faff; --ink:#222; }
-                  *{ box-sizing:border-box }
-                      html,body{ margin:0; font-family:system-ui, Arial, sans-serif; color:var(--ink); background:var(--bg); }
-                          .hero{ background:linear-gradient(135deg,var(--c1),var(--c2)); color:#fff; text-align:center; padding:2.6rem 1.25rem; }
-                              .hero h1{ margin:0 0 .25rem; font-size:2rem; letter-spacing:.5px }
-                                  .hero p{ margin:0; opacity:.95 }
-                                      .wrap{ max-width:900px; margin:0 auto; padding:1.25rem }
-                                          .actions{ display:flex; gap:.75rem; justify-content:center; flex-wrap:wrap; margin:1rem 0 1.5rem }
-                                              .btn{ background:var(--c2); color:#fff; border:none; padding:.85rem 1.2rem; border-radius:12px;
-                                                        font-weight:700; letter-spacing:.2px; cursor:pointer; transition:transform .08s, background .2s }
-                                                            .btn:active{ transform:scale(.98) }
-                                                                .btn:hover{ background:var(--c1) }
-                                                                    #results{ display:grid; gap:.85rem }
-                                                                        .card{ background:#fff; border-radius:14px; padding:1rem 1.1rem; box-shadow:0 6px 22px rgba(0,0,0,.07) }
-                                                                            .card h3{ margin:.1rem 0 .35rem; font-size:1.12rem }
-                                                                                .card p{ margin:.15rem 0; color:#555 }
-                                                                                    .foot{ text-align:center; padding:1.25rem; color:#fff; background:var(--c1); margin-top:2rem }
-                                                                                      </style>
-                                                                                      </head>
-                                                                                      <body>
-                                                                                        <header class="hero">
-                                                                                            <h1>NearGo</h1>
-                                                                                                <p>Najboljše v tvoji bližini – dogodki, ponudbe, kuponi.</p>
-                                                                                                    <div class="actions">
-                                                                                                          <button class="btn" id="events-btn">Poišči dogodke</button>
-                                                                                                                <button class="btn" id="offers-btn">Za ponudnike</button>
-                                                                                                                      <button class="btn" id="coupons-btn">Kuponi & vstopnice</button>
-                                                                                                                          </div>
-                                                                                                                            </header>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NearGo — najdi dogodke blizu tebe</title>
+  <meta name="description" content="NearGo: hiter metaiskalnik dogodkov, koncertov, hrane, kulture in aktivnosti blizu tebe." />
 
-                                                                                                                              <main class="wrap">
-                                                                                                                                  <div id="results"></div>
-                                                                                                                                    </main>
+  <!-- Tailwind prek CDN (brez builda) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#0ea5e9', dark: '#0284c7', light: '#38bdf8' },
+            ink: '#0f172a'
+          }
+        }
+      }
+    }
+  </script>
 
-                                                                                                                                      <footer class="foot">© 2025 NearGo</footer>
+  <!-- Leaflet (zemljevid) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-                                                                                                                                        <script>
-                                                                                                                                            // VSE je tukaj – nič več ločenega script.js
-                                                                                                                                                document.addEventListener('DOMContentLoaded', function () {
-                                                                                                                                                      const results = document.getElementById('results');
+  <!-- Ikone -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
 
-                                                                                                                                                            function paint(items, title){
-                                                                                                                                                                    results.innerHTML = '';
-                                                                                                                                                                            const h = document.createElement('h2');
-                                                                                                                                                                                    h.textContent = title;
-                                                                                                                                                                                            results.appendChild(h);
-                                                                                                                                                                                                    items.forEach(x=>{
-                                                                                                                                                                                                              const el = document.createElement('article');
-                                                                                                                                                                                                                        el.className = 'card';
-                                                                                                                                                                                                                                  el.innerHTML = `
-                                                                                                                                                                                                                                              <h3>${x.title}</h3>
-                                                                                                                                                                                                                                                          <p>${x.date || ''} ${x.location ? ('• ' + x.location) : ''}</p>
-                                                                                                                                                                                                                                                                      <p>${x.desc || ''}</p>`;
-                                                                                                                                                                                                                                                                                results.appendChild(el);
-                                                                                                                                                                                                                                                                                        });
-                                                                                                                                                                                                                                                                                              }
+  <style>
+    :root{ color-scheme: light dark; }
+    .glass{ background: rgba(255,255,255,.7); backdrop-filter: blur(10px); }
+    .card{ transition: transform .15s ease, box-shadow .15s ease }
+    .card:hover{ transform: translateY(-2px); box-shadow: 0 10px 24px rgba(2,132,199,.15) }
+    #map{ height: 340px; border-radius: 1rem }
+    .chip{ border:1px solid rgba(2,132,199,.3); }
+    .loader{ border:3px solid #e2e8f0;border-top-color:#0ea5e9;border-radius:50%;width:28px;height:28px;animation:spin 1s linear infinite }
+    @keyframes spin{to{transform: rotate(360deg)}}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 selection:bg-brand/20 selection:text-ink">
 
-                                                                                                                                                                                                                                                                                                    document.getElementById('events-btn').addEventListener('click', () =>
-                                                                                                                                                                                                                                                                                                            paint(
-                                                                                                                                                                                                                                                                                                                      [{ title:'Koncert v parku', date:'25. 8. 2025', location:'Ljubljana', desc:'Akustični večer.' },
-                                                                                                                                                                                                                                                                                                                                 { title:'Sejem okusov', date:'31. 8. 2025', location:'Celje', desc:'Lokalni ponudniki.' }],
-                                                                                                                                                                                                                                                                                                                                           'Dogodki'
-                                                                                                                                                                                                                                                                                                                                                   )
-                                                                                                                                                                                                                                                                                                                                                         );
+  <!-- NAV -->
+  <header class="sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-4">
+      <a href="/" class="flex items-center gap-2 font-semibold text-ink">
+        <span class="ti ti-current-location text-brand text-2xl"></span>
+        <span class="text-xl">NearGo</span>
+      </a>
+      <nav class="ml-auto hidden sm:flex gap-6 text-sm">
+        <a href="#features" class="hover:text-brand">Zakaj NearGo</a>
+        <a href="#mapWrap" class="hover:text-brand">Zemljevid</a>
+        <a href="#results" class="hover:text-brand">Rezultati</a>
+      </nav>
+      <div class="ml-4 flex items-center gap-2">
+        <button id="themeBtn" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm hover:bg-slate-100">🌓</button>
+        <select id="langSel" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm">
+          <option value="sl">SL</option>
+          <option value="en">EN</option>
+          <option value="de">DE</option>
+          <option value="it">IT</option>
+          <option value="hr">HR</option>
+        </select>
+        <a href="#" class="px-3 py-1.5 rounded-lg bg-brand text-white text-sm hover:bg-brand-dark">Download app</a>
+      </div>
+    </div>
+  </header>
 
-                                                                                                                                                                                                                                                                                                                                                               document.getElementById('offers-btn').addEventListener('click', () =>
-                                                                                                                                                                                                                                                                                                                                                                       paint(
-                                                                                                                                                                                                                                                                                                                                                                                 [{ title:'Picerija Napoli', desc:'-10% ob ponedeljkih', location:'Celje' },
-                                                                                                                                                                                                                                                                                                                                                                                            { title:'Studio Joga', desc:'3× brezplačen preizkus', location:'Kranj' }],
-                                                                                                                                                                                                                                                                                                                                                                                                      'Ponudniki'
-                                                                                                                                                                                                                                                                                                                                                                                                              )
-                                                                                                                                                                                                                                                                                                                                                                                                                    );
+  <!-- HERO -->
+  <section class="bg-gradient-to-b from-white to-slate-100 border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 py-14 grid lg:grid-cols-2 gap-10 items-center">
+      <div>
+        <p class="uppercase tracking-wide text-brand font-semibold mb-2">getneargo.com</p>
+        <h1 class="text-4xl sm:text-5xl font-bold leading-tight text-ink">
+          Najdi <span class="text-brand">dogodke blizu</span> – koncerti, hrana, kultura, otroci &amp; več
+        </h1>
+        <p class="mt-4 text-slate-600">
+          NearGo je hiter meta-iskalnik. Vtipkaj, izberi kraj ali radij in dobiš vse v tvojem jeziku. Brez podvajanj.
+        </p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a href="#search" class="px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-dark">Začni iskati</a>
+          <a href="#" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-100">Za organizatorje</a>
+        </div>
+      </div>
+      <div class="glass rounded-2xl p-5 shadow-lg">
+        <!-- SEARCH -->
+        <form id="search" class="space-y-4">
+          <div class="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label class="text-sm text-slate-500">Kaj</label>
+              <input id="q" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="npr. Metallica, street food…" />
+            </div>
+            <div>
+              <label class="text-sm text-slate-500">Kraj</label>
+              <input id="city" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="Ljubljana, Dunaj…" />
+            </div>
+          </div>
+          <div class="grid sm:grid-cols-3 gap-3">
+            <div>
+              <label class="text-sm text-slate-500">Radij (km)</label>
+              <input id="radius" type="number" min="1" max="300" value="50" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" />
+            </div>
+            <div>
+              <label class="text-sm text-slate-500">Od</label>
+              <input id="startDate" type="date" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" />
+            </div>
+            <div>
+              <label class="text-sm text-slate-500">Do</label>
+              <input id="endDate" type="date" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" />
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2 text-sm">
+            <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="music">Glasba</label>
+            <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="food">Hrana</label>
+            <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="kids">Otroci</label>
+            <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="culture">Kultura</label>
+            <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="sports">Šport</label>
+          </div>
+          <div class="flex items-center gap-3">
+            <button id="goBtn" class="px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-dark flex items-center gap-2">
+              <span class="ti ti-search"></span> Išči
+            </button>
+            <div id="busy" class="hidden loader"></div>
+            <span id="meta" class="text-sm text-slate-500"></span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
 
-                                                                                                                                                                                                                                                                                                                                                                                                                          document.getElementById('coupons-btn').addEventListener('click', () =>
-                                                                                                                                                                                                                                                                                                                                                                                                                                  paint(
-                                                                                                                                                                                                                                                                                                                                                                                                                                            [{ title:'Kino kupon', desc:'2 za 1 sreda', location:'Velenje' },
-                                                                                                                                                                                                                                                                                                                                                                                                                                                       { title:'SPA vikend', desc:'–15% z NearGo', location:'Rogaška' }],
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                 'Kuponi'
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                         )
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                               );
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     </script>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     </body>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     </html>
+  <!-- FEATURES -->
+  <section id="features" class="max-w-6xl mx-auto px-4 py-10 grid sm:grid-cols-3 gap-6">
+    <div class="p-5 rounded-2xl bg-white border border-slate-200 card">
+      <div class="ti ti-rocket text-brand text-2xl"></div>
+      <h3 class="font-semibold mt-2">Hitro in brez podvajanj</h3>
+      <p class="text-sm text-slate-600 mt-1">Enoten rezultat iz več virov – isti dogodek prikažemo samo enkrat.</p>
+    </div>
+    <div class="p-5 rounded-2xl bg-white border border-slate-200 card">
+      <div class="ti ti-language text-brand text-2xl"></div>
+      <h3 class="font-semibold mt-2">V tvojem jeziku</h3>
+      <p class="text-sm text-slate-600 mt-1">Jezik se samodejno ujema z brskalnikom (lahko ga zamenjaš).</p>
+    </div>
+    <div class="p-5 rounded-2xl bg-white border border-slate-200 card">
+      <div class="ti ti-map-pin text-brand text-2xl"></div>
+      <h3 class="font-semibold mt-2">Zemljevid &amp; nakup</h3>
+      <p class="text-sm text-slate-600 mt-1">Markerji na zemljevidu in neposredna povezava za nakup vstopnic.</p>
+    </div>
+  </section>
+
+  <!-- MAP -->
+  <section id="mapWrap" class="max-w-6xl mx-auto px-4 pb-6">
+    <div id="map" class="w-full"></div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results" class="max-w-6xl mx-auto px-4 pb-16">
+    <div class="flex items-end justify-between mb-3">
+      <h2 class="text-2xl font-bold text-ink">Rezultati</h2>
+      <div class="text-sm text-slate-500" id="sourcesUsed"></div>
+    </div>
+    <div id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    <div id="pager" class="mt-6 flex justify-center gap-3"></div>
+  </section>
+
+  <footer class="border-t border-slate-200 py-8 text-center text-sm text-slate-500">
+    © <span id="y"></span> NearGo · <a class="hover:text-brand" href="#">Pogoji</a> · <a class="hover:text-brand" href="#">Zasebnost</a>
+  </footer>
+
+  <!-- (Opcijsko) Analytics: zamenjaj s svojo rešitvijo
+  <script defer data-domain="getneargo.com" src="https://plausible.io/js/script.js"></script>
+  -->
+
+  <script>
+    // ===== pomožne =====
+    const $$ = (q, el=document)=>el.querySelector(q);
+    const $$$ = (q, el=document)=>Array.from(el.querySelectorAll(q));
+    const endpoint = '/.netlify/functions/tm-search';
+
+    const state = {
+      page: 0, size: 20, lang: 'sl',
+      markers: [], map: null, layer: null, lastQuery: null
+    };
+
+    // tema
+    const themeBtn = $$('#themeBtn');
+    themeBtn.addEventListener('click', () => {
+      const d = document.documentElement;
+      d.classList.toggle('dark');
+      document.body.classList.toggle('bg-slate-900');
+      document.body.classList.toggle('text-slate-200');
+    });
+
+    // jezik
+    const langSel = $$('#langSel');
+    state.lang = (navigator.language || 'sl').slice(0,2);
+    if ([...langSel.options].some(o=>o.value===state.lang)) langSel.value = state.lang;
+    langSel.addEventListener('change', e => state.lang = e.target.value);
+
+    // leto
+    $$('#y').textContent = new Date().getFullYear();
+
+    // Leaflet
+    function ensureMap() {
+      if (state.map) return;
+      state.map = L.map('map', { scrollWheelZoom:false }).setView([46.1512, 14.9955], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'© OpenStreetMap' }).addTo(state.map);
+      state.layer = L.layerGroup().addTo(state.map);
+    }
+
+    function clearMap() { if (!state.layer) return; state.layer.clearLayers(); state.markers=[]; }
+
+    function addMarker(ev) {
+      if (!ev.lat || !ev.lon) return;
+      const m = L.marker([ev.lat, ev.lon]).bindPopup(
+        `<strong>${ev.name}</strong><br>${ev.venue?.name || ''}<br>${new Date(ev.start).toLocaleString()}`
+      );
+      state.layer.addLayer(m); state.markers.push(m);
+    }
+
+    function fitMap() {
+      if (state.markers.length===0) return;
+      const g = L.featureGroup(state.markers);
+      state.map.fitBounds(g.getBounds().pad(0.2));
+    }
+
+    // UI -> query
+    function readQuery(page=0){
+      const cats = $$$('.cat:checked').map(c=>c.value);
+      return {
+        q: $$('#q').value.trim(),
+        city: $$('#city').value.trim(),
+        radius: Number($$('#radius').value||50),
+        startDate: $$('#startDate').value || null,
+        endDate: $$('#endDate').value || null,
+        categories: cats,
+        page, size: state.size, lang: state.lang
+      };
+    }
+
+    // fetch
+    async function search(page=0){
+      const q = readQuery(page);
+      state.lastQuery = q;
+      $$('#busy').classList.remove('hidden');
+      $$('#grid').innerHTML = '';
+      $$('#pager').innerHTML = '';
+      ensureMap(); clearMap();
+
+      const url = new URL(endpoint, location.origin);
+      Object.entries(q).forEach(([k,v])=>{
+        if (v==null || v==='' ) return;
+        if (Array.isArray(v) && v.length===0) return;
+        url.searchParams.set(k, Array.isArray(v)? v.join(','): v);
+      });
+
+      const res = await fetch(url, { headers: { 'Accept-Language': state.lang }});
+      const data = await res.json().catch(()=>({ok:false, errors:['Bad JSON']}));
+
+      $$('#busy').classList.add('hidden');
+      $$('#meta').textContent = data.ok ? `${data.count||0} rezultatov` : 'Napaka';
+
+      // sources meta
+      if (data.meta && data.meta.sourcesUsed){
+        const src = data.meta.sourcesUsed.map(s=>`${s.source} (${s.count})`).join(' · ');
+        $$('#sourcesUsed').textContent = src;
+      }
+
+      // results
+      (data.results || []).forEach(ev => {
+        const card = document.createElement('article');
+        card.className = 'card bg-white border border-slate-200 rounded-2xl p-4 flex flex-col';
+        const date = ev.start ? new Date(ev.start).toLocaleString(state.lang) : '';
+        const price = ev.price?.min ? `${ev.price.min.toFixed(0)}–${(ev.price.max||ev.price.min).toFixed(0)} ${ev.price.currency||''}` : (ev.priceText||'');
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200">${ev.source || 'meta'}</span>
+            ${ev.images?.[0]?.url ? `<img src="${ev.images[0].url}" alt="" class="w-16 h-16 object-cover rounded-xl">` : ''}
+          </div>
+          <h3 class="mt-3 text-lg font-semibold text-ink">${ev.name || '(brez naslova)'}</h3>
+          <p class="text-sm text-slate-600 mt-1">${date}</p>
+          <p class="text-sm text-slate-600">${ev.venue?.name || ''}${ev.venue?.city ? ', ' + ev.venue.city : ''}</p>
+          ${price ? `<p class="text-sm text-slate-600">${price}</p>` : ''}
+          <div class="mt-3 flex flex-wrap gap-2">
+            <a target="_blank" rel="noopener" href="${ev.url || '#'}" class="px-3 py-1.5 rounded-lg bg-brand text-white text-sm hover:bg-brand-dark">
+              Kupi vstopnice
+            </a>
+            ${ev.affiliateUrl ? `<a target="_blank" rel="noopener" href="${ev.affiliateUrl}" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm hover:bg-slate-100">Affiliate</a>` : ''}
+          </div>
+        `;
+        $$('#grid').appendChild(card);
+        addMarker(ev);
+      });
+
+      fitMap();
+
+      // pager
+      const total = data.count || 0;
+      const pages = Math.ceil(total / state.size);
+      if (pages > 1){
+        const prev = document.createElement('button');
+        prev.textContent = '« Prejšnja';
+        prev.className = 'px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100';
+        prev.disabled = (q.page<=0);
+        prev.onclick = ()=>search(q.page-1);
+
+        const next = document.createElement('button');
+        next.textContent = 'Naslednja »';
+        next.className = 'px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100';
+        next.disabled = (q.page>=pages-1);
+        next.onclick = ()=>search(q.page+1);
+
+        const info = document.createElement('span');
+        info.className = 'text-sm text-slate-500 self-center';
+        info.textContent = `Stran ${q.page+1}/${pages}`;
+
+        $$('#pager').append(prev, info, next);
+      }
+    }
+
+    // submit
+    $$('#goBtn').addEventListener('click', (e)=>{ e.preventDefault(); search(0); });
+
+    // demo vnos
+    window.addEventListener('load', ()=>{
+      if (!$('#q').value) $$('#q').value = 'koncert';
+      if (!$('#city').value) $$('#city').value = 'Ljubljana';
+    });
+  </script>
+</body>
+  </html>

@@ -1,9 +1,10 @@
-export async function handler(event, context) {
+exports.handler = async (event) => {
   return {
     statusCode: 200,
-    body: JSON.stringify({
-      message: "Ključ iz okolja:",
-      value: process.env.TM_API_KEY // tu je ime tvojega environment variable
-    })
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ ok: true, message: 'search function is alive' })
   };
-}
+};

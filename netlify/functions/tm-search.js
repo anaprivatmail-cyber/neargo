@@ -1,391 +1,549 @@
-// netlify/functions/search.js
-// Unified event search across multiple providers with dedup + CORS
+// netlify/functions/tm-search.js
+// NearGo – več-izvorni iskalnik: Ticketmaster, Eventbrite, Songkick, SeatGeek + ICS/JSON feedi.
+// Filtri: q, city/latlong+radius, datumi od–do, categories=music,sports,children,food,culture, lang, page/size.
+// Zahteva Node 18/20 (na Netlify nastavite NODE_VERSION=20).
 
-// ---------- helpers ----------
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type,Accept-Language',
-};
-
-const ok = (body, status = 200) => ({
-  statusCode: status,
-  headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-  body: JSON.stringify(body),
-});
-
-const err = (message, status = 500, extra = {}) =>
-  ok({ ok: false, error: { message, ...extra } }, status);
-
-const norm = (s = '') =>
-  s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-
-const toISO = (d) => (d ? new Date(d).toISOString() : null);
-
-const parseLang = (event) => {
-  const q = new URLSearchParams(event.queryStringParameters || {});
-  const p = (q.get('lang') || q.get('locale') || '').toLowerCase();
-  if (p) return p;
-  const hdr = (event.headers?.['accept-language'] || '').split(',')[0] || '';
-  return (hdr || process.env.APP_LOCALE_DEFAULT || 'en').toLowerCase();
-};
-
-// make sure we never explode if one provider fails
-const settled = async (p) => {
+export const handler = async (event) => {
   try {
-    return await p;
-  } catch (e) {
-    return { ok: false, error: String(e) };
-  }
-};
+    if (event.httpMethod === 'OPTIONS') return json(204, {});
+    const q = parseQuery(event);
+    const lang = parseLang(event);
 
-const pick = (obj, keys) =>
-  Object.fromEntries(keys.filter((k) => obj[k] !== undefined).map((k) => [k, obj[k]]));
-
-// ---------- query parsing ----------
-function parseQuery(event) {
-  const q = new URLSearchParams(event.queryStringParameters || {});
-  const query = (q.get('q') || '').trim();
-  const city = (q.get('city') || '').trim();
-  const country = (q.get('country') || '').trim();
-  const latlong = (q.get('latlong') || '').trim(); // "46.05,14.51"
-  const radius = (q.get('radius') || '').trim(); // "100km" or "100"
-  const startDateTime = (q.get('startDateTime') || '').trim(); // ISO or empty
-  const page = Math.max(0, parseInt(q.get('page') || '0', 10));
-  const size = Math.min(50, Math.max(1, parseInt(q.get('size') || '20', 10))); // cap 50
-
-  // normalize radius form
-  let r = '';
-  if (radius) {
-    const n = parseFloat(radius);
-    r = isFinite(n) ? `${n}km` : radius;
-  }
-
-  return { query, city, country, latlong, radius: r, startDateTime, page, size };
-}
-
-// ---------- unified schema ----------
-// event:
-// {
-//   id, source, sourceId,
-//   name, description,
-//   url,
-//   start, end, timezone,
-//   venue: { name, address, city, country, lat, lon },
-//   performers: [{name}],
-//   images: [url],
-//   price: { min, max, currency }
-// }
-
-function fingerprint(e) {
-  const k = [
-    norm(e.name || ''),
-    (e.start || '').slice(0, 10), // date only
-    norm(e.venue?.city || ''),
-  ].join('|');
-
-  // If we have coordinates, strengthen the hash with rounded coords
-  const lat = e.venue?.lat, lon = e.venue?.lon;
-  const geo =
-    typeof lat === 'number' && typeof lon === 'number'
-      ? `|${lat.toFixed(3)},${lon.toFixed(3)}`
-      : '';
-  return k + geo;
-}
-
-function dedupe(list) {
-  const seen = new Map();
-  for (const e of list) {
-    const fp = fingerprint(e);
-    if (!seen.has(fp)) {
-      seen.set(fp, e);
-    } else {
-      // merge images/performers/urls if duplicates
-      const prev = seen.get(fp);
-      prev.images = Array.from(new Set([...(prev.images || []), ...(e.images || [])]));
-      prev.performers = Array.from(
-        new Set([...(prev.performers || []), ...(e.performers || [])].map((p) => p.name))
-      ).map((name) => ({ name }));
-      if (!prev.url && e.url) prev.url = e.url;
+    // Geokodiranje mesta -> lat/lon (če ni podan latlong)
+    let { lat, lon } = q;
+    if ((lat == null || lon == null) && q.city) {
+      const g = await geocodeCity(`${q.city}${q.country ? ', ' + q.country : ''}`, lang);
+      if (g) { lat = g.lat; lon = g.lon; }
     }
-  }
-  return Array.from(seen.values());
-}
 
-// ---------- providers ----------
-async function fetchTicketmaster(q, lang) {
-  const key = process.env.TICKETMASTER_API_KEY;
-  if (!key) return { source: 'ticketmaster', results: [] };
-
-  const params = new URLSearchParams();
-  if (q.query) params.set('keyword', q.query);
-  if (q.city) params.set('city', q.city);
-  if (q.country) params.set('countryCode', q.country);
-  if (q.latlong) params.set('latlong', q.latlong);
-  if (q.radius) params.set('radius', String(parseFloat(q.radius)));
-  if (q.startDateTime) params.set('startDateTime', new Date(q.startDateTime).toISOString());
-  params.set('size', String(q.size));
-  params.set('page', String(q.page));
-  params.set('sort', 'date,asc');
-  params.set('locale', lang); // e.g., "sl", "en", "de"
-
-  const url = `https://app.ticketmaster.com/discovery/v2/events.json?${params.toString()}&apikey=${encodeURIComponent(
-    key
-  )}`;
-
-  const res = await fetch(url, { headers: { 'User-Agent': 'neargo/1.0' } });
-  if (!res.ok) throw new Error(`TM ${res.status}`);
-  const data = await res.json();
-
-  const events = (data?._embedded?.events || []).map((ev) => {
-    const venue = ev._embedded?.venues?.[0] || {};
-    const price = ev.priceRanges?.[0] || {};
-    return {
-      id: `ticketmaster:${ev.id}`,
-      source: 'ticketmaster',
-      sourceId: ev.id,
-      name: ev.name,
-      description: ev.info || ev.pleaseNote || '',
-      url: ev.url,
-      start: toISO(ev.dates?.start?.dateTime || ev.dates?.start?.localDate),
-      end: toISO(ev.dates?.end?.dateTime),
-      timezone: ev.dates?.timezone || venue.timezone || null,
-      venue: {
-        name: venue.name || '',
-        address: venue.address?.line1 || '',
-        city: venue.city?.name || '',
-        country: venue.country?.countryCode || '',
-        lat: venue.location ? Number(venue.location.latitude) : undefined,
-        lon: venue.location ? Number(venue.location.longitude) : undefined,
-      },
-      performers: (ev._embedded?.attractions || []).map((a) => ({ name: a.name })),
-      images: (ev.images || []).map((i) => i.url).filter(Boolean),
-      price: price ? pick(price, ['min', 'max', 'currency']) : undefined,
+    // Aktivni viri (ključ prisoten?)
+    const active = {
+      tm: !!process.env.TICKETMASTER_API_KEY,
+      eb: !!process.env.EVENTBRITE_TOKEN,
+      sk: !!process.env.SONGKICK_API_KEY,
+      sg: !!process.env.SEATGEEK_CLIENT_ID,
+      feeds: true
     };
-  });
 
-  return { source: 'ticketmaster', results: events, rawCount: events.length };
-}
+    // Poženemo vse vire vzporedno; napaka enega ne podre celote
+    const jobs = [];
+    if (active.tm) jobs.push(safe(fetchTicketmaster({ ...q, lang, lat, lon })));
+    if (active.eb) jobs.push(safe(fetchEventbrite({ ...q, lang, lat, lon })));
+    if (active.sk && lat!=null && lon!=null) jobs.push(safe(fetchSongkick({ ...q, lang, lat, lon })));
+    if (active.sg) jobs.push(safe(fetchSeatGeek({ ...q, lang, lat, lon })));
+    jobs.push(safe(fetchFeeds({ ...q, lang, lat, lon }))); // ICS/JSON: FEED_URLS ali /data/feeds.json
 
-async function fetchEventbrite(q, _lang) {
-  const token = process.env.EVENTBRITE_TOKEN;
-  if (!token) return { source: 'eventbrite', results: [] };
-
-  const params = new URLSearchParams();
-  if (q.query) params.set('q', q.query);
-  if (q.city) params.set('location.address', [q.city, q.country].filter(Boolean).join(', '));
-  if (q.latlong) params.set('location.latitude', q.latlong.split(',')[0].trim());
-  if (q.latlong) params.set('location.longitude', q.latlong.split(',')[1].trim());
-  if (q.radius) params.set('location.within', q.radius);
-  if (q.startDateTime) params.set('start_date.range_start', new Date(q.startDateTime).toISOString());
-  params.set('expand', 'venue,format,category,ticket_classes');
-  params.set('page', String(q.page + 1)); // EB is 1-based
-  params.set('page_size', String(q.size));
-
-  const url = `https://www.eventbriteapi.com/v3/events/search/?${params.toString()}`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, 'User-Agent': 'neargo/1.0' },
-  });
-  if (!res.ok) throw new Error(`EB ${res.status}`);
-  const data = await res.json();
-
-  const events = (data.events || []).map((ev) => {
-    const venue = ev.venue || {};
-    let lat, lon;
-    if (venue?.latitude && venue?.longitude) {
-      lat = Number(venue.latitude);
-      lon = Number(venue.longitude);
-    }
-    // price guess from ticket classes
-    const t = Array.isArray(ev.ticket_classes) ? ev.ticket_classes : [];
-    const prices = t
-      .map((tc) => tc.cost)
-      .filter(Boolean)
-      .map((c) => ({ value: Number(c.value) / 100, currency: c.currency }));
-    const min = prices.length ? Math.min(...prices.map((p) => p.value)) : undefined;
-    const max = prices.length ? Math.max(...prices.map((p) => p.value)) : undefined;
-
-    return {
-      id: `eventbrite:${ev.id}`,
-      source: 'eventbrite',
-      sourceId: ev.id,
-      name: ev.name?.text || '',
-      description: ev.summary || ev.description?.text || '',
-      url: ev.url,
-      start: toISO(ev.start?.utc || ev.start?.local),
-      end: toISO(ev.end?.utc || ev.end?.local),
-      timezone: ev.start?.timezone || null,
-      venue: {
-        name: venue.name || '',
-        address: [venue.address_1, venue.address_2].filter(Boolean).join(', '),
-        city: venue.address?.city || '',
-        country: venue.address?.country || '',
-        lat,
-        lon,
-      },
-      performers: [], // EB doesn't expose performers directly
-      images: ev.logo?.url ? [ev.logo.url] : [],
-      price: prices.length ? { min, max, currency: prices[0].currency } : undefined,
-    };
-  });
-
-  return { source: 'eventbrite', results: events, rawCount: events.length };
-}
-
-async function fetchSongkick(q, _lang) {
-  const key = process.env.SONGKICK_API_KEY;
-  if (!key) return { source: 'songkick', results: [] };
-
-  const params = new URLSearchParams();
-  if (q.query) params.set('query', q.query);
-  if (q.latlong) params.set('location', `geo:${q.latlong}`);
-  else if (q.city || q.country) params.set('location', `city:${[q.city, q.country].filter(Boolean).join(',')}`);
-  if (q.startDateTime) params.set('min_date', new Date(q.startDateTime).toISOString().slice(0, 10));
-  params.set('page', String(q.page + 1));
-  params.set('per_page', String(q.size));
-
-  const url = `https://api.songkick.com/api/3.0/search/events.json?apikey=${encodeURIComponent(
-    key
-  )}&${params.toString()}`;
-
-  const res = await fetch(url, { headers: { 'User-Agent': 'neargo/1.0' } });
-  if (!res.ok) throw new Error(`SK ${res.status}`);
-  const data = await res.json();
-  const events = (data.resultsPage?.results?.event || []).map((ev) => {
-    const venue = ev.venue || {};
-    const loc = ev.location || {};
-    const perf = (ev.performance || []).map((p) => ({ name: p.artist?.displayName }));
-    return {
-      id: `songkick:${ev.id}`,
-      source: 'songkick',
-      sourceId: String(ev.id),
-      name: ev.displayName || '',
-      description: '',
-      url: ev.uri,
-      start: toISO(ev.start?.datetime || ev.start?.date),
-      end: null,
-      timezone: null,
-      venue: {
-        name: venue.displayName || '',
-        address: '',
-        city: venue.metroArea?.displayName || '',
-        country: venue.metroArea?.country?.displayName || '',
-        lat: typeof loc.lat === 'number' ? loc.lat : undefined,
-        lon: typeof loc.lng === 'number' ? loc.lng : undefined,
-      },
-      performers: perf,
-      images: [],
-      price: undefined,
-    };
-  });
-
-  return { source: 'songkick', results: events, rawCount: events.length };
-}
-
-async function fetchSeatGeek(q, _lang) {
-  const clientId = process.env.SEATGEEK_CLIENT_ID;
-  if (!clientId) return { source: 'seatgeek', results: [] };
-
-  const params = new URLSearchParams();
-  if (q.query) params.set('q', q.query);
-  if (q.latlong) {
-    const [lat, lon] = q.latlong.split(',').map((s) => s.trim());
-    params.set('lat', lat);
-    params.set('lon', lon);
-    if (q.radius) params.set('range', q.radius);
-  } else if (q.city) {
-    params.set('geoip', q.city);
-  }
-  if (q.startDateTime) params.set('datetime_utc.gte', new Date(q.startDateTime).toISOString());
-  params.set('per_page', String(q.size));
-  params.set('page', String(q.page));
-  params.set('client_id', clientId);
-
-  const url = `https://api.seatgeek.com/2/events?${params.toString()}`;
-  const res = await fetch(url, { headers: { 'User-Agent': 'neargo/1.0' } });
-  if (!res.ok) throw new Error(`SG ${res.status}`);
-  const data = await res.json();
-
-  const events = (data.events || []).map((ev) => {
-    const venue = ev.venue || {};
-    return {
-      id: `seatgeek:${ev.id}`,
-      source: 'seatgeek',
-      sourceId: String(ev.id),
-      name: ev.title || '',
-      description: '',
-      url: ev.url,
-      start: toISO(ev.datetime_utc),
-      end: null,
-      timezone: venue.timezone || null,
-      venue: {
-        name: venue.name || '',
-        address: venue.address || '',
-        city: venue.city || '',
-        country: venue.country || '',
-        lat: typeof venue.location?.lat === 'number' ? venue.location.lat : venue.lat,
-        lon: typeof venue.location?.lon === 'number' ? venue.location.lon : venue.lon,
-      },
-      performers: (ev.performers || []).map((p) => ({ name: p.name })),
-      images: (ev.performers || []).map((p) => p.image).filter(Boolean),
-      price: ev.stats?.lowest_price
-        ? { min: ev.stats.lowest_price, max: ev.stats.highest_price, currency: 'USD' }
-        : undefined,
-    };
-  });
-
-  return { source: 'seatgeek', results: events, rawCount: events.length };
-}
-
-// ---------- handler ----------
-exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return ok({}, 204);
-
-  const lang = parseLang(event);
-  const q = parseQuery(event);
-
-  try {
-    const providers = [
-      settled(fetchTicketmaster(q, lang)),
-      settled(fetchEventbrite(q, lang)),
-      settled(fetchSongkick(q, lang)),
-      settled(fetchSeatGeek(q, lang)),
-    ];
-
-    const res = await Promise.all(providers);
+    const settled = await Promise.all(jobs);
 
     const used = [];
     const errors = [];
-    let combined = [];
+    let all = [];
 
-    for (const r of res) {
-      if (r?.results) {
+    for (const r of settled) {
+      if (r.ok) {
         used.push({ source: r.source, count: r.results.length });
-        combined = combined.concat(r.results);
+        all = all.concat(r.results);
       } else {
-        // shape from settled() on error
-        errors.push(r?.error || 'unknown error');
+        errors.push({ source: r.source || 'unknown', error: r.error });
       }
     }
 
-    const deduped = dedupe(combined);
+    // Normalizacija + deduplikacija
+    let results = normalize(all);
 
-    const page = q.page;
-    const size = q.size;
-    const start = page * size;
-    const paged = deduped.slice(start, start + size);
+    // Filtar po kategorijah (če podane)
+    if (q.categories.length) {
+      const want = new Set(q.categories.map(s=>s.toLowerCase()));
+      results = results.filter(ev => {
+        const tags = new Set((ev.categories||[]).map(s=>s.toLowerCase()));
+        for (const c of want) if (tags.has(c)) return true;
+        return false;
+      });
+    }
 
-    return ok({
+    // Sort po začetku
+    results.sort((a,b) => (new Date(a.start||0)) - (new Date(b.start||0)));
+
+    // Paginacija
+    const startIdx = q.page * q.size;
+    const pageItems = results.slice(startIdx, startIdx + q.size);
+
+    return json(200, {
       ok: true,
       locale: lang,
-      query: q,
-      meta: { sourcesUsed: used, errors },
-      page,
-      size,
-      count: deduped.length,
-      results: paged,
+      query: { ...q, lat, lon },
+      meta: { sourcesUsed: used, errors, total: results.length, page: q.page, size: q.size },
+      results: pageItems
     });
+
   } catch (e) {
-    return err('search failed', 500, { detail: String(e?.message || e) });
+    return json(500, { ok:false, error: e?.message || String(e) });
   }
 };
+
+/* -------------------- helpers -------------------- */
+const json = (code, data) => ({
+  statusCode: code,
+  headers: {
+    'content-type': 'application/json; charset=utf-8',
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'GET,OPTIONS',
+    'access-control-allow-headers': 'Content-Type,Accept-Language'
+  },
+  body: JSON.stringify(data)
+});
+
+const safe = async (p) => {
+  try { const v = await p; return { ok:true, ...v }; }
+  catch (e) { return { ok:false, error: e?.message || String(e) }; }
+};
+
+const parseLang = (event) => {
+  const p = new URLSearchParams(event.queryStringParameters || {});
+  const explicit = (p.get('lang') || p.get('locale') || '').toLowerCase();
+  if (explicit) return explicit;
+  const hdr = (event.headers?.['accept-language'] || '').split(',')[0] || '';
+  return (hdr || 'en').toLowerCase();
+};
+
+function parseQuery(event) {
+  const p = new URLSearchParams(event.queryStringParameters || {});
+  const num = (k, def, min=undefined, max=undefined) => {
+    let v = Number(p.get(k));
+    if (!isFinite(v)) v = def;
+    if (min!=null) v = Math.max(min, v);
+    if (max!=null) v = Math.min(max, v);
+    return v;
+  };
+
+  // lat,long
+  let lat=null, lon=null;
+  const ll = (p.get('latlong') || p.get('ll') || '').trim();
+  if (ll && /^[\d.\-]+,[\d.\-]+$/.test(ll)) {
+    const [a,b] = ll.split(',').map(Number); lat=a; lon=b;
+  }
+
+  // radius km
+  const radiusStr = (p.get('radius') || '').trim();
+  const radiusKm = isFinite(Number(radiusStr)) ? Number(radiusStr) : 50;
+
+  // datumi -> ISO
+  const normISO = (s) => {
+    if (!s) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T00:00:00Z`;
+    if (/Z$/.test(s)) return s;
+    if (/T/.test(s)) return s + 'Z';
+    return s;
+  };
+
+  return {
+    q: (p.get('q') || p.get('query') || '').trim(),
+    city: (p.get('city') || '').trim(),
+    country: (p.get('country') || p.get('countryCode') || '').trim(),
+    lat, lon,
+    radiusKm,
+    startISO: normISO((p.get('start') || p.get('startDate') || p.get('startDateTime') || '').trim()),
+    endISO:   normISO((p.get('end')   || p.get('endDate')   || p.get('endDateTime')   || '').trim()),
+    page: num('page', 0, 0),
+    size: num('size', 20, 1, 50),
+    categories: (p.get('categories') || '').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean)
+  };
+}
+
+async function geocodeCity(q, lang) {
+  const u = new URL('https://nominatim.openstreetmap.org/search');
+  u.searchParams.set('q', q);
+  u.searchParams.set('format', 'json');
+  u.searchParams.set('limit', '1');
+  u.searchParams.set('accept-language', lang || 'en');
+  const r = await fetch(u, { headers: { 'User-Agent': 'NearGo/1.0 (getneargo.com)' }});
+  if (!r.ok) return null;
+  const j = await r.json();
+  if (!Array.isArray(j) || !j.length) return null;
+  return { lat: Number(j[0].lat), lon: Number(j[0].lon) };
+}
+
+const normTxt = (s='') => s.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+
+function catsFromText(t='') {
+  const s = normTxt(t);
+  const tags = new Set();
+  if (/(music|concert|gig|band|rock|jazz|hip ?hop|classical)/.test(s)) tags.add('music');
+  if (/(sport|match|game|football|soccer|basketball|tennis|hockey|baseball)/.test(s)) tags.add('sports');
+  if (/(child|kid|family|otro(c|k)|druzin)/.test(s)) tags.add('children');
+  if (/(food|drink|culinary|degust|restaurant|street ?food|vino|beer|wine)/.test(s)) tags.add('food');
+  if (/(culture|theatre|theater|museum|gallery|film|cinema|opera|ballet|festival)/.test(s)) tags.add('culture');
+  return Array.from(tags);
+}
+
+function normalize(list) {
+  const out = [];
+  const seen = new Set();
+  for (const e of list) {
+    const id = e.externalId
+      || `${normTxt(e.name||'')}|${(e.start||'').slice(0,10)}|${normTxt(e.city||'')}|${normTxt(e.venue||'')}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({
+      id,
+      source: e.source,
+      name: e.name || '',
+      url: e.url || '',
+      start: e.start || '',
+      end: e.end || '',
+      timezone: e.timezone || '',
+      venue: e.venue || '',
+      address: e.address || '',
+      city: e.city || '',
+      country: e.country || '',
+      lat: e.lat ?? null,
+      lon: e.lon ?? null,
+      image: e.image || '',
+      categories: e.categories || [],
+      priceMin: e.priceMin ?? null,
+      priceMax: e.priceMax ?? null,
+      currency: e.currency || ''
+    });
+  }
+  return out;
+}
+
+/* -------------------- SOURCES -------------------- */
+// Ticketmaster
+async function fetchTicketmaster({ q, city, lat, lon, radiusKm, startISO, endISO, page, size, lang }) {
+  const api = process.env.TICKETMASTER_API_KEY;
+  const u = new URL('https://app.ticketmaster.com/discovery/v2/events.json');
+  u.searchParams.set('apikey', api);
+  if (q) u.searchParams.set('keyword', q);
+  if (city) u.searchParams.set('city', city);
+  if (lat!=null && lon!=null) {
+    u.searchParams.set('latlong', `${lat},${lon}`);
+    u.searchParams.set('radius', String(Math.max(1, radiusKm||50)));
+    u.searchParams.set('unit', 'km');
+  }
+  if (startISO) u.searchParams.set('startDateTime', startISO);
+  if (endISO)   u.searchParams.set('endDateTime', endISO);
+  u.searchParams.set('size', String(size));
+  u.searchParams.set('page', String(page));
+  u.searchParams.set('locale', lang || '*');
+
+  const r = await fetch(u, { headers: { 'Accept-Language': lang || 'en' } });
+  if (!r.ok) throw Object.assign(new Error(`Ticketmaster ${r.status}`), { source:'ticketmaster' });
+  const j = await r.json();
+
+  const items = (j?._embedded?.events || []).map(ev => {
+    const v = ev._embedded?.venues?.[0] || {};
+    const pr = ev.priceRanges?.[0] || {};
+    return {
+      source: 'ticketmaster',
+      externalId: ev.id,
+      name: ev.name || '',
+      url: ev.url || '',
+      start: ev.dates?.start?.dateTime || ev.dates?.start?.localDate || '',
+      end:   ev.dates?.end?.dateTime || '',
+      timezone: ev.dates?.timezone || '',
+      venue: v.name || '',
+      address: [v.address?.line1, v.city?.name].filter(Boolean).join(', '),
+      city: v.city?.name || '',
+      country: v.country?.countryCode || v.country?.name || '',
+      lat: Number(v.location?.latitude ?? v.latitude ?? NaN) || null,
+      lon: Number(v.location?.longitude ?? v.longitude ?? NaN) || null,
+      image: (ev.images||[]).sort((a,b)=>(b.width*b.height)-(a.width*a.height))[0]?.url || '',
+      priceMin: pr.min ?? null, priceMax: pr.max ?? null, currency: pr.currency || '',
+      categories: catsFromText([ev.name, ev.classifications?.map(c=>c.segment?.name).join(' '), ev.classifications?.map(c=>c.genre?.name).join(' ')].join(' '))
+    };
+  });
+  return { source: 'ticketmaster', results: items };
+}
+
+// Eventbrite
+async function fetchEventbrite({ q, city, lat, lon, radiusKm, startISO, endISO, page, size, lang }) {
+  const token = process.env.EVENTBRITE_TOKEN;
+  if (!token) return { source: 'eventbrite', results: [] };
+  const u = new URL('https://www.eventbriteapi.com/v3/events/search/');
+  if (q) u.searchParams.set('q', q);
+  if (lat!=null && lon!=null) {
+    u.searchParams.set('location.latitude', String(lat));
+    u.searchParams.set('location.longitude', String(lon));
+    u.searchParams.set('location.within', `${Math.max(1, radiusKm||50)}km`);
+  } else if (city) {
+    u.searchParams.set('location.address', city);
+    u.searchParams.set('location.within', `${Math.max(1, radiusKm||50)}km`);
+  }
+  if (startISO) u.searchParams.set('start_date.range_start', startISO);
+  if (endISO)   u.searchParams.set('start_date.range_end', endISO);
+  u.searchParams.set('expand', 'venue,category,format');
+  u.searchParams.set('page', String(page+1));
+  u.searchParams.set('page_size', String(size));
+
+  const r = await fetch(u, { headers: { Authorization: `Bearer ${token}` }});
+  if (!r.ok) throw Object.assign(new Error(`Eventbrite ${r.status}`), { source:'eventbrite' });
+  const j = await r.json();
+
+  const items = (j.events||[]).map(ev => {
+    const v = ev.venue || {};
+    return {
+      source: 'eventbrite',
+      externalId: ev.id,
+      name: ev.name?.text || '',
+      url: ev.url || '',
+      start: ev.start?.utc || ev.start?.local || '',
+      end:   ev.end?.utc || ev.end?.local || '',
+      timezone: ev.start?.timezone || '',
+      venue: v.name || '',
+      address: [v.address?.address_1, v.address?.city].filter(Boolean).join(', '),
+      city: v.address?.city || '',
+      country: v.address?.country || '',
+      lat: Number(v.latitude ?? NaN) || null,
+      lon: Number(v.longitude ?? NaN) || null,
+      image: ev.logo?.url || '',
+      priceMin: null, priceMax: null, currency: '',
+      categories: catsFromText([ev.name?.text, ev.summary, ev.category?.name, ev.format?.name].join(' '))
+    };
+  });
+  return { source: 'eventbrite', results: items };
+}
+
+// Songkick (potrebuje lat/lon)
+async function fetchSongkick({ q, lat, lon, startISO, endISO, page, size }) {
+  const key = process.env.SONGKICK_API_KEY;
+  if (!key || lat==null || lon==null) return { source: 'songkick', results: [] };
+  const u = new URL('https://api.songkick.com/api/3.0/events.json');
+  u.searchParams.set('apikey', key);
+  u.searchParams.set('location', `geo:${lat},${lon}`);
+  if (q) u.searchParams.set('query', q);
+  if (startISO) u.searchParams.set('min_date', startISO.slice(0,10));
+  if (endISO)   u.searchParams.set('max_date', endISO.slice(0,10));
+  u.searchParams.set('per_page', String(Math.min(50, size)));
+  u.searchParams.set('page', String(page+1));
+
+  const r = await fetch(u);
+  if (!r.ok) throw Object.assign(new Error(`Songkick ${r.status}`), { source:'songkick' });
+  const j = await r.json();
+
+  const items = (j.resultsPage?.results?.event || []).map(ev => {
+    const v = ev.venue || {};
+    return {
+      source: 'songkick',
+      externalId: String(ev.id),
+      name: ev.displayName || '',
+      url: ev.uri || '',
+      start: ev.start?.datetime ? new Date(ev.start.datetime).toISOString()
+           : ev.start?.date ? `${ev.start.date}T00:00:00Z` : '',
+      end: '',
+      timezone: '',
+      venue: v.displayName || '',
+      address: '',
+      city: ev.location?.city || v.metroArea?.displayName || '',
+      country: v.metroArea?.country?.displayName || '',
+      lat: Number(v.lat ?? ev.location?.lat ?? NaN) || null,
+      lon: Number(v.lng ?? ev.location?.lng ?? NaN) || null,
+      image: '',
+      priceMin: null, priceMax: null, currency: '',
+      categories: catsFromText([ev.type, ev.displayName].join(' '))
+    };
+  });
+  return { source: 'songkick', results: items };
+}
+
+// SeatGeek
+async function fetchSeatGeek({ q, lat, lon, radiusKm, startISO, endISO, page, size }) {
+  const id = process.env.SEATGEEK_CLIENT_ID;
+  if (!id) return { source: 'seatgeek', results: [] };
+  const u = new URL('https://api.seatgeek.com/2/events');
+  u.searchParams.set('client_id', id);
+  const secret = process.env.SEATGEEK_CLIENT_SECRET;
+  if (secret) u.searchParams.set('client_secret', secret);
+  if (q) u.searchParams.set('q', q);
+  if (lat!=null && lon!=null) {
+    u.searchParams.set('lat', String(lat));
+    u.searchParams.set('lon', String(lon));
+    const miles = Math.max(1, Math.round((radiusKm||50) * 0.621371));
+    u.searchParams.set('range', `${miles}mi`);
+  }
+  if (startISO) u.searchParams.set('datetime_utc.gte', startISO);
+  if (endISO)   u.searchParams.set('datetime_utc.lte', endISO);
+  u.searchParams.set('per_page', String(size));
+  u.searchParams.set('page', String(page+1));
+
+  const r = await fetch(u);
+  if (!r.ok) throw Object.assign(new Error(`SeatGeek ${r.status}`), { source:'seatgeek' });
+  const j = await r.json();
+
+  const items = (j.events||[]).map(ev => {
+    const v = ev.venue || {};
+    return {
+      source: 'seatgeek',
+      externalId: String(ev.id),
+      name: ev.title || '',
+      url: ev.url || '',
+      start: ev.datetime_utc || '',
+      end: '',
+      timezone: v.timezone || '',
+      venue: v.name || '',
+      address: [v.address, v.extended_address].filter(Boolean).join(', '),
+      city: v.city || '',
+      country: v.country || '',
+      lat: Number(v.location?.lat ?? v.lat ?? NaN) || null,
+      lon: Number(v.location?.lon ?? v.lon ?? NaN) || null,
+      image: ev.performers?.find(p=>p.image)?.image || '',
+      priceMin: ev.stats?.lowest_price ?? null,
+      priceMax: ev.stats?.highest_price ?? null,
+      currency: 'USD',
+      categories: catsFromText([ev.type, ev.title, (ev.taxonomies||[]).map(t=>t.name).join(' ')].join(' '))
+    };
+  });
+  return { source: 'seatgeek', results: items };
+}
+
+/* -------------------- FEEDS (ICS/JSON) -------------------- */
+// Bere: FEED_URLS (env, vejice) + /data/feeds.json (če obstaja na strani).
+async function fetchFeeds({ q, city, lat, lon, radiusKm, startISO, endISO, lang }) {
+  const urls = new Set();
+
+  // 1) iz env
+  (process.env.FEED_URLS || '')
+    .split(',').map(s=>s.trim()).filter(Boolean)
+    .forEach(u => urls.add(u));
+
+  // 2) iz /data/feeds.json na tvoji strani (če obstaja)
+  const base = process.env.URL || process.env.DEPLOY_PRIME_URL || '';
+  if (base) {
+    try {
+      const r = await fetch(`${base.replace(/\/+$/,'')}/data/feeds.json`, { headers: { 'Cache-Control':'no-cache' }});
+      if (r.ok) {
+        const arr = await r.json();
+        (Array.isArray(arr)?arr:[]).forEach(u => { if (typeof u === 'string') urls.add(u); });
+      }
+    } catch {}
+  }
+
+  const results = [];
+  const tasks = Array.from(urls).map(u => safe(fetchOneFeed(u)));
+  const done = await Promise.all(tasks);
+  for (const d of done) if (d.ok) results.push(...d.results);
+
+  // osnovni filtri
+  let rows = results;
+  if (q) {
+    const qn = normTxt(q);
+    rows = rows.filter(e => normTxt(`${e.name} ${e.venue} ${e.city} ${e.address}`).includes(qn));
+  }
+  if (city) {
+    const cn = normTxt(city);
+    rows = rows.filter(e => normTxt(`${e.city} ${e.venue} ${e.address}`).includes(cn));
+  }
+  if (startISO) rows = rows.filter(e => !e.start || new Date(e.start) >= new Date(startISO));
+  if (endISO)   rows = rows.filter(e => !e.start || new Date(e.start) <= new Date(endISO));
+  if (lat!=null && lon!=null && radiusKm) {
+    const R = radiusKm;
+    rows = rows.filter(e => {
+      if (e.lat==null || e.lon==null) return true; // brez geo – pustimo
+      const d = haversine(lat, lon, e.lat, e.lon);
+      return d <= R;
+    });
+  }
+
+  return { source: 'feeds', results: rows };
+}
+
+async function fetchOneFeed(url) {
+  const r = await fetch(url, { headers: { 'User-Agent':'NearGo/1.0' }});
+  if (!r.ok) throw Object.assign(new Error(`FEED ${r.status}`), { source:'feeds' });
+  const ct = (r.headers.get('content-type') || '').toLowerCase();
+  const text = await r.text();
+
+  if (/text\/calendar|ics/.test(ct) || /BEGIN:VCALENDAR/.test(text)) {
+    return { source:'feeds', results: parseICS(text, url) };
+  }
+  // JSON format: [{name,start,end,venue,city,country,lat,lon,url,image,categories:[...]}, ...]
+  try {
+    const arr = JSON.parse(text);
+    const items = (Array.isArray(arr)?arr:[]).map(x => ({
+      source: 'feed',
+      externalId: x.id || `${x.name}|${x.start}|${x.venue}|${x.city}`,
+      name: x.name || '',
+      url: x.url || '',
+      start: x.start || '',
+      end: x.end || '',
+      timezone: x.timezone || '',
+      venue: x.venue || '',
+      address: x.address || '',
+      city: x.city || '',
+      country: x.country || '',
+      lat: x.lat ?? null,
+      lon: x.lon ?? null,
+      image: x.image || '',
+      categories: Array.isArray(x.categories) ? x.categories : catsFromText([x.name, x.venue].join(' '))
+    }));
+    return { source:'feeds', results: items };
+  } catch {
+    // RSS/Atom lahko dodamo kasneje
+    return { source:'feeds', results: [] };
+  }
+}
+
+function parseICS(ics, url) {
+  const lines = ics.replace(/\r/g,'').split('\n');
+  const unfolded = [];
+  for (const line of lines) {
+    if (line.startsWith(' ') || line.startsWith('\t')) {
+      unfolded[unfolded.length-1] = (unfolded[unfolded.length-1]||'') + line.slice(1);
+    } else unfolded.push(line);
+  }
+  const evs = [];
+  let cur = null;
+  for (const ln of unfolded) {
+    if (/^BEGIN:VEVENT/i.test(ln)) { cur = {}; continue; }
+    if (/^END:VEVENT/i.test(ln)) { if (cur) evs.push(cur); cur=null; continue; }
+    if (!cur) continue;
+    const [k, ...rest] = ln.split(':');
+    const v = rest.join(':');
+    const key = k.split(';')[0].toUpperCase();
+    if (key === 'SUMMARY') cur.SUMMARY = v;
+    else if (key === 'DTSTART' || key === 'DTSTART;VALUE=DATE') cur.DTSTART = v;
+    else if (key === 'DTEND'   || key === 'DTEND;VALUE=DATE')   cur.DTEND = v;
+    else if (key === 'LOCATION') cur.LOCATION = v;
+    else if (key === 'DESCRIPTION') cur.DESCRIPTION = v;
+    else if (key === 'URL') cur.URL = v;
+    else if (key === 'UID') cur.UID = v;
+  }
+  const toISO = (s) => {
+    if (!s) return '';
+    if (/^\d{8}$/.test(s)) return `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}T00:00:00Z`;
+    if (/^\d{8}T\d{6}Z$/.test(s)) {
+      const y=s.slice(0,4), m=s.slice(4,6), d=s.slice(6,8), hh=s.slice(9,11), mm=s.slice(11,13), ss=s.slice(13,15);
+      return `${y}-${m}-${d}T${hh}:${mm}:${ss}Z`;
+    }
+    return s;
+  };
+  return evs.map(e => {
+    const place = e.LOCATION || '';
+    const city = place.split(',').slice(-2, -1)[0]?.trim() || '';
+    return {
+      source: 'feed',
+      externalId: e.UID || `${e.SUMMARY}|${e.DTSTART}|${place}|${url}`,
+      name: e.SUMMARY || '',
+      url: e.URL || '',
+      start: toISO(e.DTSTART),
+      end: toISO(e.DTEND),
+      timezone: '',
+      venue: place || '',
+      address: place || '',
+      city,
+      country: '',
+      lat: null, lon: null,
+      image: '',
+      categories: catsFromText([e.SUMMARY, place].join(' '))
+    };
+  });
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const toRad = (x)=> x*Math.PI/180;
+  const dLat = toRad(lat2-lat1);
+  const dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}

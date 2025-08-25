@@ -1,3 +1,28 @@
+# netlify.toml – poskrbi, da funkcije delujejo pravilno in da imamo lepe URL-je
 [build]
+  publish = "."
   functions = "netlify/functions"
-  publish   = "."
+
+[[redirects]]
+  from = "/api/search"
+  to = "/.netlify/functions/tm-search"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/checkout"
+  to = "/.netlify/functions/checkout"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/provider-submit"
+  to = "/.netlify/functions/provider-submit"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/provider-list"
+  to = "/.netlify/functions/provider-list"
+  status = 200
+  force = true

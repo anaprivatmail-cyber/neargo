@@ -72,38 +72,53 @@
     </div>
   </div>
 </header>
-
 <section class="hero-gradient border-b border-slate-200">
   <div class="max-w-6xl mx-auto px-4 py-14 grid lg:grid-cols-2 gap-10 items-center">
     <div>
-      <p class="uppercase tracking-wide text-brand font-semibold mb-2">getneargo.com</p>
+      <!-- odstranjen GETNEARGO.COM badge -->
       <h1 class="text-4xl sm:text-5xl font-extrabold leading-tight text-ink">
         Najdi <span class="text-brand">dogodke blizu</span> — koncerti, hrana, kultura, otroci &amp; več
       </h1>
-      <p class="mt-4 text-slate-600">NearGo je hiter meta-iskalnik. Vtipkaj, izberi kraj ali radij in dobiš vse v tvojem jeziku. Brez podvajanj.</p>
+      <p class="mt-4 text-slate-600">
+        NearGo je hiter meta-iskalnik. Vtipkaj, izberi kraj ali radij in že izveš, kaj se dogaja v tvojem jeziku.
+      </p>
+
       <div class="mt-6 flex flex-wrap gap-3">
         <a href="#search" class="px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-dark">Začni iskati</a>
         <a id="btnProviderOpen2" href="#provider" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-100">Objavi dogodek</a>
       </div>
+
       <div class="mt-6 flex flex-wrap gap-2 text-xs text-slate-600">
-        <span class="px-3 py-1 rounded-full border border-slate-200 bg-white">Pametni filtri</span>
+        <button id="filtersToggle" type="button" class="px-3 py-1 rounded-full border border-slate-200 bg-white">
+          Pametni filtri
+        </button>
         <span class="px-3 py-1 rounded-full border border-slate-200 bg-white">Zemljevid</span>
-        <span class="px-3 py-1 rounded-full border border-slate-200 bg-white">Brez podvajanj</span>
       </div>
     </div>
-    <div class="glass rounded-2xl p-5 shadow-lg pulse">
+
+    <div class="glass rounded-2xl p-5 shadow-lg">
       <!-- SEARCH -->
       <form id="search" class="space-y-4">
         <div class="grid sm:grid-cols-2 gap-3">
-          <div><label class="text-sm text-slate-500">Kaj</label><input id="q" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="npr. Metallica, street food…" /></div>
-          <div><label class="text-sm text-slate-500">Kraj</label><input id="city" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="Ljubljana, Dunaj…" /></div>
+          <div>
+            <label class="text-sm text-slate-500">Kaj</label>
+            <input id="q" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="npr. Metallica, street food…" />
+          </div>
+
+          <div>
+            <label class="text-sm text-slate-500">Mesto/kraj</label>
+            <input id="city" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="" />
+          </div>
         </div>
+
         <div class="grid sm:grid-cols-3 gap-3">
           <div><label class="text-sm text-slate-500">Radij (km)</label><input id="radius" type="number" min="1" max="300" value="50" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
           <div><label class="text-sm text-slate-500">Od</label><input id="startDate" type="date" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
           <div><label class="text-sm text-slate-500">Do</label><input id="endDate" type="date" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
         </div>
-        <div class="flex flex-wrap gap-2 text-sm">
+
+        <!-- pametni filtri (togglable) -->
+        <div id="filtersPanel" class="hidden flex flex-wrap gap-2 text-sm">
           <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="music">Glasba</label>
           <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="food">Hrana</label>
           <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="kids">Otroci</label>
@@ -111,8 +126,11 @@
           <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="sports">Šport</label>
           <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="outdoor">Narava</label>
         </div>
+
         <div class="flex items-center gap-3">
-          <button id="goBtn" class="px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-dark flex items-center gap-2"><span class="ti ti-search"></span> Išči</button>
+          <button id="goBtn" class="px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-dark flex items-center gap-2">
+            <span class="ti ti-search"></span> Išči
+          </button>
           <button id="geoBtn" type="button" class="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-100">Uporabi mojo lokacijo</button>
           <div id="busy" class="hidden loader"></div><span id="meta" class="text-sm text-slate-500"></span>
         </div>
@@ -120,6 +138,7 @@
     </div>
   </div>
 </section>
+
 
 <!-- FEATURED CAROUSEL -->
 <section id="featured" class="max-w-6xl mx-auto px-4 pt-8 pb-2">
@@ -154,38 +173,63 @@
 
 <!-- PROVIDER MODAL -->
 <div id="providerModal" class="modal">
-  <div class="max-w-2xl w-full mx-4 bg-white rounded-2xl p-5">
-    <div class="flex items-center justify-between">
+  <div class="max-w-2xl w-full mx-4 bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div class="sticky top-0 bg-white/90 backdrop-blur border-b border-slate-200 px-5 py-3 flex items-center justify-between">
       <h3 class="text-xl font-bold">Objavi svoj dogodek</h3>
       <button id="providerClose" class="ti ti-x text-2xl"></button>
     </div>
-    <p class="text-slate-600 mt-1 text-sm">Brezplačna objava osnovnih informacij. Izpostavitve in prodaja vstopnic dodamo po verifikaciji.</p>
-    <form id="providerForm" class="mt-4 grid sm:grid-cols-2 gap-4">
-      <div class="sm:col-span-2"><label class="text-sm text-slate-500">Naslov dogodka *</label><input name="title" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
-      <div class="sm:col-span-2"><label class="text-sm text-slate-500">Opis</label><textarea name="description" rows="3" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"></textarea></div>
-      <div><label class="text-sm text-slate-500">Kategorija *</label>
-        <select name="category" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300">
-          <option value="music">Glasba</option><option value="food">Hrana</option><option value="culture">Kultura</option><option value="kids">Otroci</option><option value="sports">Šport</option><option value="outdoor">Narava</option>
-        </select>
-      </div>
-      <div><label class="text-sm text-slate-500">Datum & čas (začetek) *</label><input name="start" type="datetime-local" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
-      <div><label class="text-sm text-slate-500">Mesto *</label><input name="city" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="npr. Ljubljana" /></div>
-      <div><label class="text-sm text-slate-500">Država (ISO) *</label><input name="country" required maxlength="2" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="SI, AT, HR…" /></div>
-      <div class="sm:col-span-2"><label class="text-sm text-slate-500">Lokacija (ime prizorišča)</label><input name="venue" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="Cankarjev dom…" /></div>
-      <div><label class="text-sm text-slate-500">GPS (lat,lon)</label><input name="latlon" id="provLatLon" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="46.05,14.51" /><button type="button" id="provGeo" class="mt-2 px-3 py-1.5 rounded-lg border border-slate-300">Uporabi mojo lokacijo</button></div>
-      <div><label class="text-sm text-slate-500">Slika (URL)</label><input name="image" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="https://…" /></div>
-      <div><label class="text-sm text-slate-500">Cena (min)</label><input name="priceMin" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
-      <div><label class="text-sm text-slate-500">Cena (max)</label><input name="priceMax" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
-      <div><label class="text-sm text-slate-500">Valuta</label><input name="currency" maxlength="3" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="EUR" /></div>
-      <div class="sm:col-span-2"><label class="text-sm text-slate-500">Povezava za vstopnice/kupon</label><input name="ticketUrl" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="https://…" /></div>
-      <div class="sm:col-span-2"><label class="text-sm text-slate-500">Kontakt e-pošta *</label><input name="email" type="email" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="organizator@primer.si" /></div>
-      <div class="sm:col-span-2"><label class="inline-flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="featured"> Želim izpostavitev (plačljivo)</label></div>
-      <div class="sm:col-span-2 flex items-center gap-3"><button class="px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-dark">Oddaj</button><div id="provBusy" class="hidden loader"></div><span id="provMsg" class="text-sm text-slate-600"></span></div>
-    </form>
+
+    <!-- korak: scrollable vsebina -->
+    <div class="max-h-[80vh] overflow-auto px-5 pb-5">
+      <p class="text-slate-600 mt-3 text-sm">Brezplačna objava osnovnih informacij. Izpostavitev je na voljo (10 € / teden).</p>
+
+      <form id="providerForm" class="mt-4 grid sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2"><label class="text-sm text-slate-500">Naslov dogodka *</label><input name="title" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
+        <div class="sm:col-span-2"><label class="text-sm text-slate-500">Opis</label><textarea name="description" rows="3" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"></textarea></div>
+
+        <div><label class="text-sm text-slate-500">Kategorija *</label>
+          <select name="category" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300">
+            <option value="music">Glasba</option><option value="food">Hrana</option><option value="culture">Kultura</option><option value="kids">Otroci</option><option value="sports">Šport</option><option value="outdoor">Narava</option>
+          </select>
+        </div>
+        <div><label class="text-sm text-slate-500">Datum & čas (začetek) *</label><input name="start" type="datetime-local" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
+
+        <div><label class="text-sm text-slate-500">Mesto *</label><input name="city" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
+        <div><label class="text-sm text-slate-500">Država (ISO) *</label><input name="country" required maxlength="2" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="SI, AT, HR…" /></div>
+
+        <div class="sm:col-span-2"><label class="text-sm text-slate-500">Lokacija (ime prizorišča)</label><input name="venue" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="Cankarjev dom…" /></div>
+
+        <div>
+          <label class="text-sm text-slate-500">GPS (lat,lon)</label>
+          <input name="latlon" id="provLatLon" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="46.05,14.51" />
+          <button type="button" id="provGeo" class="mt-2 px-3 py-1.5 rounded-lg border border-slate-300">Uporabi mojo lokacijo</button>
+        </div>
+
+        <div><label class="text-sm text-slate-500">Slika (URL)</label><input name="image" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="https://…" /></div>
+
+        <div><label class="text-sm text-slate-500">Cena (min)</label><input name="priceMin" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
+        <div><label class="text-sm text-slate-500">Cena (max)</label><input name="priceMax" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
+
+        <div><label class="text-sm text-slate-500">Valuta</label><input name="currency" maxlength="3" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="EUR" /></div>
+        <div class="sm:col-span-2"><label class="text-sm text-slate-500">Povezava za vstopnice/kupon</label><input name="ticketUrl" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="https://…" /></div>
+
+        <div class="sm:col-span-2"><label class="text-sm text-slate-500">Kontakt e-pošta *</label><input name="email" type="email" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="organizator@primer.si" /></div>
+
+        <div class="sm:col-span-2 flex items-center justify-between">
+          <label class="inline-flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" name="featured"> Želim izpostavitev (10 € / teden)
+          </label>
+          <a id="promoteInfo" href="#" class="text-sm text-brand hover:text-brand-dark">Kako deluje?</a>
+        </div>
+
+        <div class="sm:col-span-2 flex items-center gap-3">
+          <button class="px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-dark">Oddaj</button>
+          <div id="provBusy" class="hidden loader"></div><span id="provMsg" class="text-sm text-slate-600"></span>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
-
-<script>
   /* ===== Helperji & konstante ===== */
   const $$=(q,el=document)=>el.querySelector(q); const $$$=(q,el=document)=>Array.from(el.querySelectorAll(q));
   const endpointSearchTM='/.netlify/functions/tm-search';           // Ticketmaster (že dela)
@@ -280,10 +324,18 @@
     state.items=items;
 
     // Izpostavljene – izberi s sliko, bližnji datum, ali featured flag
-    const soon = items.filter(e=>e.images?.length || e.image).sort((a,b)=> new Date(a.start||0)-new Date(b.start||0));
-    const featured = [...soon.filter(x=>x.featured), ...soon].slice(0,8);
-    state.featured=featured;
-    renderFeatured(featured);
+    <section id="featured" class="max-w-6xl mx-auto px-4 pt-8 pb-2">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="text-xl font-semibold text-ink">Izpostavljeno (sponzorirano)</h2>
+    <a id="promoteBtn" href="#provider" class="text-sm text-brand hover:text-brand-dark">Promoviraj (10 € / teden)</a>
+  </div>
+
+  <div class="relative">
+    <div id="featTrack" class="flex gap-4 overflow-x-auto snap-x pb-2">
+      <!-- kartice se vstavijo dinamično -->
+    </div>
+  </div>
+</section>
 
     // Prikaz rezultatov
     renderResults(items, q);

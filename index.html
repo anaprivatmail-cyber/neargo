@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>NearGo — najdi doživetja blizu</title>
+  <meta name="description" content="NearGo — pametni meta-iskalnik koncertov, dogodkov, hrane, kulture in družinskih aktivnosti. Objavi svoj dogodek.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230ea5e9'/%3E%3Cpath d='M32 14a18 18 0 1018 18A18 18 0 0032 14zm0 8a10 10 0 11-10 10A10 10 0 0132 22z' fill='white'/%3E%3C/svg%3E" />
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{colors:{brand:{DEFAULT:'#06b6d4',dark:'#0891b2',light:'#67e8f9'},ink:'#0b1220'}}}}</script>
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Ikone -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+  <style>
+    :root{color-scheme:light dark}
+    .hero-gradient{background:radial-gradient(1200px 600px at 10% -20%, rgba(6,182,212,.15), transparent),linear-gradient(180deg,#ffffff, #f8fafc)}
+    .glass{background:rgba(255,255,255,.75);backdrop-filter:blur(10px)}
+    .card{transition:transform .16s, box-shadow .16s}
+    .card:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(2,132,199,.18)}
+    #map{height:380px;border-radius:1rem}
+    .chip{border:1px solid rgba(6,182,212,.35)}
+    .loader{border:3px solid #e2e8f0;border-top-color:#06b6d4;border-radius:50%;width:28px;height:28px;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(2,6,23,.65);z-index:70}
+    .modal.open{display:flex}
+    .pulse{animation:pulse 2.2s infinite}
+    @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.03)}100%{transform:scale(1)}}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+<header class="sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-slate-200">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-4">
+    <a href="/" class="flex items-center gap-2 font-semibold text-ink"><span class="ti ti-current-location text-brand text-2xl"></span><span class="text-xl">NearGo</span></a>
+    <nav class="ml-auto hidden md:flex gap-6 text-sm">
+      <a href="#search" class="hover:text-brand">Iskanje</a>
+      <a href="#mapWrap" class="hover:text-brand">Zemljevid</a>
+      <a href="#results" class="hover:text-brand">Rezultati</a>
+    </nav>
+    <div class="ml-4 flex items-center gap-2">
+      <button id="themeBtn" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm hover:bg-slate-100">🌓</button>
+      <select id="langSel" class="px-3 py-1.5 rounded-lg border border-slate-300 text-sm">
+        <option value="sl">SL</option><option value="en">EN</option><option value="de">DE</option><option value="it">IT</option><option value="hr">HR</option>
+      </select>
+      <a id="btnProviderOpen" href="#provider" class="px-3 py-1.5 rounded-lg bg-brand text-white text-sm hover:bg-brand-dark">Za organizatorje</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero-gradient border-b border-slate-200">
+  <div class="max-w-6xl mx-auto px-4 py-14 grid lg:grid-cols-2 gap-10 items-center">
+    <div>
+      <p class="uppercase tracking-wide text-brand font-semibold mb-2">getneargo.com</p>
+      <h1 class="text-4xl sm:text-5xl font-extrabold leading-tight text-ink">
+        Najdi <span class="text-brand">dogodke blizu</span> — koncerti, hrana, kultura, otroci &amp; več
+      </h1>
+      <p class="mt-4 text-slate-600">NearGo je hiter meta-iskalnik. Vtipkaj, izberi kraj ali radij in dobiš vse v tvojem jeziku. Brez podvajanj.</p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a href="#search" class="px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-dark">Začni iskati</a>
+        <a id="btnProviderOpen2" href="#provider" class="px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-100">Objavi dogodek</a>
+      </div>
+      <div class="mt-6 flex flex-wrap gap-2 text-xs text-slate-600">
+        <span class="px-3 py-1 rounded-full border border-slate-200 bg-white">Pametni filtri</span>
+        <span class="px-3 py-1 rounded-full border border-slate-200 bg-white">Zemljevid</span>
+        <span class="px-3 py-1 rounded-full border border-slate-200 bg-white">Brez podvajanj</span>
+      </div>
+    </div>
+    <div class="glass rounded-2xl p-5 shadow-lg pulse">
+      <!-- SEARCH -->
+      <form id="search" class="space-y-4">
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div><label class="text-sm text-slate-500">Kaj</label><input id="q" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="npr. Metallica, street food…" /></div>
+          <div><label class="text-sm text-slate-500">Kraj</label><input id="city" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="Ljubljana, Dunaj…" /></div>
+        </div>
+        <div class="grid sm:grid-cols-3 gap-3">
+          <div><label class="text-sm text-slate-500">Radij (km)</label><input id="radius" type="number" min="1" max="300" value="50" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
+          <div><label class="text-sm text-slate-500">Od</label><input id="startDate" type="date" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
+          <div><label class="text-sm text-slate-500">Do</label><input id="endDate" type="date" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
+        </div>
+        <div class="flex flex-wrap gap-2 text-sm">
+          <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="music">Glasba</label>
+          <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="food">Hrana</label>
+          <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="kids">Otroci</label>
+          <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="culture">Kultura</label>
+          <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="sports">Šport</label>
+          <label class="chip px-3 py-1 rounded-full"><input class="cat mr-2" type="checkbox" value="outdoor">Narava</label>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="goBtn" class="px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-dark flex items-center gap-2"><span class="ti ti-search"></span> Išči</button>
+          <button id="geoBtn" type="button" class="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-100">Uporabi mojo lokacijo</button>
+          <div id="busy" class="hidden loader"></div><span id="meta" class="text-sm text-slate-500"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section id="features" class="max-w-6xl mx-auto px-4 py-10 grid md:grid-cols-3 gap-6">
+  <div class="p-5 rounded-2xl bg-white border border-slate-200 card"><div class="ti ti-rocket text-brand text-2xl"></div><h3 class="font-semibold mt-2">Hitro & brez podvajanj</h3><p class="text-sm text-slate-600 mt-1">Enotna shema iz več virov — isti dogodek prikažemo samo enkrat.</p></div>
+  <div class="p-5 rounded-2xl bg-white border border-slate-200 card"><div class="ti ti-language text-brand text-2xl"></div><h3 class="font-semibold mt-2">V tvojem jeziku</h3><p class="text-sm text-slate-600 mt-1">Samodejni jezik (lahko ga zamenjaš).</p></div>
+  <div class="p-5 rounded-2xl bg-white border border-slate-200 card"><div class="ti ti-map-pin text-brand text-2xl"></div><h3 class="font-semibold mt-2">Zemljevid & nakup</h3><p class="text-sm text-slate-600 mt-1">Markerji na zemljevidu in neposredna povezava do prodaje vstopnic.</p></div>
+</section>
+
+<section id="mapWrap" class="max-w-6xl mx-auto px-4 pb-6"><div id="map" class="w-full"></div></section>
+
+<section id="results" class="max-w-6xl mx-auto px-4 pb-16">
+  <div class="flex items-end justify-between mb-3"><h2 class="text-2xl font-bold text-ink">Rezultati</h2><div class="text-sm text-slate-500" id="sourcesUsed"></div></div>
+  <div id="grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+  <div id="pager" class="mt-6 flex justify-center gap-3"></div>
+</section>
+
+<footer class="border-t border-slate-200 py-8 text-center text-sm text-slate-500">© <span id="y"></span> NearGo · <a class="hover:text-brand" href="#">Pogoji</a> · <a class="hover:text-brand" href="#">Zasebnost</a></footer>
+
+<!-- PROVIDER MODAL -->
+<div id="providerModal" class="modal">
+  <div class="max-w-2xl w-full mx-4 bg-white rounded-2xl p-5">
+    <div class="flex items-center justify-between">
+      <h3 class="text-xl font-bold">Objavi svoj dogodek</h3>
+      <button id="providerClose" class="ti ti-x text-2xl"></button>
+    </div>
+    <p class="text-slate-600 mt-1 text-sm">Brezplačna objava osnovnih informacij. Izpostavitve in prodaja vstopnic dodamo po verifikaciji.</p>
+    <form id="providerForm" class="mt-4 grid sm:grid-cols-2 gap-4">
+      <div class="sm:col-span-2"><label class="text-sm text-slate-500">Naslov dogodka *</label><input name="title" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
+      <div class="sm:col-span-2"><label class="text-sm text-slate-500">Opis</label><textarea name="description" rows="3" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300"></textarea></div>
+      <div><label class="text-sm text-slate-500">Kategorija *</label>
+        <select name="category" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300">
+          <option value="music">Glasba</option><option value="food">Hrana</option><option value="culture">Kultura</option><option value="kids">Otroci</option><option value="sports">Šport</option><option value="outdoor">Narava</option>
+        </select>
+      </div>
+      <div><label class="text-sm text-slate-500">Datum & čas (začetek) *</label><input name="start" type="datetime-local" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
+      <div><label class="text-sm text-slate-500">Mesto *</label><input name="city" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="npr. Ljubljana" /></div>
+      <div><label class="text-sm text-slate-500">Država (ISO) *</label><input name="country" required maxlength="2" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="SI, AT, HR…" /></div>
+      <div class="sm:col-span-2"><label class="text-sm text-slate-500">Lokacija (ime prizorišča)</label><input name="venue" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="Cankarjev dom…" /></div>
+      <div><label class="text-sm text-slate-500">GPS (lat,lon)</label><input name="latlon" id="provLatLon" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="46.05,14.51" /><button type="button" id="provGeo" class="mt-2 px-3 py-1.5 rounded-lg border border-slate-300">Uporabi mojo lokacijo</button></div>
+      <div><label class="text-sm text-slate-500">Slika (URL)</label><input name="image" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="https://…" /></div>
+      <div><label class="text-sm text-slate-500">Cena (min)</label><input name="priceMin" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
+      <div><label class="text-sm text-slate-500">Cena (max)</label><input name="priceMax" type="number" step="0.01" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" /></div>
+      <div><label class="text-sm text-slate-500">Valuta</label><input name="currency" maxlength="3" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="EUR" /></div>
+      <div class="sm:col-span-2"><label class="text-sm text-slate-500">Povezava za vstopnice/kupon</label><input name="ticketUrl" class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="https://…" /></div>
+      <div class="sm:col-span-2"><label class="text-sm text-slate-500">Kontakt e-pošta *</label><input name="email" type="email" required class="w-full mt-1 px-3 py-2 rounded-lg border border-slate-300" placeholder="organizator@primer.si" /></div>
+      <div class="sm:col-span-2 flex items-center gap-3"><button class="px-4 py-2 rounded-lg bg-brand text-white hover:bg-brand-dark">Oddaj</button><div id="provBusy" class="hidden loader"></div><span id="provMsg" class="text-sm text-slate-600"></span></div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // ====== Helperji ======
+  const $$=(q,el=document)=>el.querySelector(q); const $$$=(q,el=document)=>Array.from(el.querySelectorAll(q));
+  const endpointSearch='/.netlify/functions/tm-search';
+  const endpointProviderList='/.netlify/functions/provider-list';
+  const endpointProviderSubmit='/.netlify/functions/provider-submit';
+  const state={page:0,size:20,lang:'sl',latlon:null,map:null,layer:null,markers:[]};
+
+  // Tema (preprosto)
+  const themeBtn=$$('#themeBtn'); themeBtn.addEventListener('click',()=>{document.documentElement.classList.toggle('dark');document.body.classList.toggle('bg-slate-900');document.body.classList.toggle('text-slate-200');});
+
+  // Jezik
+  const langSel=$$('#langSel'); state.lang=(navigator.language||'sl').slice(0,2); if([...'sl en de it hr'.split(' ')].includes(state.lang)) langSel.value=state.lang; langSel.addEventListener('change',e=>state.lang=e.target.value);
+
+  // Leto
+  $$('#y').textContent=new Date().getFullYear();
+
+  // Zemljevid
+  function ensureMap(){ if(state.map) return; state.map=L.map('map',{scrollWheelZoom:false}).setView([46.1512,14.9955],6); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(state.map); state.layer=L.layerGroup().addTo(state.map); }
+  function clearMap(){ if(!state.layer) return; state.layer.clearLayers(); state.markers=[]; }
+  function addMarker(lat,lon,html){ const m=L.marker([lat,lon]).bindPopup(html); state.layer.addLayer(m); state.markers.push(m); }
+  function fitMap(){ if(state.markers.length){ const g=L.featureGroup(state.markers); state.map.fitBounds(g.getBounds().pad(0.2)); } }
+
+  // Geo
+  $$('#geoBtn').addEventListener('click',()=>{ if(!navigator.geolocation) return alert('Geolokacija ni podprta.'); navigator.geolocation.getCurrentPosition(pos=>{ const {latitude,longitude}=pos.coords; state.latlon=`${latitude.toFixed(5)},${longitude.toFixed(5)}`; alert('Uporabljam tvojo lokacijo pri iskanju.'); },()=>alert('Lokacije ni bilo mogoče dobiti.')); });
+
+  // Iskanje
+  async function search(page=0){
+    const cats=$$$('.cat:checked').map(c=>c.value);
+    const q={ q:$('#q').value.trim(), city:$('#city').value.trim(), radius: Number($('#radius').value||50), startDate:$('#startDate').value||null, endDate:$('#endDate').value||null, categories:cats, page, size:state.size, lang:state.lang };
+    if(state.latlon) q.latlong=state.latlon;
+
+    $$('#busy').classList.remove('hidden'); $$('#grid').innerHTML=''; $$('#pager').innerHTML=''; ensureMap(); clearMap();
+
+    // 1) Veliki viri
+    const url=new URL(endpointSearch,location.origin); Object.entries(q).forEach(([k,v])=>{ if(v==null||v==='' ) return; url.searchParams.set(k, Array.isArray(v)?v.join(','):v); });
+    const res=await fetch(url); const data=await res.json().catch(()=>({ok:false,results:[],meta:{}}));
+
+    // 2) Ponudniki (strežnik)
+    const pRes=await fetch(endpointProviderList).catch(()=>null); const pJson=pRes && await pRes.json().catch(()=>({ok:false,results:[]})) || {ok:false,results:[]};
+
+    // 3) Ponudniki (localStorage fallback)
+    let localProv=[]; try{ localProv=JSON.parse(localStorage.getItem('neargo_providers')||'[]'); }catch(_){localProv=[];}
+    const localProvUnified=localProv.map(x=>({ id:x.id||`provider:${x.title}:${x.start}`, source:'provider', name:x.title||x.name||'', description:x.description||'', url:x.ticketUrl||x.url||'', start:x.start||null, end:x.end||null, venue:{name:x.venue||'', city:x.city||'', country:(x.country||'').toUpperCase(), lat:x.lat||null, lon:x.lon||null}, images:x.image?[x.image]:[], price:(x.priceMin||x.priceMax)?{min:x.priceMin||null,max:x.priceMax||null,currency:x.currency||''}:null, categories:x.category?[x.category]:[] }));
+
+    const items=(data.results||[]).concat( (pJson && pJson.ok && pJson.results && pJson.results.length)? pJson.results : localProvUnified );
+    $$('#meta').textContent=`${items.length} rezultatov`;
+    if(data.meta && data.meta.sourcesUsed){ $$('#sourcesUsed').textContent=data.meta.sourcesUsed.map(s=>`${s.source} (${s.count})`).join(' · '); }
+
+    for(const ev of items){
+      const card=document.createElement('article'); card.className='card bg-white border border-slate-200 rounded-2xl p-4 flex flex-col';
+      const date=ev.start? new Date(ev.start).toLocaleString(state.lang):''; const where=`${ev.venue?.name||''}${ev.venue?.city?', '+ev.venue.city:''}${ev.venue?.country?', '+ev.venue.country:''}`;
+      const img=(ev.images?.[0])||ev.image||'https://placehold.co/320x180?text=NearGo';
+      const price=ev.price?.min? `${ev.price.min}${ev.price.currency?' '+ev.price.currency:''}${ev.price.max && ev.price.max!==ev.price.min ? ' – '+ev.price.max : ''}`:'';
+      card.innerHTML=`<div class="flex items-center justify-between"><span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200">${ev.source||'provider'}</span><img src="${img}" alt="" class="w-20 h-20 object-cover rounded-xl"></div>
+        <h3 class="mt-3 text-lg font-semibold text-ink">${ev.name||'(brez naslova)'}</h3>
+        <p class="text-sm text-slate-600 mt-1">${date}</p><p class="text-sm text-slate-600">${where}</p>${price?`<p class="text-sm text-slate-600">${price}</p>`:''}
+        <div class="mt-3 flex flex-wrap gap-2">${ev.url?`<a target="_blank" rel="noopener" href="${ev.url}" class="px-3 py-1.5 rounded-lg bg-brand text-white text-sm hover:bg-brand-dark">Odpri</a>`:''}</div>`;
+      $$('#grid').appendChild(card);
+      const lat=ev.venue?.lat??ev.lat, lon=ev.venue?.lon??ev.lon; if(lat&&lon){ addMarker(lat,lon,`<strong>${ev.name||''}</strong><br>${where}`); }
+    }
+    fitMap(); $$('#busy').classList.add('hidden');
+  }
+
+  $$('#goBtn').addEventListener('click', e=>{e.preventDefault(); search(0);});
+  window.addEventListener('load', ()=>{ if(!$('#q').value) $$('#q').value='koncert'; if(!$('#city').value) $$('#city').value='Ljubljana'; });
+
+  // Provider modal
+  const modal=$$('#providerModal'); const openBtns=[$$('#btnProviderOpen'), $$('#btnProviderOpen2')]; openBtns.forEach(b=>b&&b.addEventListener('click',e=>{e.preventDefault(); modal.classList.add('open');})); $$('#providerClose').addEventListener('click',()=>modal.classList.remove('open')); modal.addEventListener('click',e=>{ if(e.target===modal) modal.classList.remove('open'); });
+
+  // Provider geo
+  $$('#provGeo').addEventListener('click',()=>{ if(!navigator.geolocation) return alert('Geolokacija ni podprta.'); navigator.geolocation.getCurrentPosition(pos=>{ const {latitude,longitude}=pos.coords; $$('#provLatLon').value=`${latitude.toFixed(5)},${longitude.toFixed(5)}`; },()=>alert('Lokacije ni bilo mogoče dobiti.')); });
+
+  // Provider submit
+  $$('#providerForm').addEventListener('submit', async (e)=>{
+    e.preventDefault(); $$('#provBusy').classList.remove('hidden'); $$('#provMsg').textContent='';
+    const f=new FormData(e.target); const latlon=(f.get('latlon')||'').split(',').map(s=>s.trim());
+    const payload={ title:f.get('title'), description:f.get('description')||'', category:f.get('category'), start:f.get('start'), city:f.get('city'), country:(f.get('country')||'').toUpperCase(), venue:f.get('venue')||'', lat:latlon.length===2?Number(latlon[0]):null, lon:latlon.length===2?Number(latlon[1]):null, image:f.get('image')||'', priceMin:f.get('priceMin')?Number(f.get('priceMin')):null, priceMax:f.get('priceMax')?Number(f.get('priceMax')):null, currency:f.get('currency')||'', ticketUrl:f.get('ticketUrl')||'', email:f.get('email') };
+    try{
+      const r=await fetch(endpointProviderSubmit,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); const out=await r.json();
+      if(out.ok){
+        // localStorage fallback
+        try{ const cur=JSON.parse(localStorage.getItem('neargo_providers')||'[]'); cur.push(payload); localStorage.setItem('neargo_providers',JSON.stringify(cur)); }catch(_){}
+        $$('#provMsg').textContent='Hvala! Vaš dogodek je oddan in bo vidno objavljen.'; e.target.reset(); await search(0); setTimeout(()=>modal.classList.remove('open'),800);
+      } else { $$('#provMsg').textContent='Napaka pri oddaji: '+(out.error||''); }
+    }catch(err){ $$('#provMsg').textContent='Napaka povezave.'; }
+    finally{ $$('#provBusy').classList.add('hidden'); }
+  });
+</script>
+</body>
+</html>

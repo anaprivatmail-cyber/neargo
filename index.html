@@ -1,1 +1,597 @@
+<!doctype html>
+<html lang="sl" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NearGo – najdi dogodke blizu</title>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
 
+  <!-- Leaflet (OSM) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root{
+      --brand:#0bbbd6; --brand-ink:#067b8c;
+      --bg1:#e6f7ff; --bg2:#ffffff;
+      --text:#0b1b2b; --muted:#5b6b7b;
+      --card:#ffffff; --border:#e5edf5;
+      --shadow:0 10px 30px rgba(0,0,0,.08); --radius:16px;
+    }
+    /* Dark theme vars */
+    html[data-theme="dark"]{
+      --bg1:#0b1520; --bg2:#0f1b29;
+      --text:#e9f1f8; --muted:#a7b6c6;
+      --card:#122233; --border:#1e3348;
+      --brand:#14c2df; --brand-ink:#85e6f5;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+      color:var(--text); background:linear-gradient(180deg,var(--bg1) 0%,var(--bg2) 60%);
+    }
+    header{
+      position:sticky; top:0; z-index:20;
+      display:flex; align-items:center; justify-content:space-between; gap:16px;
+      padding:10px 16px; backdrop-filter:blur(8px);
+      background:rgba(255,255,255,.65); border-bottom:1px solid rgba(0,0,0,.05);
+    }
+    html[data-theme="dark"] header{ background:rgba(10,20,30,.6); border-bottom:1px solid #0e1c2a; }
+
+    .brand{display:flex; align-items:center; gap:10px}
+    .target{position:relative; width:18px; height:18px; border-radius:50%; background:var(--brand);
+      box-shadow:0 0 0 6px rgba(11,187,214,.22), 0 0 0 11px rgba(11,187,214,.10)}
+    .brandname{font-size:22px; font-weight:800; letter-spacing:.2px}
+    @media(min-width:700px){ .brandname{font-size:24px} }
+
+    .lang{border:1px solid #dbe5ef; border-radius:999px; padding:6px 10px; background:#fff}
+    html[data-theme="dark"] .lang{ background:#0f1b29; border-color:#27435e; color:#cfe4f6}
+    .cta{background:var(--brand); color:#fff; border:none; padding:10px 16px; border-radius:999px; font-weight:700; box-shadow:var(--shadow); cursor:pointer}
+    .ghost{background:#fff; color:var(--text); border:1px solid #dbe5ef; cursor:pointer}
+    html[data-theme="dark"] .ghost{ background:#0f1b29; border-color:#27435e; color:#e9f1f8 }
+
+    .toggle{display:flex; align-items:center; gap:6px; cursor:pointer; border:1px solid var(--border); padding:6px 10px; border-radius:999px; background:var(--card)}
+    .toggle input{appearance:none; width:32px; height:18px; border-radius:999px; background:#cfe1ee; position:relative; outline:none}
+    .toggle input:after{content:""; position:absolute; left:2px; top:2px; width:14px; height:14px; border-radius:50%; background:#fff; transition:.15s}
+    .toggle input:checked{ background:var(--brand) }
+    .toggle input:checked:after{ transform:translateX(14px) }
+
+    main{max-width:1100px; margin:0 auto; padding:28px 16px 80px}
+    .hero.card{display:grid; gap:12px; align-items:center}
+    .hero h1{font-size:clamp(28px,6vw,52px); line-height:1.12; margin:0}
+    .hero p{color:var(--muted); font-size:18px; margin:0}
+    .chips{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px}
+    .chip{border:1px solid #cfe1ee; border-radius:999px; padding:10px 14px; background:var(--card); color:var(--brand-ink); font-weight:700; box-shadow:var(--shadow); cursor:pointer}
+    html[data-theme="dark"] .chip{ border-color:#27435e }
+
+    .cards{display:grid; gap:18px; grid-template-columns:1fr}
+    @media(min-width:860px){ .cards{grid-template-columns:1.15fr .85fr} }
+
+    .card{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; border:1px solid var(--border)}
+    .title{font-weight:800; margin-bottom:8px}
+    .muted{color:var(--muted)}
+    .btn{padding:12px 16px; border-radius:12px; border:none; background:var(--brand); color:#fff; font-weight:700; cursor:pointer}
+    .btn.link{background:var(--card); border:1px solid var(--border); color:var(--text)}
+    .btn.ghost{background:var(--card); border:1px solid var(--border); color:var(--brand-ink)}
+
+    .form-row{display:grid; gap:10px}
+    @media(min-width:760px){ .form-row.cols-3{grid-template-columns:1fr 1fr 1fr} }
+    input, textarea{width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--border); background:var(--card); outline:none; color:var(--text)}
+    textarea{min-height:120px; resize:vertical}
+
+    .cat-wrap{display:flex; flex-wrap:wrap; gap:8px}
+    .cat{padding:8px 12px; border-radius:999px; border:1px solid #cfe1ee; background:var(--card); color:var(--text); cursor:pointer}
+    html[data-theme="dark"] .cat{ border-color:#27435e }
+    .cat.active{background:var(--brand); border-color:var(--brand); color:#fff}
+
+    .slider-row{display:flex; align-items:center; gap:10px}
+    .slider-row input[type=range]{width:100%}
+
+    .results{display:grid; grid-template-columns:1fr; gap:12px; margin-top:12px}
+    @media(min-width:900px){ .results{grid-template-columns:1fr 1fr} }
+    .event{background:var(--card); border-radius:14px; padding:12px; display:flex; gap:12px; border:1px solid var(--border)}
+    .event img{width:96px; height:96px; object-fit:cover; border-radius:10px}
+    .event .btns{margin-top:8px; display:flex; gap:8px; flex-wrap:wrap}
+
+    .tabs{display:flex; gap:10px; margin-top:16px}
+    .tab{padding:10px 12px; border-radius:999px; border:1px solid var(--border); background:var(--card); cursor:pointer}
+    .tab.active{background:var(--brand); color:#fff; border-color:var(--brand)}
+    #map{height:360px; border-radius:14px; overflow:hidden; border:1px solid var(--border)}
+
+    .carousel{display:flex; gap:12px; overflow:auto; scroll-snap-type:x mandatory; padding-bottom:8px}
+    .spot{flex:0 0 280px; scroll-snap-align:start; background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden}
+    .spot img{width:100%; height:160px; object-fit:cover; display:block}
+
+    footer{text-align:center; color:var(--muted); margin-top:48px; font-size:14px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="target" aria-hidden="true"></span>
+      <span class="brandname">NearGo</span>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <label class="toggle" title="Nočni način">
+        <span style="font-size:12px">🌙</span>
+        <input id="themeToggle" type="checkbox" />
+      </label>
+      <select id="lang" class="lang">
+        <option value="sl" selected>SL</option>
+        <option value="en">EN</option>
+        <option value="de">DE</option>
+      </select>
+      <button class="cta" id="btnOrganizers">Objavi dogodek</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero card">
+      <h1>Najdi <span style="color:var(--brand)">dogodke blizu</span> — koncerti, hrana, kultura, otroci & več</h1>
+      <p>NearGo je hiter meta-iskalnik. Vtipkaj, izberi kraj ali radij in dobiš vse v tvojem jeziku.
+        <span style="display:block;margin-top:6px">Za organizatorje: vpis dogodka je <b>brezplačen</b>.</span>
+      </p>
+      <div class="chips">
+        <button class="chip" id="btnStart">Začni iskati</button>
+        <button class="chip" id="btnMap">Zemljevid</button>
+        <button class="chip" id="btnFilters">Pametni filtri</button>
+      </div>
+    </section>
+
+    <!-- FEATURED – iz bližine -->
+    <section class="card">
+      <div class="title">Izpostavljeno v tvoji bližini</div>
+      <div id="carousel" class="carousel"></div>
+    </section>
+
+    <div class="cards">
+      <!-- SEARCH -->
+      <section class="card" id="searchCard" hidden>
+        <div class="title">Iskanje</div>
+
+        <div class="cat-wrap" id="catWrap">
+          <button class="cat active" data-v="">Vse</button>
+          <button class="cat" data-v="koncert,glasba">Koncert</button>
+          <button class="cat" data-v="kultura">Kultura</button>
+          <button class="cat" data-v="otroci">Otroci</button>
+          <button class="cat" data-v="hrana">Hrana</button>
+          <button class="cat" data-v="narava">Narava</button>
+          <button class="cat" data-v="sport">Šport</button>
+        </div>
+
+        <div class="form-row cols-3" style="margin-top:10px">
+          <input id="q" placeholder="npr. Metallica, street food…" />
+          <input id="city" placeholder="Mesto/kraj" />
+          <div class="slider-row">
+            <input id="radius" type="range" min="1" max="300" value="50" />
+            <span id="radiusVal" class="muted">50 km</span>
+          </div>
+        </div>
+
+        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr; margin-top:6px">
+          <button class="btn" id="btnSearch">Išči</button>
+          <button class="btn link" id="btnUseLocation">Uporabi mojo lokacijo</button>
+          <button class="btn ghost" id="btnReset">Ponastavi</button>
+        </div>
+
+        <div class="tabs" id="tabs" hidden>
+          <div class="tab active" data-tab="list">Seznam</div>
+          <div class="tab" data-tab="map">Zemljevid</div>
+        </div>
+        <div id="results" class="results"></div>
+        <div id="pagination" style="display:flex; gap:8px; margin-top:10px;"></div>
+      </section>
+
+      <!-- ORGANIZATORJI -->
+      <section class="card" id="orgCard" hidden>
+        <div class="title">Objavi dogodek</div>
+        <p class="muted" style="margin-top:-4px">Objava je brezplačna.</p>
+        <div class="form-row cols-3">
+          <input id="orgName" placeholder="Ime organizatorja" />
+          <input id="orgEmail" placeholder="E-pošta za potrditev" />
+          <input id="eventName" placeholder="Naslov dogodka" />
+        </div>
+        <div class="form-row cols-3">
+          <input id="venue" placeholder="Lokacija (ime prizorišča)" />
+          <input id="city2" placeholder="Mesto/kraj" />
+          <input id="country" placeholder="Država (ISO) – npr. SI, AT" />
+        </div>
+        <div class="form-row cols-3">
+          <input id="start" type="datetime-local" />
+          <input id="url" placeholder="Povezava za več info / nakup (če obstaja)" />
+          <input id="price" type="number" min="0" step="0.01" placeholder="Cena (€)" />
+        </div>
+        <div class="form-row">
+          <textarea id="desc" placeholder="Opis dogodka"></textarea>
+        </div>
+        <div class="form-row" style="grid-template-columns:1fr auto auto">
+          <input id="image" type="file" accept="image/*" />
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="featured" /> Izpostavljeno (7 dni) – 10 €
+          </label>
+          <button class="btn" id="btnSubmitEvent">Objavi</button>
+        </div>
+        <div id="orgMsg" class="muted" style="margin-top:8px"></div>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:18px;">
+      <div class="title">Zemljevid</div>
+      <div id="map"></div>
+    </section>
+
+    <footer>© NearGo • Pripravljeno za več virov, affiliate in analitiko.</footer>
+  </main>
+
+  <script>
+    const $ = sel => document.querySelector(sel);
+
+    // Theme toggle
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+    $("#themeToggle").checked = (document.documentElement.getAttribute('data-theme') === 'dark');
+    $("#themeToggle").addEventListener('change', ()=>{
+      const t = $("#themeToggle").checked ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+      localStorage.setItem('theme', t);
+      sendAnalytic('theme', {theme:t});
+    });
+
+    // Preklop sekcij (ena naenkrat)
+    const searchCard = $("#searchCard");
+    const orgCard    = $("#orgCard");
+    function showOnly(which){
+      const showSearch = which === 'search';
+      searchCard.hidden = !showSearch;
+      orgCard.hidden    =  showSearch;
+      (showSearch ? searchCard : orgCard).scrollIntoView({behavior:'smooth', block:'start'});
+    }
+    $("#btnStart").onclick      = () => { showOnly('search'); if (!$("#results").children.length) setTimeout(()=>doSearch(0), 120); sendAnalytic('cta_start'); };
+    $("#btnOrganizers").onclick = () => { showOnly('org'); sendAnalytic('cta_org'); };
+
+    // Leaflet
+    const map = L.map("map").setView([46.05,14.51], 6);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution:"© OSM" }).addTo(map);
+    let markers = [];
+    function addMarkers(items){
+      markers.forEach(m=>m.remove()); markers=[];
+      items.forEach(e=>{
+        if (e.venue?.lat && e.venue?.lon){
+          const m = L.marker([e.venue.lat, e.venue.lon]).addTo(map)
+            .bindPopup(`<b>${e.name}</b><br>${e.venue.address||""}`);
+          markers.push(m);
+        }
+      });
+      if (markers.length){
+        const group = new L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.2));
+      }
+    }
+
+    // Kategorije
+    let selectedCategory = "";
+    $("#catWrap").addEventListener("click", (e)=>{
+      const b = e.target.closest(".cat"); if(!b) return;
+      [...document.querySelectorAll(".cat")].forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      selectedCategory = b.dataset.v || "";
+      sendAnalytic('filter_category', {category:selectedCategory||'all'});
+    });
+
+    // Radius slider
+    const rEl = $("#radius"), rLbl = $("#radiusVal");
+    if (rEl && rLbl){ rEl.addEventListener("input", ()=> rLbl.textContent = rEl.value + " km"); }
+
+    // Lokacija
+    $("#btnUseLocation").onclick = ()=>{
+      navigator.geolocation.getCurrentPosition((pos)=>{
+        const { latitude, longitude } = pos.coords;
+        window._latlon = `${latitude.toFixed(5)},${longitude.toFixed(5)}`;
+        $("#city").value = "";
+        doSearch(0);
+        loadFeatured();
+        sendAnalytic('use_location');
+      }, ()=> alert("Lokacije ni bilo mogoče pridobiti."));
+    };
+
+    // Ponastavi
+    $("#btnReset").onclick = ()=>{
+      $("#q").value=""; $("#city").value=""; rEl.value=50; rLbl.textContent="50 km"; selectedCategory="";
+      [...document.querySelectorAll(".cat")].forEach(x=>x.classList.remove("active"));
+      document.querySelector('.cat[data-v=""]')?.classList.add("active");
+      doSearch(0);
+      sendAnalytic('reset');
+    };
+
+    // Iskanje
+    let currentPage = 0;
+    async function doSearch(page=0){
+      currentPage = page;
+      const q = $("#q").value.trim();
+      const city = $("#city").value.trim();
+      const radius = $("#radius").value || "50";
+      const lang = $("#lang").value || "sl";
+      const cat = selectedCategory || "";
+
+      const qs = new URLSearchParams();
+      if (q) qs.set("q", q);
+      if (window._latlon) { qs.set("latlon", window._latlon); qs.set("radiuskm", radius); }
+      else { if (city) qs.set("city", city); qs.set("radius", radius); }
+      if (cat) qs.set("category", cat);
+      qs.set("lang", lang);
+      qs.set("page", page);
+
+      const res = await fetch(`/api/search?${qs.toString()}`);
+      const data = await res.json();
+      if (!data.ok){ showError("Napaka pri iskanju."); return; }
+
+      const items = data.results || [];
+      $("#tabs").hidden = items.length === 0;
+
+      const box = $("#results");
+      box.innerHTML = "";
+      items.forEach(e=>{
+        const img = (e.images && e.images[0]) || "https://images.unsplash.com/photo-1515162305280-9d5f88b92e15?w=600";
+        const d = document.createElement("div");
+        d.className = "event";
+        const startISO = e.start || new Date().toISOString();
+        const endISO   = e.end   || new Date(new Date(startISO).getTime()+2*60*60*1000).toISOString();
+
+        d.innerHTML = `
+          <img src="${img}" alt="">
+          <div>
+            <div style="font-weight:800">${e.name||""}</div>
+            <div class="muted">${e.venue?.address || e.venue?.city || ""}</div>
+            <div class="muted">${new Date(startISO).toLocaleString()}</div>
+            <div class="btns">
+              <a class="btn link more" href="${e.url||"#"}" target="_blank" rel="noopener">Več</a>
+              <button class="btn buy"  data-name="${encodeURIComponent(e.name||'Vstopnica')}">Kupi vstopnico</button>
+              <button class="btn ghost share" data-name="${encodeURIComponent(e.name||'Dogodek')}" data-url="${encodeURIComponent(e.url||location.href)}">Deli</button>
+              <button class="btn ghost cal" data-name="${encodeURIComponent(e.name||'Dogodek')}" data-start="${startISO}" data-end="${endISO}" data-where="${encodeURIComponent(e.venue?.address||'')}" data-desc="${encodeURIComponent(e.description||'')}">Koledar</button>
+            </div>
+          </div>
+        `;
+        box.appendChild(d);
+      });
+      addMarkers(items);
+      renderPagination(data.query?.page || 0);
+      attachCardHandlers();
+      sendAnalytic('search', {q, city, radius, cat});
+    }
+
+    function renderPagination(page){
+      const wrap = $("#pagination"); wrap.innerHTML="";
+      const prev = document.createElement("button");
+      prev.className="btn link"; prev.textContent="Nazaj"; prev.disabled = page<=0;
+      prev.onclick=()=>doSearch(page-1);
+      const next = document.createElement("button");
+      next.className="btn link"; next.textContent="Naprej";
+      next.onclick=()=>doSearch(page+1);
+      wrap.append(prev,next);
+    }
+    function showError(msg){ $("#results").innerHTML = `<div class="muted">${msg}</div>`; }
+
+    $("#btnSearch").onclick = ()=> doSearch(0);
+
+    // Deljenje + Koledar + Stripe + "Več"
+    function attachCardHandlers(){
+      document.querySelectorAll(".more").forEach(a=>{
+        a.addEventListener('click', ()=> sendAnalytic('click_more', {to:a.href}));
+      });
+
+      document.querySelectorAll(".buy").forEach(btn=>{
+        btn.onclick = async ()=>{
+          const name = decodeURIComponent(btn.dataset.name||"Ticket");
+          const email = prompt("Vnesi e-pošto za prejem vstopnice:");
+          if (!email) return;
+          const payload = {
+            customerEmail: email,
+            lineItems:[{ name, description:"NearGo ticket", amount:1000, currency:"eur", quantity:1 }],
+            successUrl: location.origin + "/#success",
+            cancelUrl:  location.origin + "/#cancel"
+          };
+          const res = await fetch("/api/checkout",{ method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify(payload) });
+          const data = await res.json();
+          if (data.ok && data.url) { sendAnalytic('click_buy'); location.href=data.url; }
+          else alert(data.error || "Stripe ni nastavljen. (Dodaj STRIPE_SECRET_KEY.)");
+        };
+      });
+
+      document.querySelectorAll(".share").forEach(btn=>{
+        btn.onclick = async ()=>{
+          const name = decodeURIComponent(btn.dataset.name||"Dogodek");
+          const url  = decodeURIComponent(btn.dataset.url||location.href);
+          try{
+            if (navigator.share){
+              await navigator.share({ title:name, url });
+            } else {
+              await navigator.clipboard.writeText(url);
+              alert("Povezava kopirana v odložišče.");
+            }
+            sendAnalytic('share', {url});
+          }catch{}
+        };
+      });
+
+      document.querySelectorAll(".cal").forEach(btn=>{
+        btn.onclick = ()=>{
+          const name  = decodeURIComponent(btn.dataset.name||"Dogodek");
+          const start = btn.dataset.start;
+          const end   = btn.dataset.end;
+          const where = decodeURIComponent(btn.dataset.where||"");
+          const desc  = decodeURIComponent(btn.dataset.desc||"");
+
+          // Google Calendar quick add
+          const gqs = new URLSearchParams({
+            action:'TEMPLATE',
+            text:name,
+            dates: toGCalDate(start) + "/" + toGCalDate(end),
+            details: desc,
+            location: where
+          });
+          const gcalUrl = "https://www.google.com/calendar/render?" + gqs.toString();
+
+          // .ics (download)
+          const ics = buildICS({name, start, end, where, desc});
+          const blob = new Blob([ics], {type:'text/calendar;charset=utf-8'});
+          const url = URL.createObjectURL(blob);
+
+          const menu = document.createElement('div');
+          menu.style.position='fixed'; menu.style.left='50%'; menu.style.top='50%';
+          menu.style.transform='translate(-50%,-50%)';
+          menu.style.background='var(--card)'; menu.style.border='1px solid var(--border)';
+          menu.style.borderRadius='12px'; menu.style.padding='12px'; menu.style.boxShadow='var(--shadow)';
+          menu.innerHTML = `
+            <div style="font-weight:800; margin-bottom:8px">Dodaj v koledar</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap">
+              <a class="btn" href="${gcalUrl}" target="_blank" rel="noopener">Google Calendar</a>
+              <a class="btn link" href="${url}" download="neargo-event.ics">Prenesi .ics</a>
+              <button class="btn ghost" id="calClose">Zapri</button>
+            </div>`;
+          document.body.appendChild(menu);
+          document.getElementById('calClose').onclick = ()=> menu.remove();
+          sendAnalytic('calendar_open');
+        };
+      });
+    }
+
+    function toGCalDate(iso){
+      // YYYYMMDDTHHMMSSZ
+      const d = new Date(iso);
+      const pad = (n)=>String(n).padStart(2,'0');
+      return d.getUTCFullYear() + pad(d.getUTCMonth()+1) + pad(d.getUTCDate()) +
+             'T' + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + pad(d.getUTCSeconds()) + 'Z';
+    }
+    function buildICS({name,start,end,where,desc}){
+      const uid = 'neargo-' + Date.now();
+      const dtStart = toGCalDate(start);
+      const dtEnd   = toGCalDate(end);
+      return [
+        'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//NearGo//EN','CALSCALE:GREGORIAN',
+        'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `DTSTAMP:${toGCalDate(new Date().toISOString())}`,
+        `DTSTART:${dtStart}`,
+        `DTEND:${dtEnd}`,
+        `SUMMARY:${escapeICS(name)}`,
+        `DESCRIPTION:${escapeICS(desc)}`,
+        `LOCATION:${escapeICS(where)}`,
+        'END:VEVENT','END:VCALENDAR'
+      ].join('\r\n');
+    }
+    function escapeICS(s=''){ return String(s).replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;'); }
+
+    // Featureds
+    async function loadFeatured(){
+      let lat=null, lon=null;
+      if (window._latlon){
+        const [a,b] = window._latlon.split(",").map(parseFloat);
+        if(!Number.isNaN(a)&&!Number.isNaN(b)){ lat=a; lon=b; }
+      } else {
+        try{
+          const p = await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{timeout:1200}));
+          lat = p.coords.latitude; lon = p.coords.longitude;
+          window._latlon = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+        }catch(e){}
+      }
+
+      const r = await fetch("/api/providers?featured=1");
+      const d = await r.json();
+      const box = $("#carousel"); box.innerHTML="";
+
+      if (!d.ok){ box.innerHTML = `<div class="muted">Ni izpostavljenih ponudb.</div>`; return; }
+      let items = d.results || [];
+
+      // sort by distance
+      if (lat!=null && lon!=null){
+        items = items
+          .map(it=>{
+            const dist = (it.venue?.lat && it.venue?.lon) ? haversine(lat,lon,it.venue.lat,it.venue.lon) : 99999;
+            return {it, dist};
+          }).sort((a,b)=>a.dist-b.dist).slice(0,12).map(x=>x.it);
+      } else {
+        items = items.slice(0,12);
+      }
+
+      for (const e of items){
+        const img = (e.images&&e.images[0]) || "https://images.unsplash.com/photo-1483412033650-1015ddeb83d1?w=1200";
+        const el = document.createElement("div");
+        el.className="spot";
+        el.innerHTML = `
+          <img src="${img}" alt="">
+          <div style="padding:12px">
+            <b>${e.name||'Dogodek'}</b>
+            <div class="muted">${e.venue?.city||''}</div>
+            <div style="margin-top:8px; display:flex; gap:8px">
+              <a class="btn link" href="${e.url||"#"}" target="_blank" rel="noopener">Več</a>
+            </div>
+          </div>`;
+        box.appendChild(el);
+      }
+      sendAnalytic('featured_impression', {count:items.length});
+    }
+    function haversine(lat1,lon1,lat2,lon2){
+      const toRad = d=>d*Math.PI/180, R=6371;
+      const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+      const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      return 2*R*Math.asin(Math.sqrt(a));
+    }
+
+    // Analytics ping
+    async function sendAnalytic(type, payload={}){
+      try{
+        const body = { type, payload, ts: Date.now(), ua: navigator.userAgent };
+        await fetch('/api/analytics', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(body) });
+      }catch{}
+    }
+    sendAnalytic('visit');
+
+    // Tabs, gumbi iz hero
+    document.getElementById('tabs').addEventListener('click', (e)=>{
+      const t = e.target.closest('.tab'); if(!t) return;
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      if (t.dataset.tab === 'map'){ document.querySelector("#map").scrollIntoView({behavior:"smooth"}); }
+    });
+    document.getElementById('btnFilters').onclick = ()=> { showOnly('search'); };
+    document.getElementById('btnMap').onclick     = ()=> document.querySelector("#map").scrollIntoView({behavior:"smooth"});
+
+    // Submit organizator
+    document.getElementById('btnSubmitEvent').onclick = async ()=>{
+      const payload = {
+        organizer: $("#orgName").value.trim(),
+        organizerEmail: $("#orgEmail").value.trim(),
+        eventName: $("#eventName").value.trim(),
+        venue: $("#venue").value.trim(),
+        city: $("#city2").value.trim(),
+        country: $("#country").value.trim(),
+        start: $("#start").value,
+        url: $("#url").value.trim(),
+        price: $("#price").value ? Number($("#price").value) : null,
+        description: $("#desc").value.trim(),
+        featured: $("#featured").checked
+      };
+      const file = $("#image").files?.[0];
+      if (file) payload.imageName = file.name;
+
+      $("#orgMsg").textContent = "Pošiljam…";
+      const res = await fetch("/api/provider-submit",{ method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify(payload) });
+      const data = await res.json();
+      if (data.ok){
+        $("#orgMsg").textContent = "Prijava sprejeta – poslali smo potrditveni email.";
+        setTimeout(()=> showOnly('search'), 900);
+        sendAnalytic('provider_submit');
+      } else {
+        $("#orgMsg").textContent = "Napaka: " + (data.error || "neznano");
+      }
+    };
+
+    // Inicializacija
+    loadFeatured();
+  </script>
+</body>
+</html>

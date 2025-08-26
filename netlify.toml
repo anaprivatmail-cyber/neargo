@@ -1,35 +1,46 @@
-# netlify.toml – poskrbi, da funkcije delujejo pravilno in da imamo lepe URL-je
+# netlify.toml – konfiguracija builda in API preusmeritev
 [build]
   publish = "."
   functions = "netlify/functions"
 
+# Iskalnik (Ticketmaster + Eventbrite)
 [[redirects]]
   from = "/api/search"
   to = "/.netlify/functions/tm-search"
   status = 200
   force = true
 
+# Plačila (Stripe)
 [[redirects]]
   from = "/api/checkout"
   to = "/.netlify/functions/checkout"
   status = 200
   force = true
 
+# Oddaja dogodkov (ponudniki)
 [[redirects]]
   from = "/api/provider-submit"
   to = "/.netlify/functions/provider-submit"
   status = 200
   force = true
 
+# Seznam ponudnikov (original)
 [[redirects]]
   from = "/api/provider-list"
   to = "/.netlify/functions/provider-list"
   status = 200
   force = true
 
-# Nova preusmeritev za analitiko
+# Alias za /api/providers → provider-list
+[[redirects]]
+  from = "/api/providers"
+  to = "/.netlify/functions/provider-list"
+  status = 200
+  force = true
+
+# Analitika
 [[redirects]]
   from = "/api/analytics"
-  to   = "/.netlify/functions/analytics"
+  to = "/.netlify/functions/analytics"
   status = 200
   force = true

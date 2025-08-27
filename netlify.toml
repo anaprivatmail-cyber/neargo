@@ -1,87 +1,66 @@
-# netlify.toml – konfiguracija builda in API preusmeritev
+# netlify.toml – konfiguracija builda, API preusmeritev in headerji
 [build]
   publish = "."
   functions = "netlify/functions"
 
-######################
-# Iskalnik (Ticketmaster + Eventbrite)
-######################
+[functions]
+  node_bundler = "esbuild"
+  included_files = []
+  directory = "netlify/functions"
+  # več časa za počasne RSS/ICS vire
+  timeout = 20
+
+###############
+# Redirects   #
+###############
+
+# Iskalnik (tm-search.js)
 [[redirects]]
   from = "/api/search"
   to = "/.netlify/functions/tm-search"
   status = 200
   force = true
 
-######################
-# Plačila (Stripe)
-######################
+# Plačila (Stripe) – placeholder
 [[redirects]]
   from = "/api/checkout"
   to = "/.netlify/functions/checkout"
   status = 200
   force = true
 
-######################
 # Oddaja dogodkov (ponudniki)
-######################
 [[redirects]]
   from = "/api/provider-submit"
   to = "/.netlify/functions/provider-submit"
   status = 200
   force = true
 
-######################
 # Seznam ponudnikov
-######################
 [[redirects]]
   from = "/api/provider-list"
   to = "/.netlify/functions/provider-list"
   status = 200
   force = true
 
-# Alias za /api/providers → provider-list
+# Alias /api/providers → provider-list
 [[redirects]]
   from = "/api/providers"
   to = "/.netlify/functions/provider-list"
   status = 200
   force = true
 
-######################
-# Analitika
-######################
+# Analitika (če jo uporabljaš)
 [[redirects]]
   from = "/api/analytics"
   to = "/.netlify/functions/analytics"
   status = 200
   force = true
 
-######################
-# Dodatni API-ji za dogodke (pripravljeno)
-######################
-# Songkick
-[[redirects]]
-  from = "/api/songkick"
-  to = "/.netlify/functions/songkick"
-  status = 200
-  force = true
-
-# Eventful
-[[redirects]]
-  from = "/api/eventful"
-  to = "/.netlify/functions/eventful"
-  status = 200
-  force = true
-
-# Meetup
-[[redirects]]
-  from = "/api/meetup"
-  to = "/.netlify/functions/meetup"
-  status = 200
-  force = true
-
-# Facebook Events
-[[redirects]]
-  from = "/api/facebook-events"
-  to = "/.netlify/functions/facebook-events"
-  status = 200
-  force = true
+###############
+# Headers     #
+###############
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+  Access-Control-Allow-Origin = "*"
+  Cache-Control = "public, max-age=30, stale-while-revalidate=60"

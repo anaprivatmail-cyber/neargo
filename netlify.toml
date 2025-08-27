@@ -1,54 +1,65 @@
-# netlify.toml – konfiguracija builda, funkcij in API preusmeritev
-
 [build]
-  publish   = "."
+  publish = "."
   functions = "netlify/functions"
 
-[functions]
-  node_bundler = "esbuild"
-  external_node_modules = ["node-fetch", "@netlify/blobs"]
-
-[functions."*"]
-  timeout = 20
-
-# Iskalnik (Ticketmaster + Eventbrite)
+# ===== Redirects to serverless functions (API) =====
 [[redirects]]
   from = "/api/search"
   to   = "/.netlify/functions/tm-search"
   status = 200
-  force  = true
+  force = true
 
-# Plačila (Stripe)
-[[redirects]]
-  from = "/api/checkout"
-  to   = "/.netlify/functions/checkout"
-  status = 200
-  force  = true
-
-# Oddaja dogodkov (ponudniki)
 [[redirects]]
   from = "/api/provider-submit"
   to   = "/.netlify/functions/provider-submit"
   status = 200
-  force  = true
+  force = true
 
-# Seznam ponudnikov (original)
 [[redirects]]
   from = "/api/provider-list"
   to   = "/.netlify/functions/provider-list"
   status = 200
-  force  = true
+  force = true
 
-# Alias za /api/providers → provider-list
+# če uporabljaš Stripe “Checkout” funkcijo
 [[redirects]]
-  from = "/api/providers"
-  to   = "/.netlify/functions/provider-list"
+  from = "/api/checkout"
+  to   = "/.netlify/functions/checkout"
   status = 200
-  force  = true
+  force = true
 
-# Analitika
+# (opcijsko) lahka “ping/analytics” funkcija
 [[redirects]]
   from = "/api/analytics"
   to   = "/.netlify/functions/analytics"
   status = 200
-  force  = true
+  force = true
+
+# ===== Static asset caching =====
+# kratki HTML cache (da spremembe hitro vidiš)
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    cache-control = "public, max-age=60, must-revalidate"
+
+# daljši cache za CSS/JS/ikone (lahko spremeniš po želji)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    cache-control = "public, max-age=31536000, immutable"
+
+# ===== Security headers =====
+[[headers]]
+  for = "/*"
+  [headers.values]
+    x-content-type-options = "nosniff"
+    x-frame-options = "SAMEORIGIN"
+    referrer-policy = "strict-origin-when-cross-origin"
+    permissions-policy = "geolocation=(self), camera=()"
+
+# ===== SPA fallback (če kdaj dodaš rute) =====
+# Api preusmeritve so zgoraj, zato se ne prepišejo.
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200

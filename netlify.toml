@@ -54,3 +54,34 @@
   to = "/.netlify/functions/analytics"
   status = 200
   force = true
+
+######################
+# Dodatni API-ji za dogodke (pripravljeno)
+######################
+# Songkick
+[[redirects]]
+  from = "/api/songkick"
+  to = "/.netlify/functions/songkick"
+  status = 200
+  force = true
+
+# Eventful
+[[redirects]]
+  from = "/api/eventful"
+  to = "/.netlify/functions/eventful"
+  status = 200
+  force = true
+
+# Meetup
+[[redirects]]
+  from = "/api/meetup"
+  to = "/.netlify/functions/meetup"
+  status = 200
+  force = true
+
+# Facebook Events
+[[redirects]]
+  from = "/api/facebook-events"
+  to = "/.netlify/functions/facebook-events"
+  status = 200
+  force = true

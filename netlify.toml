@@ -1,4 +1,4 @@
-# netlify.toml — build + funkcije + preusmeritve + glave
+# netlify.toml – konfiguracija builda, funkcij in API preusmeritev
 
 [build]
   publish   = "."
@@ -6,20 +6,22 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["node-fetch"]
+  external_node_modules = ["node-fetch", "@netlify/blobs"]
 
-# (izbirno) daljši timeout za funkcije, ki kličejo več virov
 [functions."*"]
   timeout = 20
 
-########################
-# API preusmeritve
-########################
-
-# Iskanje (Ticketmaster + Eventbrite + opcijski lokalni viri)
+# Iskalnik (Ticketmaster + Eventbrite)
 [[redirects]]
   from = "/api/search"
   to   = "/.netlify/functions/tm-search"
+  status = 200
+  force  = true
+
+# Plačila (Stripe)
+[[redirects]]
+  from = "/api/checkout"
+  to   = "/.netlify/functions/checkout"
   status = 200
   force  = true
 
@@ -30,41 +32,23 @@
   status = 200
   force  = true
 
-# Seznam ponudnikov (za admin ali UI)
+# Seznam ponudnikov (original)
 [[redirects]]
   from = "/api/provider-list"
   to   = "/.netlify/functions/provider-list"
   status = 200
   force  = true
 
-# (neobvezno) Stripe checkout — placeholder
+# Alias za /api/providers → provider-list
 [[redirects]]
-  from = "/api/checkout"
-  to   = "/.netlify/functions/checkout"
+  from = "/api/providers"
+  to   = "/.netlify/functions/provider-list"
   status = 200
   force  = true
 
-# (neobvezno) Analitika — placeholder
+# Analitika
 [[redirects]]
   from = "/api/analytics"
   to   = "/.netlify/functions/analytics"
   status = 200
   force  = true
-
-########################
-# Varnostne glave (basic)
-########################
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "geolocation=(self)"
-    Cache-Control = "public, max-age=300"
-
-# Static assets – daljši cache
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"

@@ -1,0 +1,70 @@
+# netlify.toml — build + funkcije + preusmeritve + glave
+
+[build]
+  publish   = "."
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["node-fetch"]
+
+# (izbirno) daljši timeout za funkcije, ki kličejo več virov
+[functions."*"]
+  timeout = 20
+
+########################
+# API preusmeritve
+########################
+
+# Iskanje (Ticketmaster + Eventbrite + opcijski lokalni viri)
+[[redirects]]
+  from = "/api/search"
+  to   = "/.netlify/functions/tm-search"
+  status = 200
+  force  = true
+
+# Oddaja dogodkov (ponudniki)
+[[redirects]]
+  from = "/api/provider-submit"
+  to   = "/.netlify/functions/provider-submit"
+  status = 200
+  force  = true
+
+# Seznam ponudnikov (za admin ali UI)
+[[redirects]]
+  from = "/api/provider-list"
+  to   = "/.netlify/functions/provider-list"
+  status = 200
+  force  = true
+
+# (neobvezno) Stripe checkout — placeholder
+[[redirects]]
+  from = "/api/checkout"
+  to   = "/.netlify/functions/checkout"
+  status = 200
+  force  = true
+
+# (neobvezno) Analitika — placeholder
+[[redirects]]
+  from = "/api/analytics"
+  to   = "/.netlify/functions/analytics"
+  status = 200
+  force  = true
+
+########################
+# Varnostne glave (basic)
+########################
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(self)"
+    Cache-Control = "public, max-age=300"
+
+# Static assets – daljši cache
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

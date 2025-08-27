@@ -3,28 +3,36 @@
   publish = "."
   functions = "netlify/functions"
 
+######################
 # Iskalnik (Ticketmaster + Eventbrite)
+######################
 [[redirects]]
   from = "/api/search"
   to = "/.netlify/functions/tm-search"
   status = 200
   force = true
 
+######################
 # Plačila (Stripe)
+######################
 [[redirects]]
   from = "/api/checkout"
   to = "/.netlify/functions/checkout"
   status = 200
   force = true
 
+######################
 # Oddaja dogodkov (ponudniki)
+######################
 [[redirects]]
   from = "/api/provider-submit"
   to = "/.netlify/functions/provider-submit"
   status = 200
   force = true
 
-# Seznam ponudnikov (original)
+######################
+# Seznam ponudnikov
+######################
 [[redirects]]
   from = "/api/provider-list"
   to = "/.netlify/functions/provider-list"
@@ -38,7 +46,9 @@
   status = 200
   force = true
 
+######################
 # Analitika
+######################
 [[redirects]]
   from = "/api/analytics"
   to = "/.netlify/functions/analytics"

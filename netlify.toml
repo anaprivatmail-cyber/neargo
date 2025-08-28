@@ -63,3 +63,8 @@
   from = "/*"
   to   = "/index.html"
   status = 200
+
+# ===== Functions bundling =====
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs", "@supabase/supabase-js"]

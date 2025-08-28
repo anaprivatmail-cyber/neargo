@@ -1,1 +1,144 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NearGo – najdi dogodke blizu</title>
 
+  <!-- Leaflet (zemljevid) -->
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    /* ... ostali tvoji CSS iz obstoječe verzije ... */
+  </style>
+</head>
+<body>
+  <!-- ... ves tvoj HTML iz obstoječe verzije ostane nespremenjen ... -->
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const el = (t,c)=>{const x=document.createElement(t); if(c) x.className=c; return x;};
+    const qs = o => new URLSearchParams(o).toString();
+
+    /* UTF-8 varne base64 funkcije */
+    function toBase64Utf8(str){
+      return btoa(unescape(encodeURIComponent(str)));
+    }
+    function fromBase64Utf8(b64){
+      return decodeURIComponent(escape(atob(b64)));
+    }
+
+    /* Tema */
+    const theme=$("#theme");
+    const applyTheme=v=>document.body.classList.toggle("dark", v==="dark");
+    applyTheme(localStorage.getItem("theme")||"light");
+    theme.checked=document.body.classList.contains("dark");
+    theme.onchange=()=>{
+      const m=theme.checked?"dark":"light";
+      localStorage.setItem("theme",m);
+      applyTheme(m);
+    };
+
+    /* Shrani / obnovi osnutek obrazca (UTF-8 safe) */
+    function saveDraft(){
+      const payload = {
+        organizer:$("#orgName").value.trim(),
+        organizerEmail:$("#orgEmail").value.trim(),
+        eventName:$("#eventName").value.trim(),
+        venue:$("#venue").value.trim(),
+        city:$("#city2").value.trim(),
+        country:$("#country").value,
+        start:$("#start").value,
+        end:$("#end").value,
+        url:$("#url").value.trim(),
+        price:$("#price").value,
+        description:$("#desc").value.trim(),
+        featured: $("#featured").checked
+      };
+      localStorage.setItem("lastSubmission", toBase64Utf8(JSON.stringify(payload)));
+    }
+
+    function restoreDraft(){
+      const b64 = localStorage.getItem("lastSubmission");
+      if(!b64) return;
+      try {
+        const data = JSON.parse(fromBase64Utf8(b64));
+        $("#orgName").value = data.organizer || "";
+        $("#orgEmail").value = data.organizerEmail || "";
+        $("#eventName").value = data.eventName || "";
+        $("#venue").value = data.venue || "";
+        $("#city2").value = data.city || "";
+        $("#country").value = data.country || "";
+        $("#start").value = data.start || "";
+        $("#end").value = data.end || "";
+        $("#url").value = data.url || "";
+        $("#price").value = data.price || "";
+        $("#desc").value = data.description || "";
+        $("#featured").checked = !!data.featured;
+      } catch(e){
+        console.warn("Napaka pri obnovi osnutka:", e);
+      }
+    }
+
+    restoreDraft();
+
+    /* ... ostala tvoja JS logika iz obstoječe verzije (tema, paneli, iskanje, zemljevid, submit ...) */
+
+    /* Oddaja dogodka – dodamo saveDraft */
+    $("#btnSubmitEvent").onclick=async()=>{
+      saveDraft(); // shrani osnutek pred oddajo
+      const payload={
+        organizer:$("#orgName").value.trim(),
+        organizerEmail:$("#orgEmail").value.trim(),
+        eventName:$("#eventName").value.trim(),
+        venue:$("#venue").value.trim(),
+        city:$("#city2").value.trim(),
+        country:$("#country").value,
+        start:$("#start").value, end:$("#end").value,
+        url:$("#url").value.trim(),
+        price:$("#price").value?Number($("#price").value):null,
+        description:$("#desc").value.trim(),
+        featured: $("#featured").checked
+      };
+      const f=$("#image").files?.[0]; if(f) payload.imageName=f.name;
+
+      // VALIDACIJA
+      const imgInput = $("#image");
+      const hasFile  = imgInput && imgInput.files && imgInput.files.length > 0;
+      const missing = [];
+      if (!payload.organizer)       missing.push("Ime organizatorja");
+      if (!payload.organizerEmail)  missing.push("E-pošta");
+      if (!payload.eventName)       missing.push("Naslov dogodka");
+      if (!payload.venue)           missing.push("Lokacija (prizorišče)");
+      if (!payload.city)            missing.push("Mesto/kraj");
+      if (!payload.country)         missing.push("Država");
+      if (!payload.start)           missing.push("Začetek");
+      if (!payload.end)             missing.push("Konec");
+      if (payload.price === null || payload.price === "") missing.push("Cena");
+      if (!hasFile)                 missing.push("Fotografija");
+      if (!payload.description)     missing.push("Opis");
+
+      if (missing.length) {
+        $("#orgMsg").textContent = "Manjkajoča polja: " + missing.join(", ") + ".";
+        return;
+      }
+
+      $("#orgMsg").textContent="Pošiljam…";
+      try{
+        const r=await fetch("/api/provider-submit",{method:"POST",headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+        const data=await r.json();
+        if(data.ok && data.checkoutUrl){
+          $("#orgMsg").textContent="Preusmerjam na plačilo…";
+          location.href = data.checkoutUrl;
+          return;
+        }
+        $("#orgMsg").textContent=data.ok?"Prijava sprejeta – prejeli boste potrditev po e-pošti.":"Napaka: "+(data.error||"neznano");
+      }catch(e){
+        $("#orgMsg").textContent="Napaka pri pošiljanju.";
+      }
+    };
+  </script>
+</body>
+</html>

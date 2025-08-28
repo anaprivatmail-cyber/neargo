@@ -6,21 +6,21 @@ import { createClient } from '@supabase/supabase-js';
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST,OPTIONS'
+  'Access-Control-Allow-Methods': 'POST,OPTIONS',
 };
 const json = (d, s = 200) => ({
   statusCode: s,
   headers: { 'Content-Type': 'application/json', ...CORS },
-  body: JSON.stringify(d)
+  body: JSON.stringify(d),
 });
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const FROM_EMAIL     = process.env.FROM_EMAIL || 'no-reply@getneargo.com';
-const ADMIN_EMAIL    = process.env.ADMIN_EMAIL || 'info@getneargo.com';
+const FROM_EMAIL     = process.env.FROM_EMAIL     || 'no-reply@getneargo.com';
+const ADMIN_EMAIL    = process.env.ADMIN_EMAIL    || 'info@getneargo.com';
 
 // Supabase (service role – premosti RLS)
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL             = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY= process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // kam shranimo JSON oddaje
 const BUCKET = 'event-images';
@@ -39,9 +39,9 @@ async function sendEmail(to, subject, html){
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${RESEND_API_KEY}`
+      'Authorization': `Bearer ${RESEND_API_KEY}`,
     },
-    body: JSON.stringify({ from: FROM_EMAIL, to, subject, html })
+    body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
   });
   const data = await r.json().catch(()=> ({}));
   return { ok: r.ok, data };
@@ -71,22 +71,29 @@ export const handler = async (event) => {
     const fileName = `${now.toISOString().replace(/[:.]/g,'-')}-${slugify(payload.eventName || 'dogodek')}.json`;
     const path = `${SUBMISSIONS_PREFIX}${fileName}`;
 
-    // --- KLJUČNO: vedno kodiraj v UTF-8 (emojiji, šumniki ipd.) ---
+    // --- KLJUČNO: uporabimo Blob z UTF-8, ne Uint8Array ---
     const bodyObj = {
       ...payload,
       createdAt: now.toISOString(),
-      source: 'provider'
+      source: 'provider',
     };
-    // TextEncoder je globalen v Node 18+; če ne, fallback iz 'util'
-    const Enc = (typeof TextEncoder !== 'undefined') ? TextEncoder : (await import('node:util')).TextEncoder;
-    const uint8 = new Enc().encode(JSON.stringify(bodyObj, null, 2));
+    const jsonString = JSON.stringify(bodyObj, null, 2);
+
+    // Blob je v Node 18+ globalen; za vsak slučaj fallback na 'buffer'.Blob
+    let blob;
+    try {
+      blob = new Blob([jsonString], { type: 'application/json; charset=utf-8' });
+    } catch (_) {
+      const { Blob: NodeBlob } = await import('buffer');
+      blob = new NodeBlob([jsonString], { type: 'application/json; charset=utf-8' });
+    }
 
     const { error: uploadError } = await supabase
       .storage
       .from(BUCKET)
-      .upload(path, uint8, {
+      .upload(path, blob, {
         contentType: 'application/json; charset=utf-8',
-        upsert: true
+        upsert: true,
       });
 
     if (uploadError) {
@@ -95,27 +102,31 @@ export const handler = async (event) => {
 
     // potrdilo organizatorju (če je e-pošta podana in je RESEND_API_KEY)
     if (payload.organizerEmail){
-      await sendEmail(
-        payload.organizerEmail,
-        'NearGo – potrditev prejema objave',
-        `
-          <p>Hvala za oddajo dogodka <b>${payload.eventName || ''}</b>.</p>
-          <p>Vaš vnos bomo hitro pregledali. ${payload.featured ? 'Izbrali ste izpostavitev (7 dni).' : ''}</p>
-          <p>Ekipa NearGo</p>
-        `
-      );
+      try {
+        await sendEmail(
+          payload.organizerEmail,
+          'NearGo – potrditev prejema objave',
+          `
+            <p>Hvala za oddajo dogodka <b>${payload.eventName || ''}</b>.</p>
+            <p>Vaš vnos bomo hitro pregledali. ${payload.featured ? 'Izbrali ste izpostavitev (7 dni).' : ''}</p>
+            <p>Ekipa NearGo</p>
+          `
+        );
+      } catch {}
     }
 
     // obvestilo adminu (če je RESEND_API_KEY)
-    await sendEmail(
-      ADMIN_EMAIL,
-      'NearGo – nova objava dogodka',
-      `
-        <p>Nova objava: <b>${payload.eventName || ''}</b></p>
-        <p>Mesto: ${payload.city || payload.city2 || ''} | Cena: ${payload.price ?? '—'} | Featured: ${payload.featured ? 'DA':'NE'}</p>
-        <pre style="white-space:pre-wrap">${JSON.stringify(payload, null, 2)}</pre>
-      `
-    );
+    try {
+      await sendEmail(
+        ADMIN_EMAIL,
+        'NearGo – nova objava dogodka',
+        `
+          <p>Nova objava: <b>${payload.eventName || ''}</b></p>
+          <p>Mesto: ${payload.city || payload.city2 || ''} | Cena: ${payload.price ?? '—'} | Featured: ${payload.featured ? 'DA':'NE'}</p>
+          <pre style="white-space:pre-wrap">${JSON.stringify(payload, null, 2)}</pre>
+        `
+      );
+    } catch {}
 
     return json({ ok:true, key: path });
 

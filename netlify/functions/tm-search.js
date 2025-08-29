@@ -1,11 +1,11 @@
 // netlify/functions/tm-search.js
-// Enotna iskana točka: agregira rezultate iz /providers (veliki API-ji, manjši URL-ji, Supabase oddaje),
+// Enotna iskalna točka: agregira /providers (veliki API-ji, manjši URL-ji, Supabase oddaje),
 // podpira geokodiranje mest, filtriranje po radiju/kategoriji/poizvedbi, deduplikacijo
-// in prioritizira izpostavljene (featured) oddaje.
+// in prioritizira izpostavljene (featured).
 
-import { runProviders } from '../../providers/index.js'; // ⬅️ PRAVILNA POT
+import { runProviders } from '../../providers/index.js';
 
-/* ---- Helpers (CORS, JSON) ---- */
+/* ---- Helpers ---- */
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -17,7 +17,6 @@ const json = (d, s = 200) => ({
   body: JSON.stringify(d)
 });
 
-/* ---- Geo utils ---- */
 const toRad = (deg) => (deg * Math.PI) / 180;
 function haversineKm(a, b) {
   if (!a || !b || typeof a.lat !== 'number' || typeof a.lon !== 'number' || typeof b.lat !== 'number' || typeof b.lon !== 'number') {
@@ -46,10 +45,8 @@ async function geocodeCity(city) {
   }
 }
 
-/* ---- Normalizacija in varnostni ščiti ---- */
 function safeStr(v) { return (v ?? '').toString(); }
 function normalizeEvent(e) {
-  // Providers naj vračajo že v tem “NearGo” formatu; tu le pazimo, da polja obstajajo.
   return {
     id: safeStr(e.id || `${safeStr(e.source)}_${safeStr(e.name)}_${safeStr(e.start)}`),
     source: safeStr(e.source || 'unknown'),
@@ -59,7 +56,7 @@ function normalizeEvent(e) {
     start: e.start || null,
     end: e.end || null,
     category: (e.category || '').toString().toLowerCase() || null,
-    featuredUntil: e.featuredUntil || null, // ISO string ali null
+    featuredUntil: e.featuredUntil || null,
     venue: {
       name: safeStr(e.venue?.name || ''),
       address: safeStr(e.venue?.address || ''),
@@ -69,22 +66,25 @@ function normalizeEvent(e) {
   };
 }
 
-/* ---- Glavni handler ---- */
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
   if (event.httpMethod !== 'GET') return json({ ok: false, error: 'Method not allowed' }, 405);
 
   try {
-    const q = new URLSearchParams(event.rawQuery || event.queryStringParameters || {});
-    const query = (q.get('q') || '').trim();
-    const city = (q.get('city') || '').trim();
-    const latlon = (q.get('latlon') || '').trim(); // "lat,lon"
-    const category = (q.get('category') || '').trim().toLowerCase();
-    const radiusKm = Math.max(1, parseInt(q.get('radiuskm') || '50', 10));
-    const page = Math.max(0, parseInt(q.get('page') || '0', 10));
-    const size = Math.min(50, Math.max(1, parseInt(q.get('size') || '20', 10)));
+    // robustno branje query stringa
+    const qp = event.rawQuery
+      ? new URLSearchParams(event.rawQuery)
+      : new URLSearchParams(Object.entries(event.queryStringParameters || {}));
 
-    // center: CITY > GEO (če je mesto podano, ignoriramo latlon)
+    const query = (qp.get('q') || '').trim();
+    const city = (qp.get('city') || '').trim();
+    const latlon = (qp.get('latlon') || '').trim(); // "lat,lon"
+    const category = (qp.get('category') || '').trim().toLowerCase();
+    const radiusKm = Math.max(1, parseInt(qp.get('radiuskm') || process.env.DEFAULT_RADIUS_KM || '50', 10));
+    const page = Math.max(0, parseInt(qp.get('page') || '0', 10));
+    const size = Math.min(50, Math.max(1, parseInt(qp.get('size') || process.env.SEARCH_SIZE || '20', 10)));
+
+    // center: CITY > GEO
     let center = null;
     if (city) {
       center = await geocodeCity(city);
@@ -93,18 +93,13 @@ export const handler = async (event) => {
       if (!Number.isNaN(la) && !Number.isNaN(lo)) center = { lat: la, lon: lo };
     }
 
-    // 1) Povprašaj vse ponudnike (providers/index.js)
-    const providerResults = await runProviders({
-      center,        // lahko je null – providerji naj to znajo ignorirati
-      radiusKm,
-      query,
-      category
-    });
+    // 1) Zberemo vse vire
+    const providerResults = await runProviders({ center, radiusKm, query, category });
 
-    // 2) Normalizacija + varnost
+    // 2) Normalizacija
     const normalized = (providerResults || []).map(normalizeEvent);
 
-    // 3) Lokalno filtriranje (še enkrat varnostno) – po query/kategoriji/radiju
+    // 3) Lokalno filtriranje
     const matches = normalized.filter((e) => {
       if (query) {
         const hay = `${e.name} ${e.venue.address}`.toLowerCase();
@@ -120,7 +115,7 @@ export const handler = async (event) => {
       return true;
     });
 
-    // 4) Deduplikacija (po id in po "imenu + datumu + naslovu")
+    // 4) Deduplikacija
     const seen = new Set();
     const seenKey = new Set();
     const deduped = [];
@@ -133,10 +128,7 @@ export const handler = async (event) => {
       deduped.push(e);
     }
 
-    // 5) Uredi po prioriteti:
-    //  - najprej izpostavljeni (featuredUntil v prihodnosti) – provider oddaje imajo naravno prednost
-    //  - nato bližina (če je center znan)
-    //  - nato po času začetka (naraščajoče)
+    // 5) Razvrstitev (featured -> bližina -> čas)
     const nowISO = new Date().toISOString();
     deduped.sort((a, b) => {
       const aFeat = a.featuredUntil && a.featuredUntil >= nowISO;
@@ -157,14 +149,7 @@ export const handler = async (event) => {
     const start = page * size;
     const results = deduped.slice(start, start + size);
 
-    return json({
-      ok: true,
-      results,
-      total,
-      page,
-      size,
-      center
-    });
+    return json({ ok: true, results, total, page, size, center });
   } catch (e) {
     return json({ ok: false, error: e.message || 'Napaka pri iskanju' }, 500);
   }

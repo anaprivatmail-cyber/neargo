@@ -2,7 +2,7 @@
   publish = "."
   functions = "netlify/functions"
 
-# ===== Redirects to serverless functions (API) =====
+# ===== Redirects (API) =====
 [[redirects]]
   from = "/api/search"
   to   = "/.netlify/functions/tm-search"
@@ -22,19 +22,17 @@
   force = true
 
 [[redirects]]
-  from = "/api/provider-upload"
+  from = "/api/upload"
   to   = "/.netlify/functions/provider-upload"
   status = 200
   force = true
 
-# če uporabljaš Stripe “Checkout” funkcijo
 [[redirects]]
   from = "/api/checkout"
   to   = "/.netlify/functions/checkout"
   status = 200
   force = true
 
-# (opcijsko) lahka “ping/analytics” funkcija
 [[redirects]]
   from = "/api/analytics"
   to   = "/.netlify/functions/analytics"
@@ -42,13 +40,11 @@
   force = true
 
 # ===== Static asset caching =====
-# kratki HTML cache (da spremembe hitro vidiš)
 [[headers]]
   for = "/*.html"
   [headers.values]
     cache-control = "public, max-age=60, must-revalidate"
 
-# daljši cache za CSS/JS/ikone (lahko spremeniš po želji)
 [[headers]]
   for = "/assets/*"
   [headers.values]
@@ -63,8 +59,7 @@
     referrer-policy = "strict-origin-when-cross-origin"
     permissions-policy = "geolocation=(self), camera=()"
 
-# ===== SPA fallback (če kdaj dodaš rute) =====
-# Api preusmeritve so zgoraj, zato se ne prepišejo.
+# ===== SPA fallback =====
 [[redirects]]
   from = "/*"
   to   = "/index.html"
@@ -73,4 +68,4 @@
 # ===== Functions bundling =====
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["@netlify/blobs", "@supabase/supabase-js"]
+  external_node_modules = ["@netlify/blobs", "@supabase/supabase-js", "busboy"]

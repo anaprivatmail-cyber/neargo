@@ -1,22 +1,23 @@
-// netlify/functions/tm-search.js
-// Enotna iskalna točka: agregira /providers (veliki API-ji, manjši URL-ji, Supabase oddaje),
+// Enotna iskana točka NearGo.
+// Agregira rezultate iz /providers (veliki API-ji, manjši URL-ji, Supabase oddaje),
 // podpira geokodiranje mest, filtriranje po radiju/kategoriji/poizvedbi, deduplikacijo
-// in prioritizira izpostavljene (featured).
+// in prioritizira izpostavljene (featured). Nikoli ne vrača HTTP 500 – UI vedno dobi 200.
 
-import { runProviders } from '../../providers/index.js';
+import { runProviders } from '../../providers/index.js'; // <-- PRAVILNA POT
 
-/* ---- Helpers ---- */
+/* -------------------- CORS + JSON helper -------------------- */
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'GET,OPTIONS'
+  'Access-Control-Allow-Methods': 'GET,OPTIONS',
 };
 const json = (d, s = 200) => ({
   statusCode: s,
   headers: { 'Content-Type': 'application/json', ...CORS },
-  body: JSON.stringify(d)
+  body: JSON.stringify(d),
 });
 
+/* -------------------- Geo utils -------------------- */
 const toRad = (deg) => (deg * Math.PI) / 180;
 function haversineKm(a, b) {
   if (!a || !b || typeof a.lat !== 'number' || typeof a.lon !== 'number' || typeof b.lat !== 'number' || typeof b.lon !== 'number') {
@@ -40,51 +41,56 @@ async function geocodeCity(city) {
     const arr = await r.json();
     if (!arr?.length) return null;
     return { lat: parseFloat(arr[0].lat), lon: parseFloat(arr[0].lon) };
-  } catch {
+  } catch (err) {
+    console.error('Geocode error:', err);
     return null;
   }
 }
 
-function safeStr(v) { return (v ?? '').toString(); }
+/* -------------------- Normalizacija -------------------- */
+const s = (v) => (v ?? '').toString();
+
 function normalizeEvent(e) {
+  // Providers naj vračajo ta format; tukaj samo dodatno zavarujemo polja.
+  const venue = e?.venue || {};
+  const lat = typeof venue.lat === 'number' ? venue.lat : (venue.latitude ?? null);
+  const lon = typeof venue.lon === 'number' ? venue.lon : (venue.longitude ?? null);
+
   return {
-    id: safeStr(e.id || `${safeStr(e.source)}_${safeStr(e.name)}_${safeStr(e.start)}`),
-    source: safeStr(e.source || 'unknown'),
-    name: safeStr(e.name || 'Dogodek'),
-    url: e.url ? safeStr(e.url) : null,
-    images: Array.isArray(e.images) ? e.images.filter(Boolean) : [],
-    start: e.start || null,
-    end: e.end || null,
-    category: (e.category || '').toString().toLowerCase() || null,
-    featuredUntil: e.featuredUntil || null,
+    id: s(e?.id || `${s(e?.source)}_${s(e?.name)}_${s(e?.start)}`),
+    source: s(e?.source || 'unknown'),
+    name: s(e?.name || 'Dogodek'),
+    url: e?.url ? s(e.url) : null,
+    images: Array.isArray(e?.images) ? e.images.filter(Boolean) : [],
+    start: e?.start || null,
+    end: e?.end || null,
+    category: (e?.category || '').toString().toLowerCase() || null,
+    featuredUntil: e?.featuredUntil || null, // ISO string ali null
     venue: {
-      name: safeStr(e.venue?.name || ''),
-      address: safeStr(e.venue?.address || ''),
-      lat: (e.venue && typeof e.venue.lat === 'number') ? e.venue.lat : null,
-      lon: (e.venue && typeof e.venue.lon === 'number') ? e.venue.lon : null
-    }
+      name: s(venue?.name || ''),
+      address: s(venue?.address || ''),
+      lat: typeof lat === 'number' ? lat : null,
+      lon: typeof lon === 'number' ? lon : null,
+    },
   };
 }
 
+/* -------------------- Handler -------------------- */
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
   if (event.httpMethod !== 'GET') return json({ ok: false, error: 'Method not allowed' }, 405);
 
   try {
-    // robustno branje query stringa
-    const qp = event.rawQuery
-      ? new URLSearchParams(event.rawQuery)
-      : new URLSearchParams(Object.entries(event.queryStringParameters || {}));
+    const q = new URLSearchParams(event.rawQuery || event.queryStringParameters || {});
+    const query = (q.get('q') || '').trim();
+    const city = (q.get('city') || '').trim();
+    const latlon = (q.get('latlon') || '').trim(); // "lat,lon"
+    const category = (q.get('category') || '').trim().toLowerCase();
+    const radiusKm = Math.max(1, parseInt(q.get('radiuskm') || '50', 10));
+    const page = Math.max(0, parseInt(q.get('page') || '0', 10));
+    const size = Math.min(50, Math.max(1, parseInt(q.get('size') || '20', 10)));
 
-    const query = (qp.get('q') || '').trim();
-    const city = (qp.get('city') || '').trim();
-    const latlon = (qp.get('latlon') || '').trim(); // "lat,lon"
-    const category = (qp.get('category') || '').trim().toLowerCase();
-    const radiusKm = Math.max(1, parseInt(qp.get('radiuskm') || process.env.DEFAULT_RADIUS_KM || '50', 10));
-    const page = Math.max(0, parseInt(qp.get('page') || '0', 10));
-    const size = Math.min(50, Math.max(1, parseInt(qp.get('size') || process.env.SEARCH_SIZE || '20', 10)));
-
-    // center: CITY > GEO
+    // Center: CITY > GEO (če je mesto podano, ignoriramo latlon)
     let center = null;
     if (city) {
       center = await geocodeCity(city);
@@ -93,14 +99,27 @@ export const handler = async (event) => {
       if (!Number.isNaN(la) && !Number.isNaN(lo)) center = { lat: la, lon: lo };
     }
 
-    // 1) Zberemo vse vire
-    const providerResults = await runProviders({ center, radiusKm, query, category });
+    /* ---- 1) Pridobi rezultate iz providerjev ---- */
+    let providerResults = [];
+    try {
+      // runProviders naj INTERN0 lovi napake posameznih providerjev in vrne samo uspešne.
+      // Če pa se vseeno kaj zalomi, ta try/catch prepreči 500.
+      providerResults = await runProviders({
+        center,     // lahko je null — providerji naj to znajo ignorirati
+        radiusKm,
+        query,
+        category,
+      });
+    } catch (err) {
+      console.error('runProviders failed:', err);
+      providerResults = []; // ne zruši API-ja, samo brez providerjev
+    }
 
-    // 2) Normalizacija
+    /* ---- 2) Normaliziraj & varnostno filtriraj ---- */
     const normalized = (providerResults || []).map(normalizeEvent);
 
-    // 3) Lokalno filtriranje
-    const matches = normalized.filter((e) => {
+    /* ---- 3) Lokalno filtriranje po query/kategoriji/radiju ---- */
+    const filtered = normalized.filter((e) => {
       if (query) {
         const hay = `${e.name} ${e.venue.address}`.toLowerCase();
         if (!hay.includes(query.toLowerCase())) return false;
@@ -115,11 +134,11 @@ export const handler = async (event) => {
       return true;
     });
 
-    // 4) Deduplikacija
+    /* ---- 4) Deduplikacija ---- */
     const seen = new Set();
     const seenKey = new Set();
     const deduped = [];
-    for (const e of matches) {
+    for (const e of filtered) {
       const key = `${e.source}:${e.id}`;
       const key2 = `${e.name.toLowerCase()}|${(e.start || '').slice(0, 10)}|${e.venue.address.toLowerCase()}`;
       if (seen.has(key) || seenKey.has(key2)) continue;
@@ -128,7 +147,7 @@ export const handler = async (event) => {
       deduped.push(e);
     }
 
-    // 5) Razvrstitev (featured -> bližina -> čas)
+    /* ---- 5) Razvrščanje (featured > bližina > začetek) ---- */
     const nowISO = new Date().toISOString();
     deduped.sort((a, b) => {
       const aFeat = a.featuredUntil && a.featuredUntil >= nowISO;
@@ -144,13 +163,15 @@ export const handler = async (event) => {
       return ta - tb;
     });
 
-    // 6) Paging
+    /* ---- 6) Paging ---- */
     const total = deduped.length;
-    const start = page * size;
-    const results = deduped.slice(start, start + size);
+    const startIdx = page * size;
+    const results = deduped.slice(startIdx, startIdx + size);
 
     return json({ ok: true, results, total, page, size, center });
   } catch (e) {
-    return json({ ok: false, error: e.message || 'Napaka pri iskanju' }, 500);
+    // Nikoli 500 do UI – vrnemo 200 z ok:false in logiramo napako
+    console.error('Napaka v tm-search:', e);
+    return json({ ok: false, error: e.message || 'Napaka pri iskanju', results: [] }, 200);
   }
 };

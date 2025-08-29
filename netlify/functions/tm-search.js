@@ -1,5 +1,6 @@
 // netlify/functions/tm-search.js
-// Združeno iskanje: Supabase (oddaje ponudnikov) + Ticketmaster (opcijsko), s strogim filtriranjem po lokaciji
+// Združeno iskanje: Ticketmaster (opcijsko) + Supabase submissions
+// + deduplikacija, geokodiranje mest za submissions, sortiranje in paging.
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -16,11 +17,10 @@ const json = (d, s = 200) => ({
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const TM_KEY = process.env.TICKETMASTER_API_KEY || ''; // opcijsko
+const TM_KEY = process.env.TICKETMASTER_API_KEY || ''; // lahko prazno
 
 const BUCKET = 'event-images';
 const SUBMISSIONS_PREFIX = 'submissions/';
-const PUBLIC_PREFIX = 'public/'; // kam nalagaš slike
 
 const toRad = (deg) => (deg * Math.PI) / 180;
 function haversineKm(a, b) {
@@ -33,24 +33,28 @@ function haversineKm(a, b) {
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-// Geokodiranje mesta (Nominatim)
+// --- preprosta cache tabela za geokodiranje mest ---
+const geoCache = new Map();
 async function geocodeCity(city) {
   if (!city) return null;
+  const key = city.trim().toLowerCase();
+  if (geoCache.has(key)) return geoCache.get(key);
+
   const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}&limit=1`;
-  const r = await fetch(url, { headers: { 'User-Agent': 'NearGo/1.0 (+https://getneargo.com)' } });
-  if (!r.ok) return null;
-  const arr = await r.json();
-  if (!arr?.length) return null;
-  return { lat: parseFloat(arr[0].lat), lon: parseFloat(arr[0].lon) };
+  try {
+    const r = await fetch(url, { headers: { 'User-Agent': 'NearGo/1.0 (search)' } });
+    if (!r.ok) return null;
+    const arr = await r.json();
+    const res = (arr && arr[0])
+      ? { lat: parseFloat(arr[0].lat), lon: parseFloat(arr[0].lon) }
+      : null;
+    geoCache.set(key, res);
+    return res;
+  } catch {
+    return null;
+  }
 }
 
-// Public URL do slike v Supabase Storage
-function sbPublicUrl(path) {
-  // path primer: "public/myphoto.jpg"
-  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${encodeURI(path)}`;
-}
-
-// Ticketmaster -> unified objekti
 function normalizeTM(ev) {
   try {
     const venue = ev._embedded?.venues?.[0];
@@ -76,55 +80,79 @@ function normalizeTM(ev) {
   }
 }
 
-// Supabase JSON -> unified objekti
 function normalizeSB(obj) {
-  const lat = obj.venueLat ?? obj.lat ?? null;
-  const lon = obj.venueLon ?? obj.lon ?? null;
-
-  // če imaš imageName, poskusi privzeto v "public/{imageName}"
-  const imgs = [];
-  if (obj.imageName) {
-    const candidate = `${PUBLIC_PREFIX}${obj.imageName}`;
-    imgs.push(sbPublicUrl(candidate));
-  }
-  // če bi kdaj shranili polno pot (npr. obj.imagePath), lahko dodaš še tja:
-  if (obj.imagePath) {
-    imgs.unshift(sbPublicUrl(obj.imagePath));
-  }
-
+  const lat = obj.venueLat || obj.lat || null;
+  const lon = obj.venueLon || obj.lon || null;
   return {
     id: `sb_${obj.createdAt || obj.eventName}`,
     source: 'provider',
     name: obj.eventName || 'Dogodek',
     url: obj.url || null,
-    images: imgs,
+    images: obj.imageName ? [`sb://${obj.imageName}`] : [], // označimo, da je iz storage-a
     start: obj.start || null,
     end: obj.end || null,
     category: (obj.category || '').toLowerCase() || null,
+    featuredUntil: obj.featuredUntil || null,
     venue: {
       name: obj.venue || '',
       address: [obj.venue || '', obj.city || obj.city2 || '', obj.country || ''].filter(Boolean).join(', '),
-      lat: lat != null ? parseFloat(lat) : null,
-      lon: lon != null ? parseFloat(lon) : null
+      lat: lat ? parseFloat(lat) : null,
+      lon: lon ? parseFloat(lon) : null,
+      cityOnly: obj.city || obj.city2 || '' // za geokodiranje, če manjka lat/lon
     }
   };
 }
 
+// pretvori "sb://filename.jpg" v javni URL Supabase Storage
+async function resolveSbImageUrls(supabase, items) {
+  const names = items
+    .flatMap(e => (e.images || []))
+    .filter(u => typeof u === 'string' && u.startsWith('sb://'))
+    .map(u => u.slice(5));
+
+  if (!names.length) return items;
+
+  // preberemo podpisane URL-je (lahko tudi public, če je bucket public)
+  const { data, error } = await supabase
+    .storage
+    .from(BUCKET)
+    .createSignedUrls(names.map(n => `public/${n}`), 60 * 60); // 1h
+
+  if (error || !data) return items;
+
+  const map = new Map();
+  data.forEach(d => map.set(d.path.replace(/^public\//, ''), d.signedUrl));
+
+  return items.map(e => {
+    if (!e.images?.length) return e;
+    const out = { ...e, images: e.images.map(u => {
+      if (u.startsWith('sb://')) {
+        const name = u.slice(5);
+        return map.get(name) || null;
+      }
+      return u;
+    }).filter(Boolean) };
+    return out;
+  });
+}
+
 export const handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
-  if (event.httpMethod !== 'GET')     return json({ ok:false, error: 'Method not allowed' }, 405);
+  if (event.httpMethod === 'OPTIONS')
+    return { statusCode: 200, headers: CORS, body: '' };
+  if (event.httpMethod !== 'GET')
+    return json({ ok: false, error: 'Method not allowed' }, 405);
 
   try {
     const q = new URLSearchParams(event.rawQuery || event.queryStringParameters || {});
-    const query    = (q.get('q') || '').trim();
-    const city     = (q.get('city') || '').trim();
-    const latlon   = (q.get('latlon') || '').trim();     // "lat,lon"
+    const query = (q.get('q') || '').trim();
+    const city = (q.get('city') || '').trim();
+    const latlon = (q.get('latlon') || '').trim(); // "lat,lon"
     const category = (q.get('category') || '').trim().toLowerCase();
     const radiusKm = Math.max(1, parseInt(q.get('radiuskm') || '50', 10));
-    const page     = Math.max(0, parseInt(q.get('page') || '0', 10));
-    const size     = Math.min(50, Math.max(1, parseInt(q.get('size') || '20', 10)));
+    const page = Math.max(0, parseInt(q.get('page') || '0', 10));
+    const size = Math.min(50, Math.max(1, parseInt(q.get('size') || '20', 10)));
 
-    // — središče iskanja (strog režim: če ni center, ne vračamo TM in rezultate SB ne filtriramo po razdalji)
+    // 1) Središče iskanja
     let center = null;
     if (latlon) {
       const [la, lo] = latlon.split(',').map(Number);
@@ -133,30 +161,70 @@ export const handler = async (event) => {
       center = await geocodeCity(city);
     }
 
+    // 2) Supabase: preberemo submissions JSON
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return json({ ok:false, error:'Manjka SUPABASE_URL ali SUPABASE_SERVICE_ROLE_KEY' }, 500);
+      return json({ ok: false, error: 'Manjka SUPABASE_URL ali SUPABASE_SERVICE_ROLE_KEY' }, 500);
     }
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1) preberi oddaje iz Storage/submissions
     const { data: files, error: listErr } = await supabase
       .storage
       .from(BUCKET)
       .list(SUBMISSIONS_PREFIX, { limit: 1000 });
-    if (listErr) return json({ ok:false, error:`Storage list error: ${listErr.message}` }, 500);
 
-    const sbItems = [];
-    for (const f of (files || []).filter(f => f.name.endsWith('.json'))) {
-      const { data, error } = await supabase.storage.from(BUCKET).download(SUBMISSIONS_PREFIX + f.name);
+    if (listErr) {
+      return json({ ok: false, error: `Storage list error: ${listErr.message}` }, 500);
+    }
+
+    const jsonFiles = (files || []).filter(f => f.name.endsWith('.json'));
+
+    const sbItemsRaw = [];
+    for (const f of jsonFiles) {
+      const { data, error } = await supabase
+        .storage
+        .from(BUCKET)
+        .download(SUBMISSIONS_PREFIX + f.name);
       if (!error && data) {
         const txt = await data.text();
-        try { sbItems.push(normalizeSB(JSON.parse(txt))); } catch {}
+        try { sbItemsRaw.push(JSON.parse(txt)); } catch {}
       }
     }
 
-    // 2) Ticketmaster (samo če imamo center in TM ključ)
+    let sbItems = sbItemsRaw.map(normalizeSB);
+
+    // 2a) geokodiranje mest za sbItems brez koordinat (če imamo center)
+    if (center) {
+      // zberemo unikatna mesta
+      const cities = Array.from(
+        new Set(sbItems.filter(e => (!e.venue?.lat || !e.venue?.lon) && e.venue?.cityOnly)
+          .map(e => e.venue.cityOnly))
+      );
+      const geoResults = {};
+      await Promise.all(cities.map(async c => {
+        geoResults[c] = await geocodeCity(c);
+      }));
+
+      sbItems = sbItems.map(e => {
+        if ((!e.venue?.lat || !e.venue?.lon) && e.venue?.cityOnly && geoResults[e.venue.cityOnly]) {
+          return {
+            ...e,
+            venue: {
+              ...e.venue,
+              lat: geoResults[e.venue.cityOnly].lat,
+              lon: geoResults[e.venue.cityOnly].lon
+            }
+          };
+        }
+        return e;
+      });
+    }
+
+    // 2b) nadomestimo sb:// slike z javnimi URL-ji
+    sbItems = await resolveSbImageUrls(supabase, sbItems);
+
+    // 3) Ticketmaster (opcijsko)
     let tmResults = [];
-    if (center && TM_KEY) {
+    if (TM_KEY && center) {
       const tmURL = new URL('https://app.ticketmaster.com/discovery/v2/events.json');
       tmURL.searchParams.set('apikey', TM_KEY);
       tmURL.searchParams.set('latlong', `${center.lat},${center.lon}`);
@@ -165,14 +233,17 @@ export const handler = async (event) => {
       if (query) tmURL.searchParams.set('keyword', query);
       tmURL.searchParams.set('size', String(size));
       tmURL.searchParams.set('page', String(page));
-      const r = await fetch(tmURL.toString());
-      if (r.ok) {
-        const data = await r.json();
-        tmResults = (data?._embedded?.events || []).map(normalizeTM).filter(Boolean);
-      }
+      try {
+        const r = await fetch(tmURL.toString());
+        if (r.ok) {
+          const data = await r.json();
+          const arr = data?._embedded?.events || [];
+          tmResults = arr.map(normalizeTM).filter(Boolean);
+        }
+      } catch {}
     }
 
-    // 3) filtriranje (strogo – brez “default Dunaj/Gradec”)
+    // 4) lokalni filtri
     function matches(e) {
       if (query) {
         const hay = `${e.name} ${e.venue?.address || ''}`.toLowerCase();
@@ -181,23 +252,43 @@ export const handler = async (event) => {
       if (category) {
         if ((e.category || '') !== category) return false;
       }
-      if (center) {
-        // če imamo center, strogo po radiusu – zahtevamo koordinate
-        if (!(e.venue?.lat && e.venue?.lon)) return false;
+      if (center && e.venue?.lat && e.venue?.lon) {
         const d = haversineKm(center, { lat: e.venue.lat, lon: e.venue.lon });
         if (d > radiusKm) return false;
+      } else if (center && (e.source === 'provider')) {
+        // če za provider še vedno nimamo koordinat, ga izločimo pri geo iskanju
+        return false;
       }
       return true;
     }
 
+    // 5) kombinacija, deduplikacija, sortiranje
     const combined = [...sbItems, ...tmResults].filter(matches);
 
-    // 4) paging
-    const start = page * size;
-    const results = combined.slice(start, start + size);
+    // dedupe: najprej po id; če ga ni, po name|start|address
+    const seen = new Set();
+    const unique = [];
+    for (const e of combined) {
+      const key = e.id || `${(e.name||'').toLowerCase()}|${e.start||''}|${(e.venue?.address||'').toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.push(e);
+    }
 
-    return json({ ok:true, results, total: combined.length });
+    // sortiraj po začetku (najprej najbližji v času)
+    unique.sort((a,b) => {
+      const ta = a.start ? Date.parse(a.start) : Infinity;
+      const tb = b.start ? Date.parse(b.start) : Infinity;
+      return ta - tb;
+    });
+
+    // 6) paging
+    const startIdx = page * size;
+    const results = unique.slice(startIdx, startIdx + size);
+
+    return json({ ok: true, results, total: unique.length });
   } catch (e) {
-    return json({ ok:false, error: e.message || 'Napaka pri iskanju' }, 500);
+    console.error('tm-search error:', e);
+    return json({ ok: false, error: e.message || 'Napaka pri iskanju' }, 500);
   }
 };

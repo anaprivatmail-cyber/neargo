@@ -1,7 +1,17 @@
 // Skupne pomožne funkcije in “tip” za normaliziran dogodek
 
+/* ------------------ Geo ------------------ */
 export const toRad = (deg) => (deg * Math.PI) / 180;
+
+function isNum(n) {
+  return typeof n === "number" && Number.isFinite(n);
+}
+
 export function haversineKm(a, b) {
+  // Vrnemo Infinity, če česarkoli manjka – klicatelj naj to poravna (npr. sortiranje po razdalji)
+  if (!a || !b || !isNum(a.lat) || !isNum(a.lon) || !isNum(b.lat) || !isNum(b.lon)) {
+    return Number.POSITIVE_INFINITY;
+  }
   const R = 6371;
   const dLat = toRad(b.lat - a.lat);
   const dLon = toRad(b.lon - a.lon);
@@ -11,29 +21,49 @@ export function haversineKm(a, b) {
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
+/* ------------------ Besedilo / normalizacija ------------------ */
+// odstrani diakritiko, poravna whitespace, lower-case
+export function normalizeText(v = "") {
+  const s = String(v);
+  // Odstrani diakritiko, če je podpora za Unicode regex
+  const noDia = s.normalize ? s.normalize("NFD").replace(/\p{Diacritic}/gu, "") : s;
+  return noDia.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/* ------------------ Deduplikacija ------------------ */
 // Mehki ključ za deduplikacijo (različni viri istega eventa)
-export function softKey(e) {
-  const name = (e.name || "").toLowerCase().trim();
-  const when = (e.start || "").slice(0, 16); // do minut
-  const where = (e.venue?.address || "").toLowerCase().replace(/\s+/g, " ").trim();
+export function softKey(e = {}) {
+  const name = normalizeText(e.name || "");
+  // Do minut (YYYY-MM-DDTHH:mm), če start obstaja
+  const when = typeof e.start === "string" ? e.start.slice(0, 16) : "";
+  const where = normalizeText(e.venue?.address || "");
   return `${name}__${when}__${where}`;
 }
 
+/* ------------------ Filtriranje ------------------ */
 // Majhen util za filtriranje po radiju, kategoriji in iskalnem nizu
 export function makeMatcher({ query, category, center, radiusKm }) {
-  const q = (query || "").trim().toLowerCase();
-  const c = (category || "").trim().toLowerCase();
-  return function matches(e) {
+  const q = normalizeText(query || "");
+  const c = normalizeText(category || "");
+  return function matches(e = {}) {
+    // q: iščemo po imenu, imenu prizorišča in naslovu – vse normalizirano
     if (q) {
-      const hay = `${e.name} ${e.venue?.name || ""} ${e.venue?.address || ""}`.toLowerCase();
+      const hay = normalizeText(
+        `${e.name || ""} ${e.venue?.name || ""} ${e.venue?.address || ""}`
+      );
       if (!hay.includes(q)) return false;
     }
+
+    // c: točno ujemanje kanoničnega imena kategorije (providerji naj vračajo lower-case)
     if (c) {
-      if ((e.category || "").toLowerCase() !== c) return false;
+      const ec = normalizeText(e.category || "");
+      if (ec !== c) return false;
     }
-    if (center && e.venue?.lat && e.venue?.lon) {
+
+    // radij: le če imamo center in koordinate eventa
+    if (center && isNum(e?.venue?.lat) && isNum(e?.venue?.lon)) {
       const d = haversineKm(center, { lat: e.venue.lat, lon: e.venue.lon });
-      if (d > radiusKm) return false;
+      if (d > (radiusKm || 0)) return false;
     }
     return true;
   };

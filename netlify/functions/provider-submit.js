@@ -49,7 +49,7 @@ async function sendEmail(to, subject, html){
   return { ok: r.ok, data };
 }
 
-/** Minimalna server-side validacija (odjemalec validira podrobneje) */
+/** Minimalna server-side validacija */
 function requireFields(p){
   const missing = [];
   const need = [
@@ -61,20 +61,21 @@ function requireFields(p){
     ['start', 'Začetek'],
     ['end', 'Konec'],
     ['description', 'Opis'],
-    ['category', 'Kategorija']
+    ['category', 'Kategorija'],
+    ['imagePublicUrl', 'Fotografija']
   ];
-  // mesto: lahko pride kot city ali city2
+
   if (!p.city && !p.city2) missing.push('Mesto/kraj');
 
   for (const [k, label] of need){
     if (!String(p[k] ?? '').trim()) missing.push(label);
   }
 
-  // če je plačljiv tip, potrebujemo ceno in zalogo
-  const saleType = p.offerType || p.saleType || 'none';
-  if (saleType === 'ticket' || saleType === 'coupon'){
-    if (p.price == null || p.price === '') missing.push('Cena');
-    if (p.stock == null || p.stock === '') missing.push('Zaloga');
+  const offerType = p.offerType || p.saleType || 'none';
+  if (offerType === 'ticket' || offerType === 'coupon'){
+    if (p.price == null || p.price === '')  missing.push('Cena');
+    if (p.stock == null || p.stock === '')  missing.push('Zaloga');
+    if (!p.commissionAccepted)              missing.push('Strinjanje s provizijo');
   }
   return missing;
 }
@@ -84,7 +85,6 @@ export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
   if (event.httpMethod !== 'POST')   return json({ ok:false, error:'Method not allowed' }, 405);
 
-  // nujna okoljska
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
     return json({ ok:false, error:'Manjka SUPABASE_URL ali SUPABASE_SERVICE_ROLE_KEY' }, 500);
   }
@@ -93,7 +93,7 @@ export const handler = async (event) => {
   let payload;
   try{
     payload = JSON.parse(event.body || '{}');
-  }catch(e){
+  }catch{
     return json({ ok:false, error:'Neveljaven JSON body' }, 400);
   }
 
@@ -114,14 +114,12 @@ export const handler = async (event) => {
     const fileName = `${now.toISOString().replace(/[:.]/g,'-')}-${slugify(payload.eventName||'dogodek')}.json`;
     const path     = `${SUBMISSIONS_PREFIX}${fileName}`;
 
-    // Za zapis (UTF-8)
     const bodyObj = {
       ...payload,
       createdAt: now.toISOString(),
       source: 'provider'
     };
 
-    // TextEncoder je globalen v Node 18+; fallback za starejše
     const Enc = (typeof TextEncoder !== 'undefined') ? TextEncoder : (await import('node:util')).TextEncoder;
     const uint8 = new Enc().encode(JSON.stringify(bodyObj, null, 2));
 
@@ -137,7 +135,7 @@ export const handler = async (event) => {
       return json({ ok:false, error:`Napaka pri shranjevanju v Storage: ${uploadError.message}` }, 500);
     }
 
-    /* --------- E-pošta organizatorju --------- */
+    // E-pošta organizatorju (če je ključ)
     if (payload.organizerEmail){
       await sendEmail(
         payload.organizerEmail,
@@ -150,28 +148,23 @@ export const handler = async (event) => {
       );
     }
 
-    /* --------- E-pošta adminu --------- */
-    const saleType = payload.offerType || payload.saleType || 'none'; // združljivost
-    const saleTypeLabel =
-      saleType === 'ticket' ? 'ticket' :
-      saleType === 'coupon' ? 'coupon' : 'free';
-
+    // E-pošta adminu
+    const offerType = payload.offerType || payload.saleType || 'none';
     await sendEmail(
       ADMIN_EMAIL,
       'NearGo – nova objava dogodka',
       `
         <p>Nova objava: <b>${payload.eventName || ''}</b></p>
         <p>Mesto: ${payload.city || payload.city2 || ''}</p>
-        <p>Cena: ${payload.price ?? '—'} | Tip: ${saleTypeLabel} | Zaloga: ${payload.stock ?? '—'} | Featured: ${payload.featured ? 'DA':'NE'}</p>
-        <p>Strinjanje s provizijo: ${payload.agreeFee ? 'DA' : 'NE'}</p>
+        <p>Cena: ${payload.price ?? '—'} | Tip: ${offerType} | Zaloga: ${payload.stock ?? '—'} | Featured: ${payload.featured ? 'DA' : 'NE'}</p>
+        <p>Strinjanje s provizijo: ${payload.commissionAccepted ? 'DA' : 'NE'}</p>
         <pre style="white-space:pre-wrap">${JSON.stringify(payload, null, 2)}</pre>
       `
     );
 
-    return json({ ok:true, key:path });
+    return json({ ok:true, key:path }, 201);
 
   }catch(e){
-    // Zadnja varovalka – vedno pošlji message, da ne bo “neznano”
     return json({ ok:false, error:String(e?.message || e || 'Napaka') }, 500);
   }
 };

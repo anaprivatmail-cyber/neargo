@@ -1,105 +1,103 @@
-// providers/index.js
-import { PROVIDERS_ORDER, PROVIDERS_ENABLED } from "./config.js";
-import { normalizeGeneric } from "./types.js";
-import { haversineKm } from "./utils.js";
+import { softKey, makeMatcher } from './types.js';
+import { fetchSupabaseSubmissions } from './supabase-submissions.js';
+import { fetchBigApis } from './big-apis.js';
+import { haversineKm } from './types.js';
 
-import { fetchSupabaseSubmissions } from "./supabase-submissions.js";
-import { fetchTicketmaster } from "./ticketmaster.js";
-import { fetchBig2 } from "./big2.js";
-import { fetchSmallUrls } from "./small-urls.js";
+export const PROVIDERS_ORDER = [
+  'supabase-submissions',
+  'big-apis',
+  // 'small-urls', // ko/če vključiš
+];
 
-const HANDLERS = {
-  "supabase-submissions": fetchSupabaseSubmissions,
-  "ticketmaster": fetchTicketmaster,
-  "big2": fetchBig2,
-  "small-urls": fetchSmallUrls
+export const PROVIDERS_ENABLED = {
+  'supabase-submissions': true,
+  'big-apis': true,
+  // 'small-urls': false,
 };
 
-function isFeaturedNow(ev) {
-  if (!ev) return false;
-  if (ev.featured === true) return true;
-  if (!ev.featuredUntil) return false;
-  try { return new Date(ev.featuredUntil).getTime() > Date.now(); }
-  catch { return false; }
+async function callProvider(name, ctx) {
+  if (!PROVIDERS_ENABLED[name]) return [];
+  if (name === 'supabase-submissions') {
+    const res = await fetchSupabaseSubmissions({
+      SUPABASE_URL: ctx.env.SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY: ctx.env.SUPABASE_SERVICE_ROLE_KEY,
+      center: ctx.center, radiusKm: ctx.radiusKm,
+      query: ctx.query, category: ctx.category,
+      page: ctx.page, size: ctx.size
+    });
+    // shranimo “all” zaradi featured blend
+    ctx._sbAll = res.all || [];
+    return res.items;
+  }
+  if (name === 'big-apis') {
+    return await fetchBigApis({ env: ctx.env, ...ctx });
+  }
+  return [];
 }
 
-export async function fetchAllProviders(ctx) {
-  const tasks = PROVIDERS_ORDER
-    .filter(name => PROVIDERS_ENABLED[name] && HANDLERS[name])
-    .map(name => HANDLERS[name](ctx).catch(() => []));
-
-  const settled = await Promise.allSettled(tasks);
-  const raw = settled.flatMap(s => (s.status === "fulfilled" ? s.value : []));
-  const norm = raw.map(e => normalizeGeneric(e));
-
-  // dedupe (id + mehki ključ)
-  const byId = new Map();
-  const soft = new Set();
-  for (const ev of norm) {
-    const softKey = `${(ev.name||"").toLowerCase()}|${ev.start||""}|${(ev.venue?.address||"").toLowerCase()}`;
-    if (!byId.has(ev.id) && !soft.has(softKey)) {
-      byId.set(ev.id, ev);
-      soft.add(softKey);
+export async function runProviders(ctx) {
+  // 'source' filter (npr. source=ticketmaster | eventbrite | supabase)
+  if (ctx.source) {
+    if (ctx.source === 'supabase') {
+      return await callProvider('supabase-submissions', ctx);
+    }
+    if (ctx.source === 'ticketmaster' || ctx.source === 'eventbrite') {
+      return await callProvider('big-apis', ctx).then(arr =>
+        arr.filter(e => e.source === ctx.source)
+      );
     }
   }
-  let list = Array.from(byId.values());
 
-  // filtri
-  if (ctx.query) {
-    const q = ctx.query.toLowerCase();
-    list = list.filter(e => `${e.name} ${e.venue?.address||""}`.toLowerCase().includes(q));
-  }
-  if (ctx.category) {
-    const c = ctx.category.toLowerCase();
-    list = list.filter(e => (e.category||"") === c);
-  }
-  if (ctx.center && ctx.radiusKm) {
-    list = list.filter(e => {
-      const v = e.venue || {};
-      if (v.lat == null || v.lon == null) return true;
-      return haversineKm(ctx.center, { lat: v.lat, lon: v.lon }) <= ctx.radiusKm;
-    });
+  // Kliči vse po vrstnem redu
+  const chunks = [];
+  for (const name of PROVIDERS_ORDER) {
+    // eslint-disable-next-line no-await-in-loop
+    const part = await callProvider(name, ctx);
+    chunks.push(part);
   }
 
-  // sort: (1) aktivni featured, (2) “provider” najvišje, (3) po datumu
-  list.sort((a,b) => {
-    const fa = isFeaturedNow(a) ? -1 : 0;
-    const fb = isFeaturedNow(b) ? -1 : 0;
-    if (fa !== fb) return fa - fb;
-    const sa = a.source === "provider" ? -1 : 0;
-    const sb = b.source === "provider" ? -1 : 0;
-    if (sa !== sb) return sa - sb;
-    return String(a.start || "").localeCompare(String(b.start || ""));
+  // Zlij, deduplikacija (mehki ključ) + prioriteta bližine
+  const merged = [];
+  const seen = new Set();
+  const pushUnique = (arr) => {
+    for (const e of arr) {
+      const key = `${e.id}__${softKey(e)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(e);
+    }
+  };
+  chunks.forEach(pushUnique);
+
+  // Feature blend: najprej featured iz naših oddaj, nato ostalo
+  const now = Date.now();
+  const isFeatured = (e) => !!e.featuredUntil && Date.parse(e.featuredUntil) > now;
+
+  const matches = makeMatcher({
+    query: ctx.query, category: ctx.category,
+    center: ctx.center, radiusKm: ctx.radiusKm
   });
 
-  // paging
-  const page = Math.max(0, ctx.page || 0);
-  const size = Math.min(50, Math.max(1, ctx.size || 20));
-  const start = page * size;
-  const results = list.slice(start, start + size);
+  const featured = (ctx._sbAll || []).filter(isFeatured).filter(matches);
+  const notFeatured = merged.filter(e => !isFeatured(e));
 
-  return { results, total: list.length, all: list };
-}
+  // Sort po razdalji (če imamo center in koordinate), sicer po času
+  const sortByNearThenTime = (a, b) => {
+    if (ctx.center && a.venue?.lat && a.venue?.lon && b.venue?.lat && b.venue?.lon) {
+      const da = haversineKm(ctx.center, { lat: a.venue.lat, lon: a.venue.lon });
+      const db = haversineKm(ctx.center, { lat: b.venue.lat, lon: b.venue.lon });
+      return da - db;
+    }
+    return String(a.start || '').localeCompare(String(b.start || ''));
+  };
 
-/** Za vrtiljak “Izpostavljeno”: najprej aktivni featured, nato najbližje prihodnje */
-export function pickFeaturedFirst(list, center, n = 12) {
-  const now = Date.now();
-  const upcoming = (e) => !e.start || new Date(e.start).getTime() >= now;
+  featured.sort(sortByNearThenTime);
+  notFeatured.sort(sortByNearThenTime);
 
-  const featured = list.filter(e => isFeaturedNow(e) && upcoming(e));
-  const rest = list.filter(e => !isFeaturedNow(e) && upcoming(e));
+  const blended = [...featured, ...notFeatured];
 
-  if (center) {
-    const dist = (e) => (e.venue?.lat != null && e.venue?.lon != null)
-      ? haversineKm(center, { lat: e.venue.lat, lon: e.venue.lon })
-      : 999999;
-    rest.sort((a,b) => dist(a) - dist(b));
-  }
-
-  const out = [...featured];
-  for (const x of rest) {
-    if (out.length >= n) break;
-    out.push(x);
-  }
-  return out.slice(0, n);
+  // “Paging” na koncu
+  const start = (ctx.page || 0) * (ctx.size || 20);
+  const out = blended.slice(start, start + (ctx.size || 20));
+  return out;
 }

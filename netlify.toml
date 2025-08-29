@@ -21,6 +21,12 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/api/provider-upload"
+  to   = "/.netlify/functions/provider-upload"
+  status = 200
+  force = true
+
 # če uporabljaš Stripe “Checkout” funkcijo
 [[redirects]]
   from = "/api/checkout"

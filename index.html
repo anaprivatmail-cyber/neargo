@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NearGo – Najdi dogodke blizu</title>
+
+  <!-- Leaflet (zemljevid v modalu) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-GZC39h5fFf8IwGJ7gYVwqM6bB0rZtA6YxRjM3R0XgBk="
+    crossorigin=""
+    defer
+  ></script>
+
+  <style>
+    :root{
+      --bg: #f6fbfe;
+      --card: #ffffff;
+      --ink: #10212a;
+      --ink-soft:#51606a;
+      --brand:#02b7c5;
+      --ring:#0a90a5;
+      --chip:#eef6f8;
+      --border:#e6eef1;
+      --ok:#16a34a;
+      --danger:#ef4444;
+    }
+    [data-theme="dark"]{
+      --bg:#0c1116;
+      --card:#0f1620;
+      --ink:#e6eef1;
+      --ink-soft:#a7b5be;
+      --brand:#14d0dd;
+      --ring:#1fb6c6;
+      --chip:#16202a;
+      --border:#1b2a35;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans";
+      background:var(--bg); color:var(--ink);
+    }
+    .wrap{ max-width:980px; margin:0 auto; padding:16px; }
+    /* ---------- header ---------- */
+    header{
+      display:flex; align-items:center; gap:12px;
+      position:sticky; top:0; z-index:10;
+      background:linear-gradient(180deg,var(--bg),rgba(0,0,0,0));
+      padding:10px 16px 6px;
+    }
+    .logo{
+      display:flex; align-items:center; gap:10px; font-weight:800; font-size:24px;
+    }
+    .target{
+      width:28px; height:28px; position:relative;
+      display:grid; place-items:center;
+    }
+    .target .dot{
+      width:9px; height:9px; border-radius:999px; background:#0885a0;
+      box-shadow:0 0 0 2px #0ab1c7a6 inset;
+    }
+    .target::before, .target::after{
+      content:""; position:absolute; border-radius:999px;
+      border:2px solid #0ab1c780; inset:-2px; animation:pulse 2.2s ease-out infinite;
+    }
+    .target::after{ inset:-7px; opacity:.6; animation-delay:.6s; }
+    @keyframes pulse{
+      0%{ transform:scale(.6); opacity:.85 }
+      70%{ transform:scale(1.25); opacity:.15 }
+      100%{ transform:scale(1.5); opacity:0 }
+    }
+
+    .spacer{ flex:1 }
+    .moon{ font-size:20px; margin-right:6px }
+    .switch{
+      --h:24px; --w:44px;
+      inline-size:var(--w); block-size:var(--h);
+      border-radius:999px; background:var(--chip); border:1px solid var(--border);
+      position:relative; cursor:pointer;
+    }
+    .switch input{ appearance:none; position:absolute; inset:0; margin:0; opacity:0; }
+    .switch .knob{
+      position:absolute; top:2px; left:2px; inline-size:20px; block-size:20px;
+      border-radius:999px; background:var(--brand); transition:left .18s ease;
+      box-shadow:0 1px 0 rgba(0,0,0,.04), 0 0 0 2px #ffffff40 inset;
+    }
+    .switch input:checked + .knob{ left:calc(var(--w) - 22px); }
+
+    .cta{ background:var(--brand); color:#fff; font-weight:700; border:none; padding:12px 18px; border-radius:14px; }
+    .btn{ border:1px solid var(--border); background:var(--chip); padding:10px 16px; border-radius:14px; }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:18px; padding:14px; }
+
+    h1{ margin:10px 0 0; font-size:28px; line-height:1.2 }
+    h2{ margin:0 0 8px; font-size:20px }
+    label{ font-weight:700; font-size:14px; display:block; margin:0 0 8px }
+    input, select, textarea{
+      width:100%; padding:14px 14px; border:1px solid var(--border); background:var(--card); color:var(--ink);
+      border-radius:14px; outline:none;
+    }
+    input:focus, select:focus, textarea:focus{ box-shadow:0 0 0 3px #39b9c62a, 0 0 0 1px var(--ring) inset; }
+    .row{ display:flex; gap:12px; }
+    .row > *{ flex:1; }
+    .mt8{ margin-top:8px } .mt12{ margin-top:12px } .mt16{ margin-top:16px } .mt20{ margin-top:20px }
+    .mb0{ margin-bottom:0 }
+    .help{ color:var(--ink-soft); font-size:14px; margin-top:6px }
+
+    .chipset{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px }
+    .chip{ padding:10px 14px; border-radius:14px; border:1px solid var(--border); background:var(--chip); cursor:pointer; }
+    .chip.active{ background:var(--brand); color:#fff; border-color:transparent; }
+
+    .range-row{ display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px }
+    input[type="range"]{ width:100% }
+
+    .result-list{ display:grid; gap:10px; margin-top:12px }
+    .empty{ color:var(--ink-soft); padding:12px 10px }
+
+    /* featured slider (kompaktno) */
+    .feat-strip{ display:flex; gap:10px; overflow-x:auto; padding-bottom:6px; scroll-snap-type:x mandatory; }
+    .feat-card{ min-width:260px; scroll-snap-align:start; }
+    .feat-title{ font-weight:700; margin:0 0 4px }
+    .feat-meta{ color:var(--ink-soft); font-size:13px }
+
+    /* modal map */
+    .modal{ position:fixed; inset:0; background:#0008; display:none; place-items:center; z-index:50; }
+    .modal .sheet{ width:min(960px,92vw); height:min(78vh,560px); background:var(--card); border-radius:18px; border:1px solid var(--border); overflow:hidden; }
+    #map{ width:100%; height:100% }
+
+    /* price € inside input */
+    .input-eur{ position:relative }
+    .input-eur span{
+      position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--ink-soft); font-weight:700;
+      pointer-events:none;
+    }
+
+    /* file input custom */
+    .fileline{ display:flex; gap:10px; align-items:center }
+    .fileline input[type="file"]{ display:none }
+    .fileline .pick{ border:1px solid var(--border); background:var(--chip); padding:10px 14px; border-radius:14px; cursor:pointer; }
+    .fileline .fname{ color:var(--ink-soft) }
+
+    .small{ font-size:12px; }
+
+    /* section spacing */
+    section{ margin-top:14px }
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <div class="logo">
+      <div class="target" aria-hidden="true"><div class="dot"></div></div>
+      <span>NearGo</span>
+    </div>
+    <div class="spacer"></div>
+    <span class="moon" aria-hidden="true">🌙</span>
+    <label class="switch" title="Nočni način">
+      <input id="themeToggle" type="checkbox" />
+      <span class="knob"></span>
+    </label>
+    <button id="publishBtn" class="cta" onclick="scrollToForm()">Objavi dogodek</button>
+  </header>
+
+  <main class="wrap">
+    <!-- Iskanje -->
+    <section id="searchCard" class="card">
+      <h2 class="mb0">Iskanje</h2>
+
+      <div class="mt12">
+        <label for="qInput">Kaj</label>
+        <input id="qInput" placeholder="npr. Metallica, street food..." />
+      </div>
+
+      <div class="mt12">
+        <label for="whereInput">Kje</label>
+        <input id="whereInput" placeholder="npr. Ljubljana" />
+      </div>
+
+      <div class="mt12">
+        <label for="radiusInput">Oddaljenost</label>
+        <div class="range-row">
+          <input id="radiusInput" type="range" min="5" max="200" step="5" value="30" />
+          <div><strong id="kmOut">30</strong> km</div>
+        </div>
+      </div>
+
+      <div class="chipset" id="catChips">
+        <button class="chip active" data-cat="">Vse</button>
+        <button class="chip" data-cat="koncert">Koncert</button>
+        <button class="chip" data-cat="kultura">Kultura</button>
+        <button class="chip" data-cat="otroci">Otroci</button>
+        <button class="chip" data-cat="hrana">Hrana</button>
+        <button class="chip" data-cat="narava">Narava</button>
+        <button class="chip" data-cat="šport">Šport</button>
+        <button class="chip" data-cat="posel">Za podjetja</button>
+      </div>
+
+      <div class="row mt16">
+        <button id="searchBtn" class="cta" style="flex:0 0 120px">Išči</button>
+        <button id="geoBtn" class="btn" style="width:100%">Uporabi mojo trenutno lokacijo</button>
+        <button id="mapBtn" class="btn" style="flex:0 0 120px">Zemljevid</button>
+      </div>
+
+      <div id="results" class="result-list mt16"></div>
+    </section>
+
+    <!-- Izpostavljeno -->
+    <section class="card">
+      <h2>Izpostavljeno v tvoji bližini</h2>
+      <div id="featStrip" class="feat-strip"></div>
+      <div id="featEmpty" class="empty" style="display:none">Trenutno ni izpostavljenih dogodkov v bližini.</div>
+    </section>
+
+    <!-- Objava dogodka -->
+    <section id="formCard" class="card">
+      <h2>Objavi dogodek</h2>
+      <p class="help">Objava je brezplačna.</p>
+
+      <!-- Kje (država, mesto) in naziv -->
+      <div class="mt12">
+        <label for="eventName">Naslov dogodka *</label>
+        <input id="eventName" required />
+      </div>
+
+      <div class="row mt12">
+        <div>
+          <label for="venue">Prizorišče / kraj *</label>
+          <input id="venue" required />
+        </div>
+        <div>
+          <label for="city">Mesto/kraj *</label>
+          <input id="city" required />
+        </div>
+      </div>
+
+      <div class="row mt12">
+        <div>
+          <label for="country">Država (koda, npr. SI) *</label>
+          <input id="country" maxlength="2" placeholder="SI" required />
+        </div>
+        <div>
+          <label for="url">Povezava za več info / nakup (če obstaja)</label>
+          <input id="url" inputmode="url" />
+        </div>
+      </div>
+
+      <div class="row mt12">
+        <div>
+          <label for="start">Začetek *</label>
+          <input id="start" type="datetime-local" required />
+        </div>
+        <div>
+          <label for="end">Konec *</label>
+          <input id="end" type="datetime-local" required />
+        </div>
+      </div>
+
+      <!-- vrstni red po tvoji želji -->
+      <div class="mt12">
+        <label for="category">Kategorija *</label>
+        <select id="category" required>
+          <option value="" selected disabled>Izberi kategorijo</option>
+          <option>Koncert</option><option>Kultura</option><option>Otroci</option>
+          <option>Hrana</option><option>Narava</option><option>Šport</option><option>Za podjetja</option>
+        </select>
+      </div>
+
+      <div class="row mt12">
+        <div>
+          <label for="offer">Tip ponudbe (brez plačila)</label>
+          <select id="offer">
+            <option value="none" selected>Brez plačila</option>
+            <option value="ticket">Vstopnice</option>
+            <option value="coupon">Kuponi</option>
+          </select>
+        </div>
+        <div class="input-eur">
+          <label for="price">Cena</label>
+          <input id="price" type="number" step="0.01" min="0" placeholder="0,00" />
+          <span>€</span>
+        </div>
+      </div>
+
+      <div class="row mt12">
+        <div>
+          <label for="stock">Zaloga (št. kosov)</label>
+          <input id="stock" type="number" min="0" />
+        </div>
+        <div>
+          <label for="maxq">Max na naročilo</label>
+          <input id="maxq" type="number" min="0" />
+        </div>
+      </div>
+
+      <div class="mt12">
+        <label>Fotografija</label>
+        <div class="fileline">
+          <label class="pick" for="photo">Izberi fotografijo</label>
+          <input id="photo" type="file" accept="image/*" />
+          <span class="fname small" id="photoName">Fotografija ni izbrana</span>
+        </div>
+      </div>
+
+      <div class="mt12">
+        <label for="desc">Opis dogodka *</label>
+        <textarea id="desc" rows="5" required placeholder="Kratek, jasen opis ..."></textarea>
+      </div>
+
+      <div class="mt16">
+        <label class="row" style="align-items:center; gap:10px">
+          <input id="featured" type="checkbox" style="width:auto" />
+          <span>Izpostavi (7 dni) – 10 €</span>
+        </label>
+        <p class="help">Izpostavljeni dogodki se pokažejo najprej.</p>
+      </div>
+
+      <div class="mt12">
+        <label class="row" style="align-items:center; gap:10px">
+          <input id="terms" type="checkbox" required style="width:auto" />
+          <span>Strinjam se z <a href="/terms.html" target="_blank">pogoji za plačljive transakcije</a>.</span>
+        </label>
+      </div>
+
+      <div class="mt16">
+        <button id="submitBtn" class="cta">Objavi</button>
+      </div>
+
+      <div id="formMsg" class="help mt12"></div>
+    </section>
+  </main>
+
+  <!-- Zemljevid -->
+  <div id="mapModal" class="modal" aria-hidden="true">
+    <div class="sheet">
+      <div id="map"></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+  const API_SEARCH = '/api/search';
+  const API_FEAT   = '/api/provider-list';
+  let lastResults = [];
+  let selectedCategory = '';
+
+  /* theme toggle */
+  const themeToggle = $('#themeToggle');
+  const savedTheme = localStorage.getItem('theme');
+  if(savedTheme === 'dark'){ document.documentElement.setAttribute('data-theme','dark'); themeToggle.checked = true; }
+  themeToggle.addEventListener('change', () => {
+    if(themeToggle.checked){ document.documentElement.setAttribute('data-theme','dark'); localStorage.setItem('theme','dark'); }
+    else { document.documentElement.removeAttribute('data-theme'); localStorage.setItem('theme','light'); }
+  });
+
+  /* header cta scroll */
+  window.scrollToForm = () => { $('#formCard').scrollIntoView({behavior:'smooth'}); };
+
+  /* range label */
+  const radiusInput = $('#radiusInput'), kmOut = $('#kmOut');
+  const syncKm = () => kmOut.textContent = radiusInput.value;
+  radiusInput.addEventListener('input', syncKm); syncKm();
+
+  /* category chips */
+  $$('#catChips .chip').forEach(ch => {
+    ch.addEventListener('click', () => {
+      $$('#catChips .chip').forEach(x=>x.classList.remove('active'));
+      ch.classList.add('active');
+      selectedCategory = ch.dataset.cat || '';
+      runSearch();
+    });
+  });
+
+  /* geo – fill Kje and run */
+  $('#geoBtn').addEventListener('click', async () => {
+    if(!navigator.geolocation){ alert('Lokacija ni podprta.'); return; }
+    navigator.geolocation.getCurrentPosition(async pos => {
+      const { latitude, longitude } = pos.coords;
+      $('#whereInput').value = 'Moja lokacija';
+      $('#whereInput').dataset.lat = latitude;
+      $('#whereInput').dataset.lon = longitude;
+      await runSearch();
+    }, () => alert('Ni mogoče pridobiti lokacije.'));
+  });
+
+  /* simple forward geocoding for text KJE (Nominatim) */
+  async function geocodeCity(city, cc='SI'){
+    const url = new URL('https://nominatim.openstreetmap.org/search');
+    url.searchParams.set('q', [city, cc].filter(Boolean).join(', '));
+    url.searchParams.set('format', 'json'); url.searchParams.set('limit','1');
+    try{
+      const r = await fetch(url, { headers:{'User-Agent':'NearGo'} });
+      if(!r.ok) return null;
+      const arr = await r.json();
+      if(!arr?.length) return null;
+      return { lat: parseFloat(arr[0].lat), lon: parseFloat(arr[0].lon) };
+    }catch{ return null; }
+  }
+
+  /* search */
+  async function runSearch(){
+    const q   = $('#qInput').value.trim();
+    const city= $('#whereInput').value.trim();
+    const rad = radiusInput.value;
+    let latlon = null;
+
+    // if user pressed "Uporabi mojo lokacijo"
+    if($('#whereInput').dataset.lat && $('#whereInput').dataset.lon){
+      latlon = $('#whereInput').dataset.lat+','+$('#whereInput').dataset.lon;
+    }else if(city){
+      const gc = await geocodeCity(city);
+      if(gc) latlon = gc.lat+','+gc.lon;
+    }
+
+    const params = new URLSearchParams();
+    if(q) params.set('q', q);
+    if(selectedCategory) params.set('category', selectedCategory);
+    if(latlon) params.set('latlon', latlon);
+    params.set('radiuskm', rad);
+
+    const box = $('#results');
+    box.innerHTML = '<div class="help">Iščem ...</div>';
+
+    try{
+      const r = await fetch(API_SEARCH + '?' + params.toString());
+      const j = await r.json();
+      if(!j.ok){ box.innerHTML = '<div class="empty">Napaka: '+(j.error||'')+'</div>'; return; }
+      lastResults = j.results || [];
+      if(!lastResults.length){ box.innerHTML = '<div class="empty">Ni rezultatov. Poskusi večji radij ali drugo mesto.</div>'; return; }
+      box.innerHTML = lastResults.map(renderResult).join('');
+    }catch(e){
+      box.innerHTML = '<div class="empty">Napaka pri iskanju.</div>';
+    }
+  }
+  $('#searchBtn').addEventListener('click', runSearch);
+
+  function renderResult(it){
+    const img = (it.images && it.images[0]) ? `<img src="${it.images[0]}" alt="" style="width:70px;height:70px;object-fit:cover;border-radius:10px;margin-right:10px">` : '';
+    const when = it.start ? new Date(it.start).toLocaleString() : '';
+    return `
+      <div class="card row" style="align-items:center">
+        ${img}
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700">${escapeHtml(it.name||'Dogodek')}</div>
+          <div class="small" style="color:var(--ink-soft)">${escapeHtml(it.venue?.address||'')}</div>
+          <div class="small" style="color:var(--ink-soft)">${when}</div>
+        </div>
+        ${it.url ? `<a class="btn" href="${it.url}" target="_blank">Več</a>`:''}
+      </div>
+    `;
+  }
+  function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+  /* featured near you (compact slider) */
+  async function loadFeatured(){
+    try{
+      const r = await fetch(API_FEAT + '?featured=1&limit=10');
+      const j = await r.json();
+      const list = j.results || [];
+      const strip = $('#featStrip');
+      const empty = $('#featEmpty');
+      if(!list.length){ strip.innerHTML=''; empty.style.display='block'; return; }
+      empty.style.display='none';
+      strip.innerHTML = list.map(f => {
+        const when = f.start ? new Date(f.start).toLocaleDateString() : '';
+        return `
+          <div class="card feat-card">
+            <div class="feat-title">${escapeHtml(f.eventName || f.name || 'Dogodek')}</div>
+            <div class="feat-meta">${escapeHtml((f.city||'') + (f.country?(', '+f.country):''))}</div>
+            <div class="feat-meta">${when}</div>
+            ${f.url ? `<a class="btn mt8" href="${f.url}" target="_blank">Več</a>`:''}
+          </div>
+        `;
+      }).join('');
+    }catch{
+      $('#featStrip').innerHTML='';
+      $('#featEmpty').style.display='block';
+    }
+  }
+
+  /* map modal */
+  let map, mapLayer;
+  $('#mapBtn').addEventListener('click', () => {
+    $('#mapModal').style.display='grid';
+    setTimeout(() => initMap(), 10);
+  });
+  $('#mapModal').addEventListener('click', (e) => {
+    if(e.target.id==='mapModal') $('#mapModal').style.display='none';
+  });
+
+  function initMap(){
+    if(!map){
+      map = L.map('map');
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        maxZoom:19, attribution:'© OpenStreetMap'
+      }).addTo(map);
+    }
+    if(mapLayer){ mapLayer.clearLayers(); } else { mapLayer = L.layerGroup().addTo(map); }
+
+    if(lastResults.length){
+      const bounds = [];
+      lastResults.forEach(it=>{
+        const lat = Number(it.venue?.lat), lon = Number(it.venue?.lon);
+        if(Number.isFinite(lat) && Number.isFinite(lon)){
+          bounds.push([lat,lon]);
+          L.marker([lat,lon]).addTo(mapLayer).bindPopup('<b>'+escapeHtml(it.name||'')+'</b>');
+        }
+      });
+      if(bounds.length){ map.fitBounds(bounds,{padding:[20,20]}); }
+      else { map.setView([46.0569,14.5058], 7); } // fallback SI
+    }else{
+      map.setView([46.0569,14.5058], 7);
+    }
+    setTimeout(()=> map.invalidateSize(), 50);
+  }
+
+  /* file picker caption */
+  $('#photo').addEventListener('change', () => {
+    const f = $('#photo').files?.[0];
+    $('#photoName').textContent = f ? f.name : 'Fotografija ni izbrana';
+  });
+
+  /* submit form -> upload (optional) -> submit json */
+  $('#submitBtn').addEventListener('click', async () => {
+    const msg = $('#formMsg'); msg.textContent='';
+    const need = ['eventName','venue','city','country','start','end','category','desc','terms'];
+    for(const id of need){
+      const el = $('#'+id);
+      if((el.type==='checkbox' && !el.checked) || (el.value||'').trim()===''){
+        el.focus(); msg.textContent='Prosimo, izpolni označena polja.'; return;
+      }
+    }
+
+    let imagePublicUrl = null;
+    const file = $('#photo').files?.[0];
+    if(file){
+      try{
+        const fd = new FormData();
+        fd.append('file', file, file.name);
+        const r = await fetch('/api/provider-upload', { method:'POST', body:fd });
+        const j = await r.json();
+        if(j.ok) imagePublicUrl = j.imagePublicUrl;
+      }catch{}
+    }
+
+    const payload = {
+      organizer: 'Uporabnik',
+      organizerEmail: 'n/a',
+      eventName: $('#eventName').value.trim(),
+      venue: $('#venue').value.trim(),
+      city: $('#city').value.trim(),
+      country: $('#country').value.trim().toUpperCase(),
+      start: $('#start').value, end: $('#end').value,
+      description: $('#desc').value.trim(),
+      category: $('#category').value,
+      offerType: $('#offer').value,
+      price: $('#price').value ? Number($('#price').value) : null,
+      stock: $('#stock').value ? Number($('#stock').value) : null,
+      maxPerOrder: $('#maxq').value ? Number($('#maxq').value) : null,
+      imagePublicUrl,
+      url: $('#url').value.trim(),
+      featured: $('#featured').checked
+    };
+
+    msg.textContent='Pošiljam ...';
+    try{
+      const r = await fetch('/api/provider-submit', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      const j = await r.json();
+      if(j.ok){ msg.textContent='Hvala! Dogodek je shranjen.'; loadFeatured(); }
+      else { msg.textContent='Napaka: '+(j.error||''); }
+    }catch(e){ msg.textContent='Napaka pri pošiljanju.'; }
+  });
+
+  // initial loads
+  loadFeatured();
+})();
+</script>
+</body>
+</html>

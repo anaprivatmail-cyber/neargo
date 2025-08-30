@@ -60,6 +60,15 @@
     x-frame-options = "SAMEORIGIN"
     referrer-policy = "strict-origin-when-cross-origin"
     permissions-policy = "geolocation=(self), camera=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+
+# ===== CORS for functions =====
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin  = "*"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
 
 # ===== SPA fallback =====
 [[redirects]]

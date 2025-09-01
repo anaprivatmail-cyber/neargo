@@ -1,7 +1,4 @@
 // netlify/functions/checkout.js
-// Uporabi Stripe REST API brez SDK (da ni odvisnosti).
-// POST body: { lineItems:[{name, description, amount, currency, quantity}], successUrl, cancelUrl, customerEmail }
-
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 
 export const handler = async (event) => {
@@ -21,34 +18,47 @@ export const handler = async (event) => {
     }
 
     if (!STRIPE_SECRET_KEY) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "Stripe not configured (missing STRIPE_SECRET_KEY)" }),
-        { status: 200, headers: { "content-type": "application/json", "access-control-allow-origin": "*" } }
-      );
+      return new Response(JSON.stringify({ ok: false, error: "Stripe not configured" }), {
+        status: 500,
+        headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
+      });
     }
 
-    const payload = JSON.parse(event.body || "{}");
-    const {
-      lineItems = [],
-      successUrl = "https://getneargo.com/#success",
-      cancelUrl = "https://getneargo.com/#cancel",
-      customerEmail,
-    } = payload;
+    const { eventId, type, customerEmail } = JSON.parse(event.body || "{}");
 
-    // Build form data for Stripe
+    // 1. Preberi podatke dogodka iz Supabase
+    const { createClient } = await import("@supabase/supabase-js");
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+
+    const { data: ev, error } = await supabase
+      .from("events")
+      .select("*")
+      .eq("id", eventId)
+      .single();
+
+    if (error || !ev) {
+      return new Response(JSON.stringify({ ok: false, error: "Event not found" }), {
+        status: 404,
+        headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
+      });
+    }
+
+    // Cena v centih (EUR → centi)
+    const amount = Math.round(Number(ev.price) * 100);
+
+    // 2. Stripe Checkout Session
     const form = new URLSearchParams();
     form.set("mode", "payment");
-    form.set("success_url", successUrl);
-    form.set("cancel_url", cancelUrl);
+    form.set("success_url", "https://getneargo.com/#success");
+    form.set("cancel_url", "https://getneargo.com/#cancel");
     if (customerEmail) form.set("customer_email", customerEmail);
-
-    lineItems.forEach((it, i) => {
-      form.set(`line_items[${i}][price_data][currency]`, it.currency || "eur");
-      form.set(`line_items[${i}][price_data][product_data][name]`, it.name || "Ticket");
-      if (it.description) form.set(`line_items[${i}][price_data][product_data][description]`, it.description);
-      form.set(`line_items[${i}][price_data][unit_amount]`, String(it.amount)); // v centih
-      form.set(`line_items[${i}][quantity]`, String(it.quantity || 1));
-    });
+    form.set("line_items[0][price_data][currency]", "eur");
+    form.set("line_items[0][price_data][product_data][name]", ev.title || "Ticket");
+    form.set("line_items[0][price_data][unit_amount]", String(amount));
+    form.set("line_items[0][quantity]", "1");
 
     const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",
@@ -60,20 +70,22 @@ export const handler = async (event) => {
     });
 
     const data = await res.json();
+
     if (!res.ok) {
       return new Response(JSON.stringify({ ok: false, error: data.error?.message || "Stripe error" }), {
-        status: 200,
+        status: 500,
         headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, id: data.id, url: data.url }), {
+    return new Response(JSON.stringify({ ok: true, url: data.url }), {
       status: 200,
       headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
     });
+
   } catch (err) {
     return new Response(JSON.stringify({ ok: false, error: String(err) }), {
-      status: 200,
+      status: 500,
       headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
     });
   }

@@ -1,97 +1,106 @@
 // netlify/functions/stripe-webhook.js
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
-const crypto = require('crypto');
+const crypto = require("crypto");
+const QRCode = require("qrcode");
+const { createClient } = require("@supabase/supabase-js");
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE; // omogoča INSERT v protected tabelo
-const RESEND_API_KEY = process.env.RESEND_API_KEY; // ali SENDGRID_API_KEY, če uporabljaš SendGrid
-const SENDER_EMAIL = process.env.SENDER_EMAIL || 'NearGo <no-reply@getneargo.com>';
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const SUPABASE_URL   = process.env.SUPABASE_URL;
+const SUPABASE_ANON  = process.env.SUPABASE_ANON_KEY;
 
-exports.handler = async (event) => {
-  const sig = event.headers['stripe-signature'];
-  let stripeEvent;
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  try {
-    stripeEvent = stripe.webhooks.constructEvent(
-      event.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error('❌ Webhook signature verification failed:', err.message);
-    return { statusCode: 400, body: `Webhook Error: ${err.message}` };
-  }
-
-  if (stripeEvent.type === 'checkout.session.completed') {
-    const s = stripeEvent.data.object;
-
-    const payload = {
-      stripe_session_id: s.id,
-      email: s.customer_details?.email || null,
-      amount_total: s.amount_total, // cents
-      currency: s.currency,
-      kind: s.metadata?.kind || null,
-      item_id: s.metadata?.itemId || null,
-      // generiraj kodo/QR (preprosta unikatna koda za kupon/vstopnico)
-      code: 'NG-' + crypto.randomBytes(6).toString('hex').toUpperCase(),
-      status: 'paid'
-    };
-
-    try {
-      await savePurchase(payload);
-      await sendEmail(payload);
-    } catch (e) {
-      console.error('Post-payment hook failed:', e);
-    }
-  }
-
-  return { statusCode: 200, body: JSON.stringify({ ok: true }) };
-};
-
-async function savePurchase(p) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/purchases`, {
-    method: 'POST',
-    headers: {
-      apikey: SUPABASE_SERVICE_ROLE,
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation'
-    },
-    body: JSON.stringify({
-      stripe_session_id: p.stripe_session_id,
-      email: p.email,
-      amount_total: p.amount_total,
-      currency: p.currency,
-      kind: p.kind,
-      item_id: p.item_id,
-      code: p.code,
-      status: p.status
-    })
-  });
-  if (!r.ok) {
-    const t = await r.text();
-    throw new Error(`Supabase insert failed: ${r.status} ${t}`);
-  }
+// pomožna: preveri Stripe podpis
+function verifyStripeSignature(rawBody, sig, secret){
+  const [tPart, v1Part] = (sig || "").split(",").map(s=>s.trim());
+  const t = tPart?.split("=")[1];
+  const v1 = v1Part?.split("=")[1];
+  if(!t || !v1) return false;
+  const signedPayload = `${t}.${rawBody}`;
+  const expected = crypto.createHmac('sha256', secret).update(signedPayload).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(v1));
 }
 
-async function sendEmail(p) {
-  if (!p.email || !RESEND_API_KEY) return; // preskoči, če e-mail ali ključ ni nastavljen
+exports.handler = async (event, context) => {
+  try{
+    if(event.httpMethod === "OPTIONS"){
+      return { statusCode: 204, headers: cors(), body: "" };
+    }
+    if(event.httpMethod !== "POST"){
+      return { statusCode: 405, headers: cors(), body: "Method Not Allowed" };
+    }
 
-  const html = `
-    <div style="font-family:Arial,sans-serif">
-      <h2>Hvala za nakup v NearGo</h2>
-      <p><b>Tip:</b> ${p.kind === 'coupon' ? 'Kupon' : 'Vstopnica'}</p>
-      <p><b>Koda:</b> ${p.code}</p>
-      <p>Znesek: ${(p.amount_total/100).toFixed(2)} ${p.currency.toUpperCase()}</p>
-      <p>To e-pošto pokažite ob unovčenju.</p>
-    </div>
-  `;
+    const rawBody = event.body || "";
+    const sig = event.headers["stripe-signature"] || event.headers["Stripe-Signature"];
 
-  // primer z Resend (https://resend.com) – preprost in zanesljiv
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: SENDER_EMAIL, to: p.email, subject: 'Vaša koda NearGo', html })
-  });
+    if(!verifyStripeSignature(rawBody, sig, STRIPE_WEBHOOK_SECRET)){
+      return { statusCode: 400, headers: cors(), body: "Invalid signature" };
+    }
+
+    const payload = JSON.parse(rawBody);
+
+    if(payload.type === "checkout.session.completed"){
+      const s = payload.data.object;
+
+      // Metapodatki iz tvoje /api/checkout zahteve (dodaš jih v checkout.js – glej 3. poglavje)
+      const kind = s.metadata?.kind || "ticket";  // 'ticket' | 'coupon'
+      const eventId = s.metadata?.event_id || null;
+      const quantity = Number(s.metadata?.quantity || 1);
+      const amountTotal = s.amount_total || 0;   // v centih
+      const currency = s.currency || "eur";
+      const email = s.customer_details?.email || s.customer_email || null;
+      const sessionId = s.id;
+
+      // 1) Zapiši purchase
+      const { data: ins, error: perr } = await supabase
+        .from("purchases")
+        .insert({
+          stripe_session_id: sessionId,
+          email,
+          event_id: eventId,
+          amount_total: amountTotal,
+          currency,
+          code: null,    // za purchase je opcijsko
+          status: 'paid'
+        })
+        .select("id")
+        .single();
+      if(perr) throw perr;
+
+      // 2) Ustvari N kod in QR slike
+      const ticketRows = [];
+      for(let i=0;i<quantity;i++){
+        const code = `NG-${Math.random().toString(36).slice(2,8).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+        // QR – vsebina naj bo unikatna koda
+        const qrDataUrl = await QRCode.toDataURL(code, { width: 400, margin: 1 });
+
+        ticketRows.push({ purchase_id: ins.id, kind, event_id: eventId, code });
+
+        // Lahko shraniš PNG v Supabase Storage (opcijsko); za začetek zadošča inline dataURL v mailu
+        // TODO: če želiš Upload v Storage → (ustvari bucket 'tickets') in shrani kot PNG datoteko.
+      }
+
+      const { error: terr } = await supabase.from("tickets").insert(ticketRows);
+      if(terr) throw terr;
+
+      // 3) Pošlji e-pošto s QR (uporabi Resend/SendGrid/Mailgun; tukaj samo primer s preprostim webhook mailerjem)
+      // Priporočam Resend. Env: RESEND_API_KEY
+      // V mail dodaj seznam kod + QR (ali link na strankin "Moji nakupi" ekran).
+      // ... (glej spodaj “E-poštni pošiljatelj”)
+
+      console.log(`Fulfilled purchase ${ins.id} for ${email} (${quantity}x ${kind}).`);
+    }
+
+    return { statusCode: 200, headers: cors(), body: JSON.stringify({ received:true }) };
+  }catch(e){
+    console.error(e);
+    return { statusCode: 200, headers: cors(), body: JSON.stringify({ received:true }) }; // Stripe želi 2xx
+  }
+};
+
+function cors(){
+  return {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "POST,OPTIONS",
+    "access-control-allow-headers": "content-type, stripe-signature"
+  };
 }

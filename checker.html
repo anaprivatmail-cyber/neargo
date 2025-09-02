@@ -2,7 +2,7 @@
 <html lang="sl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>getneargo – Checker</title>
   <style>
     body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; margin: 16px; }
@@ -12,16 +12,17 @@
     .ok { color:#0a7c2f } .bad { color:#b00020 }
     input { padding:10px; border:1px solid #ddd; border-radius:8px; width:100%; max-width:380px; }
   </style>
+
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
     import { BrowserMultiFormatReader } from "https://esm.sh/@zxing/browser";
 
-    // Nastavi tvoje vrednosti ali jih vgradi iz <script> window.__env
-    const SUPABASE_URL = "{{SUPABASE_URL}}";
-    const SUPABASE_ANON_KEY = "{{SUPABASE_ANON_KEY}}";
+    // TVOJE VREDNOSTI (trde – to pusti tako):
+    const SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const S = { session: null, scanner: null };
+    const S = { session: null, scanner: null, scanning:false };
 
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -31,19 +32,26 @@
     }
 
     async function signIn() {
-      const email = document.getElementById("email").value;
+      const email = document.getElementById("email").value.trim();
+      if(!email) return alert("Vnesi e-pošto.");
       const { error } = await supabase.auth.signInWithOtp({ email });
-      alert(error ? "Napaka: " + error.message : "Poslali smo povezavo za prijavo na email.");
+      alert(error ? "Napaka: " + error.message : "Poslali smo prijavno povezavo na e-pošto.");
     }
 
     async function startScan() {
+      if (S.scanning) return;
+      S.scanning = true;
       const video = document.getElementById("video");
+      video.setAttribute("playsinline", "");
+      video.setAttribute("muted", "");
+      video.muted = true;
+
       const reader = new BrowserMultiFormatReader();
       S.scanner = reader;
       try {
         await reader.decodeFromVideoDevice(undefined, video, async (res) => {
           if (!res) return;
-          let token = res.getText();
+          let token = (res.getText() || "").trim();
           const m = token.match(/\/r\/([a-z0-9-]{10,})/i);
           if (m) token = m[1];
           await redeem(token);
@@ -51,32 +59,40 @@
         });
       } catch {
         alert("Kamera ni na voljo ali dovoljenje zavrnjeno.");
+        stopScan();
       }
     }
 
     function stopScan() {
       if (S.scanner) { S.scanner.reset(); S.scanner = null; }
+      S.scanning = false;
     }
 
     async function redeem(token) {
+      token = (token || "").trim();
+      if(!token) return alert("Manjka token.");
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`/api/redeem/${token}`, {
+      if(!session?.access_token) return alert("Najprej se prijavi.");
+
+      const res = await fetch(`/api/redeem/${encodeURIComponent(token)}`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${session?.access_token || ""}` }
+        headers: { "Authorization": `Bearer ${session.access_token}` }
       });
       const json = await res.json();
       const out = document.getElementById("result");
       if (json.ok) {
         out.innerHTML = `<div class="card">
           <h3 class="ok">VELJAVNO ✔</h3>
-          <p>${json.type === "coupon" ? "Kupon" : "Vstopnica"} – ${json.display_benefit || ""}</p>
-          <p>Kupčeva e-pošta: ${json.customer_email || "-"}</p>
+          <p>${json.type === "coupon" ? "Kupon" : "Vstopnica"} ${json.display_benefit ? " – " + escapeHtml(json.display_benefit) : ""}</p>
+          <p>Kupčeva e-pošta: ${escapeHtml(json.customer_email || "-")}</p>
           <p>Čas unovčitve: ${new Date(json.redeemed_at).toLocaleString()}</p>
         </div>`;
       } else {
-        out.innerHTML = `<div class="card"><h3 class="bad">NEVELJAVNO ✖</h3><p>${json.reason || "Napaka"}</p></div>`;
+        out.innerHTML = `<div class="card"><h3 class="bad">NEVELJAVNO ✖</h3><p>${escapeHtml(json.reason || "Napaka")}</p></div>`;
       }
     }
+
+    function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c]));}
 
     function render() {
       const app = document.getElementById("app");
@@ -94,8 +110,13 @@
             <button onclick="stopScan()">Ustavi</button>
             <video id="video" playsinline muted></video>
           </div>
+          <div class="card">
+            <input id="manual" placeholder="Ročni vnos tokena (če QR ne dela)" />
+            <button onclick="redeem(document.getElementById('manual').value)">Unovči</button>
+          </div>
           <div id="result"></div>`;
       }
+      // expose
       window.signIn = signIn; window.startScan = startScan; window.stopScan = stopScan;
     }
     init();
@@ -106,3 +127,4 @@
   <div id="app"></div>
 </body>
 </html>
+

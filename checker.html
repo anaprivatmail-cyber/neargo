@@ -4,235 +4,180 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NearGo – Checker</title>
-  <meta name="theme-color" content="#0bbbd6" />
-  <link rel="icon" type="image/png" href="/icon-192.png" />
   <style>
-    :root{
-      --brand:#0bbbd6; --text:#0b1b2b; --muted:#5b6b7b; --card:#fff;
-      --chip:#fff; --chipborder:#cfe1ee; --shadow:0 16px 40px rgba(11,187,214,.18);
-      --radius:16px; --ok:#11a67a; --bad:#d64c4c;
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: #f0f9ff;
+      margin: 0;
+      padding: 0;
+      color: #111827;
     }
-    *{box-sizing:border-box}
-    body{
-      margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      color:var(--text);
-      background:
-        radial-gradient(800px 400px at -10% -10%, rgba(11,187,214,.16) 0%, rgba(11,187,214,0) 60%),
-        linear-gradient(180deg, #edf8ff 0%, #ffffff 70%);
-      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    .container {
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 20px;
     }
-
-    /* header */
-    .bar{
-      position:sticky; top:0; z-index:10;
-      background:color-mix(in srgb, var(--card) 88%, transparent);
-      backdrop-filter: blur(6px);
-      border-bottom:1px solid rgba(0,0,0,.06);
+    .card {
+      background: #fff;
+      padding: 30px;
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      text-align: center;
     }
-    .nav{
-      max-width:1000px; margin:0 auto; padding:12px 14px;
-      display:flex; align-items:center; gap:12px;
+    h2 {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 10px;
     }
-    .brand{
-      display:flex; align-items:center; gap:10px; min-width:0;
-      font-weight:900; font-size:22px;
+    p {
+      color: #374151;
+      font-size: 15px;
+      margin-bottom: 20px;
     }
-    .brand img{width:34px;height:34px;border-radius:8px;border:1px solid #dceaf3}
-    .pill{margin-left:6px; font-size:12px; font-weight:900; color:#0b1b2b; background:#e9fcff; border:1px solid #cfeaf3; border-radius:999px; padding:6px 10px}
-
-    main{max-width:1000px; margin:0 auto; padding:18px 14px 40px}
-    .card{
-      background:var(--card); border:1px solid var(--chipborder); border-radius:var(--radius);
-      box-shadow:var(--shadow); padding:18px;
+    input {
+      flex: 1;
+      min-width: 220px;
+      max-width: 320px;
+      padding: 12px 14px;
+      font-size: 15px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
     }
-    .h1{font-size:clamp(22px,4.6vw,32px); font-weight:900; margin:0 0 6px}
-    .muted{color:var(--muted)}
-    .row{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px}
-    input[type=email]{
-      flex:1 1 260px; min-width:220px; height:44px; border-radius:12px; border:1px solid var(--chipborder);
-      padding:10px 12px; font-size:16px; background:#fff; outline:none;
-      transition:border-color .15s, box-shadow .15s;
+    button {
+      background: linear-gradient(90deg, #06b6d4, #0ea5e9);
+      border: none;
+      color: #fff;
+      padding: 12px 18px;
+      font-size: 15px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
     }
-    input[type=email]:focus{border-color:var(--brand); box-shadow:0 0 0 4px #c7f4fb}
-    .btn{
-      height:44px; border:none; border-radius:12px; padding:0 16px; cursor:pointer;
-      font-weight:900; background:var(--brand); color:#fff; box-shadow:var(--shadow);
+    button:hover {
+      opacity: 0.9;
     }
-    .btn.secondary{background:#fff; color:var(--text); border:1px solid var(--chipborder); box-shadow:none}
-    .btn:disabled{opacity:.6; cursor:not-allowed}
-
-    .note{font-size:13px; color:var(--muted); margin-top:8px}
-    .section-title{font-weight:900; margin:18px 0 8px}
-
-    /* scanner */
-    #video{width:100%; max-width:520px; background:#000; border-radius:14px; border:1px solid var(--chipborder)}
-    .ok{color:var(--ok)} .bad{color:var(--bad)}
-    .result-card{margin-top:12px}
-
-    /* toast */
-    .toast{
-      position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:1000;
-      background:var(--card); border:1px solid var(--chipborder); box-shadow:var(--shadow);
-      padding:10px 14px; border-radius:12px; display:none; align-items:center; gap:8px; font-weight:800;
+    #video {
+      width: 100%;
+      max-width: 480px;
+      border-radius: 12px;
+      background: #000;
+      margin-top: 10px;
     }
-    .toast.ok{border-color:color-mix(in srgb, var(--ok) 65%, var(--chipborder))}
-    .toast.bad{border-color:color-mix(in srgb, var(--bad) 65%, var(--chipborder))}
+    .ok { color: #0a7c2f; font-weight: bold; }
+    .bad { color: #b00020; font-weight: bold; }
+    .result-card {
+      border: 1px solid #eee;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 12px 0;
+      text-align: left;
+    }
   </style>
-</head>
-<body>
-  <!-- Header -->
-  <div class="bar">
-    <div class="nav">
-      <div class="brand">
-        <img src="/icon-192.png" alt="NearGo">
-        <span>NearGo</span>
-        <span class="pill">Checker</span>
-      </div>
-    </div>
-  </div>
-
-  <main>
-    <!-- LOGIN CARD -->
-    <section class="card" id="loginCard">
-      <h1 class="h1">Prijava za ponudnike</h1>
-      <p class="muted">Vpišite e-pošto, prejeli boste <b>prijavno povezavo</b>. Odprite jo na tej napravi in samodejno boste prijavljeni.</p>
-      <div class="row">
-        <input id="email" type="email" placeholder="tvoj@email" autocomplete="email" />
-        <button class="btn" id="sendLinkBtn">Pošlji prijavno povezavo</button>
-      </div>
-      <div class="note">Namig: če sporočila ne vidite, preverite mapo »Promocije« ali »Neželena pošta«.</div>
-    </section>
-
-    <!-- SCAN CARD (after login) -->
-    <section class="card" id="scanCard" style="display:none; margin-top:14px">
-      <div class="section-title">Skeniranje kode</div>
-      <div class="row" style="align-items:center">
-        <button class="btn" id="startBtn">Začni skeniranje</button>
-        <button class="btn secondary" id="stopBtn">Ustavi</button>
-      </div>
-      <div style="margin-top:10px"><video id="video" playsinline muted></video></div>
-      <div id="result" class="result-card"></div>
-    </section>
-  </main>
-
-  <!-- Toast -->
-  <div id="toast" class="toast"></div>
-
-  <!-- ===== APP SCRIPT ===== -->
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
     import { BrowserMultiFormatReader } from "https://esm.sh/@zxing/browser";
 
-    // 🔧 Vrednosti se vstavijo pri buildu (ostani pri teh placeholderjih, če si jih že uporabljala)
-    const SUPABASE_URL = "{{SUPABASE_URL}}";
-    const SUPABASE_ANON_KEY = "{{SUPABASE_ANON_KEY}}";
-
+    const SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
+    
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const S = { session: null, scanner: null };
 
-    const $ = (s)=>document.querySelector(s);
-    const toast = (msg, ok=true)=>{
-      const t=$("#toast"); t.textContent=msg; t.className="toast "+(ok?"ok":"bad");
-      t.style.display="flex"; setTimeout(()=>t.style.display="none", 3500);
-    };
-
-    const UI = {
-      loginCard: $("#loginCard"),
-      scanCard: $("#scanCard"),
-      email: $("#email"),
-      sendLink: $("#sendLinkBtn"),
-      start: $("#startBtn"),
-      stop: $("#stopBtn"),
-      video: $("#video"),
-      result: $("#result"),
-    };
-
-    let reader = null; // ZXing
-
-    // ===== Auth =====
-    async function sendMagicLink(){
-      const email = UI.email.value.trim();
-      if(!email){ toast("Vnesite e-pošto.", false); return; }
-      UI.sendLink.disabled = true;
-      try{
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            emailRedirectTo: `${location.origin}/checker.html`
-          }
-        });
-        if(error) throw error;
-        toast("Povezava poslana. Odprite pošto.");
-      }catch(e){
-        toast("Napaka: " + (e?.message || e), false);
-      }finally{
-        UI.sendLink.disabled = false;
-      }
-    }
-
-    function showApp(session){
-      const logged = !!session;
-      UI.loginCard.style.display = logged ? "none" : "block";
-      UI.scanCard.style.display  = logged ? "block" : "none";
-    }
-
-    async function init(){
+    async function init() {
       const { data: { session } } = await supabase.auth.getSession();
-      showApp(session);
-      supabase.auth.onAuthStateChange((_e, s)=>showApp(s?.session || null));
+      S.session = session;
+      supabase.auth.onAuthStateChange((_e, s) => { S.session = s?.session || null; render(); });
+      render();
     }
 
-    // ===== Scanner =====
-    async function startScan(){
-      if(reader){ reader.reset(); reader = null; }
-      reader = new BrowserMultiFormatReader();
-      try{
-        await reader.decodeFromVideoDevice(undefined, UI.video, async (res) => {
-          if(!res) return;
+    async function signIn() {
+      const email = document.getElementById("email").value;
+      const { error } = await supabase.auth.signInWithOtp({ email });
+      alert(error ? "Napaka: " + error.message : "Poslali smo povezavo za prijavo na email.");
+    }
+
+    async function startScan() {
+      const video = document.getElementById("video");
+      const reader = new BrowserMultiFormatReader();
+      S.scanner = reader;
+      try {
+        await reader.decodeFromVideoDevice(undefined, video, async (res) => {
+          if (!res) return;
           let token = res.getText();
           const m = token.match(/\/r\/([a-z0-9-]{10,})/i);
-          if(m) token = m[1];
+          if (m) token = m[1];
           await redeem(token);
           stopScan();
         });
-      }catch{
-        toast("Kamera ni na voljo ali dovoljenje zavrnjeno.", false);
-      }
-    }
-    function stopScan(){ if(reader){ reader.reset(); reader=null; } }
-
-    async function redeem(token){
-      try{
-        const { data: { session } } = await supabase.auth.getSession();
-        const r = await fetch(`/api/redeem/${encodeURIComponent(token)}`, {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${session?.access_token || ""}` }
-        });
-        const json = await r.json();
-        if(json.ok){
-          UI.result.innerHTML = `
-            <div class="card" style="border-color:#cdeee2">
-              <h3 class="ok" style="margin:0 0 6px">VELJAVNO ✔</h3>
-              <div class="muted">Unovčeno: ${new Date(json.redeemed_at).toLocaleString()}</div>
-              <div style="margin-top:8px"><b>${json.type==="coupon"?"Kupon":"Vstopnica"}</b> – ${json.display_benefit||""}</div>
-              <div class="muted" style="margin-top:6px">Kupčeva e-pošta: ${json.customer_email||"—"}</div>
-            </div>`;
-          toast("Unovčeno.", true);
-        }else{
-          UI.result.innerHTML = `<div class="card"><h3 class="bad" style="margin:0">Neveljavno ✖</h3><div class="muted">${json.reason||"Napaka"}</div></div>`;
-          toast("Neveljavno.", false);
-        }
-      }catch(e){
-        UI.result.innerHTML = `<div class="card"><h3 class="bad" style="margin:0">Napaka</h3><div class="muted">${e?.message||e}</div></div>`;
-        toast("Napaka pri unovčitvi.", false);
+      } catch {
+        alert("Kamera ni na voljo ali dovoljenje zavrnjeno.");
       }
     }
 
-    // ===== events
-    UI.sendLink.addEventListener("click", sendMagicLink);
-    UI.start.addEventListener("click", startScan);
-    UI.stop.addEventListener("click", stopScan);
+    function stopScan() {
+      if (S.scanner) { S.scanner.reset(); S.scanner = null; }
+    }
+
+    async function redeem(token) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/redeem/${token}`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${session?.access_token || ""}` }
+      });
+      const json = await res.json();
+      const out = document.getElementById("result");
+      if (json.ok) {
+        out.innerHTML = `<div class="result-card">
+          <h3 class="ok">VELJAVNO ✔</h3>
+          <p>${json.type === "coupon" ? "Kupon" : "Vstopnica"} – ${json.display_benefit || ""}</p>
+          <p>Kupčeva e-pošta: ${json.customer_email || "-"}</p>
+          <p>Čas unovčitve: ${new Date(json.redeemed_at).toLocaleString()}</p>
+        </div>`;
+      } else {
+        out.innerHTML = `<div class="result-card"><h3 class="bad">NEVELJAVNO ✖</h3><p>${json.reason || "Napaka"}</p></div>`;
+      }
+    }
+
+    function render() {
+      const app = document.getElementById("app");
+      if (!S.session) {
+        app.innerHTML = `
+          <div class="card">
+            <img src="icon-192.png" alt="NearGo Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
+            <h2>Prijava za ponudnike</h2>
+            <p>Vpišite vaš e-mail naslov in prejeli boste povezavo do prijave.<br>Odprite jo na tej napravi in samodejno boste prijavljeni.</p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+              <input id="email" type="email" placeholder="vas@email.si" />
+              <button onclick="signIn()">Pošlji prijavno povezavo</button>
+            </div>
+            <p style="margin-top: 10px; font-size: 13px; color: #6b7280;">
+              Namig: če sporočila ne vidite, preverite mapo »Promocije« ali »Neželena pošta«.
+            </p>
+          </div>
+        `;
+      } else {
+        app.innerHTML = `
+          <div class="card">
+            <img src="icon-192.png" alt="NearGo Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
+            <div style="margin-bottom: 20px;"><strong>Prijavljen:</strong> ${S.session.user.email}</div>
+            <button onclick="startScan()">📷 Začni skeniranje</button>
+            <button onclick="stopScan()" style="background:#ef4444; margin-left:10px;">✖ Ustavi</button>
+            <video id="video" playsinline muted></video>
+            <div id="result"></div>
+          </div>
+        `;
+      }
+      window.signIn = signIn;
+      window.startScan = startScan;
+      window.stopScan = stopScan;
+    }
 
     init();
   </script>
+</head>
+<body>
+  <div class="container">
+    <div id="app"></div>
+  </div>
 </body>
 </html>

@@ -17,12 +17,12 @@
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
     import { BrowserMultiFormatReader } from "https://esm.sh/@zxing/browser";
 
-    // TVOJE VREDNOSTI (trde – to pusti tako):
+    // 🔹 Tvoje vrednosti iz Supabase
     const SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const S = { session: null, scanner: null, scanning:false };
+    const S = { session: null, scanner: null, scanning: false };
 
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -33,8 +33,15 @@
 
     async function signIn() {
       const email = document.getElementById("email").value.trim();
-      if(!email) return alert("Vnesi e-pošto.");
-      const { error } = await supabase.auth.signInWithOtp({ email });
+      if (!email) return alert("Vnesi e-pošto.");
+
+      // 🔹 Redirect nazaj na checker.html po kliku v e-mailu
+      const redirectTo = `${location.origin}/checker.html`;
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: redirectTo }
+      });
+
       alert(error ? "Napaka: " + error.message : "Poslali smo prijavno povezavo na e-pošto.");
     }
 
@@ -70,9 +77,9 @@
 
     async function redeem(token) {
       token = (token || "").trim();
-      if(!token) return alert("Manjka token.");
+      if (!token) return alert("Manjka token.");
       const { data: { session } } = await supabase.auth.getSession();
-      if(!session?.access_token) return alert("Najprej se prijavi.");
+      if (!session?.access_token) return alert("Najprej se prijavi.");
 
       const res = await fetch(`/api/redeem/${encodeURIComponent(token)}`, {
         method: "POST",
@@ -83,7 +90,7 @@
       if (json.ok) {
         out.innerHTML = `<div class="card">
           <h3 class="ok">VELJAVNO ✔</h3>
-          <p>${json.type === "coupon" ? "Kupon" : "Vstopnica"} ${json.display_benefit ? " – " + escapeHtml(json.display_benefit) : ""}</p>
+          <p>${json.type === "coupon" ? "Kupon" : "Vstopnica"}${json.display_benefit ? " – " + escapeHtml(json.display_benefit) : ""}</p>
           <p>Kupčeva e-pošta: ${escapeHtml(json.customer_email || "-")}</p>
           <p>Čas unovčitve: ${new Date(json.redeemed_at).toLocaleString()}</p>
         </div>`;
@@ -92,7 +99,15 @@
       }
     }
 
-    function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c]));}
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      }[c]));
+    }
 
     function render() {
       const app = document.getElementById("app");
@@ -116,9 +131,11 @@
           </div>
           <div id="result"></div>`;
       }
-      // expose
-      window.signIn = signIn; window.startScan = startScan; window.stopScan = stopScan;
+      window.signIn = signIn;
+      window.startScan = startScan;
+      window.stopScan = stopScan;
     }
+
     init();
   </script>
 </head>

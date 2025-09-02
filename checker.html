@@ -17,34 +17,69 @@
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
     import { BrowserMultiFormatReader } from "https://esm.sh/@zxing/browser";
 
-    // 🔹 Tvoje vrednosti iz Supabase
+    // 🔹 Tvoje Supabase vrednosti
     const SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const S = { session: null, scanner: null, scanning: false };
 
+    // ---- INIT: zamenjaj code/hash za sejo in renderiraj UI
     async function init() {
+      const href = window.location.href;
+      const url  = new URL(href);
+
+      // a) PKCE varianta: ?code=...
+      if (url.searchParams.get("code")) {
+        try {
+          await supabase.auth.exchangeCodeForSession(href);
+        } catch (e) {
+          console.warn("exchangeCodeForSession:", e);
+        } finally {
+          history.replaceState(null, "", url.origin + url.pathname);
+        }
+      }
+
+      // b) Hash varianta: #access_token=...&refresh_token=...
+      if (url.hash && url.hash.includes("access_token")) {
+        const h = new URLSearchParams(url.hash.slice(1));
+        const access_token  = h.get("access_token");
+        const refresh_token = h.get("refresh_token");
+        if (access_token && refresh_token) {
+          try {
+            await supabase.auth.setSession({ access_token, refresh_token });
+          } catch (e) {
+            console.warn("setSession:", e);
+          } finally {
+            history.replaceState(null, "", url.origin + url.pathname);
+          }
+        }
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       S.session = session;
-      supabase.auth.onAuthStateChange((_e, s) => { S.session = s?.session || null; render(); });
+
+      supabase.auth.onAuthStateChange((_e, s) => {
+        S.session = s?.session || null;
+        render();
+      });
+
       render();
     }
 
+    // ---- MAGIC LINK pošlji z redirectom nazaj na checker.html
     async function signIn() {
       const email = document.getElementById("email").value.trim();
       if (!email) return alert("Vnesi e-pošto.");
-
-      // 🔹 Redirect nazaj na checker.html po kliku v e-mailu
       const redirectTo = `${location.origin}/checker.html`;
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo }
       });
-
       alert(error ? "Napaka: " + error.message : "Poslali smo prijavno povezavo na e-pošto.");
     }
 
+    // ---- Začetek/ustavitev skeniranja
     async function startScan() {
       if (S.scanning) return;
       S.scanning = true;
@@ -69,12 +104,12 @@
         stopScan();
       }
     }
-
     function stopScan() {
       if (S.scanner) { S.scanner.reset(); S.scanner = null; }
       S.scanning = false;
     }
 
+    // ---- Redeem (klic tvojega Netlify endpointa)
     async function redeem(token) {
       token = (token || "").trim();
       if (!token) return alert("Manjka token.");
@@ -99,16 +134,12 @@
       }
     }
 
+    // ---- UI
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, c => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
       }[c]));
     }
-
     function render() {
       const app = document.getElementById("app");
       if (!S.session) {
@@ -131,6 +162,7 @@
           </div>
           <div id="result"></div>`;
       }
+      // expose za inline gumbe
       window.signIn = signIn;
       window.startScan = startScan;
       window.stopScan = stopScan;
@@ -144,4 +176,3 @@
   <div id="app"></div>
 </body>
 </html>
-

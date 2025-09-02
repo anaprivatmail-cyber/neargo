@@ -19,29 +19,30 @@
 
     // 🔹 Supabase
     const SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
+    const SUPABASE_ANON_KEY =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const S = { session: null, scanner: null, scanning: false };
 
-    // ---------- INIT: poskusi vse načine prijave iz URL-ja ----------
+    // ---------- INIT: obdelaj vse tipe povratkov iz e-pošte ----------
     async function init() {
       const href = window.location.href;
       const url  = new URL(href);
 
-      // a) PKCE varianta: ?code=...
+      // 1) PKCE: ?code=...
       const code = url.searchParams.get("code");
       if (code) {
         try {
           await supabase.auth.exchangeCodeForSession(href);
         } catch (e) {
-          console.warn("exchangeCodeForSession:", e);
+          console.warn("exchangeCodeForSession:", e?.message || e);
         } finally {
-          history.replaceState(null, "", url.origin + url.pathname + url.search.replace(/(^\?v=\d+)?$/,""));
+          cleanUrl(url);
         }
       }
 
-      // b) Hash varianta: #access_token=...&refresh_token=...
+      // 2) Hash: #access_token=...&refresh_token=...
       if (url.hash && (url.hash.includes("access_token") || url.hash.includes("provider_token"))) {
         const h = new URLSearchParams(url.hash.slice(1));
         const access_token  = h.get("access_token")  || h.get("provider_token");
@@ -50,37 +51,48 @@
           try {
             await supabase.auth.setSession({ access_token, refresh_token });
           } catch (e) {
-            console.warn("setSession:", e);
+            console.warn("setSession:", e?.message || e);
           } finally {
-            history.replaceState(null, "", url.origin + url.pathname + url.search.replace(/(^\?v=\d+)?$/,""));
+            cleanUrl(url);
           }
         }
       }
 
-      // trenutna seja
+      // 3) token_hash (Confirm signup / Magic link v nekaterih šablonah)
+      const token_hash = url.searchParams.get("token_hash");
+      const type = url.searchParams.get("type"); // signup | magiclink | recovery | email_change
+      if (token_hash && type) {
+        try {
+          await supabase.auth.verifyOtp({ type, token_hash });
+        } catch (e) {
+          console.warn("verifyOtp:", e?.message || e);
+        } finally {
+          cleanUrl(url);
+        }
+      }
+
+      // Poberi sejo & poslušaj spremembe
       const { data: { session } } = await supabase.auth.getSession();
       S.session = session;
-
-      supabase.auth.onAuthStateChange((_e, s) => {
-        S.session = s?.session || null;
-        render();
-      });
+      supabase.auth.onAuthStateChange((_e, s) => { S.session = s?.session || null; render(); });
 
       render();
+    }
+
+    function cleanUrl(url){
+      history.replaceState(null, "", url.origin + url.pathname);
     }
 
     // ---------- MAGIC LINK ----------
     async function signIn() {
       const email = document.getElementById("email").value.trim();
       if (!email) return alert("Vnesi e-pošto.");
-
-      // cache-buster v queryju (posodobi številko v=4, če bo treba)
-      const search = location.search || "?v=4";
+      // cache-buster v queryju, da vedno naloži zadnjo kodo
+      const search = location.search || "?v=5";
       const redirectTo = `${location.origin}${location.pathname}${search}`;
-
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: redirectTo }
+        options: { emailRedirectTo: redirectTo, shouldCreateUser: true }
       });
       alert(error ? "Napaka: " + error.message : "Poslali smo prijavno povezavo na e-pošto.");
     }

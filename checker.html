@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>getneargo – Checker</title>
+  <style>
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; margin: 16px; }
+    .card { border:1px solid #eee; border-radius:12px; padding:16px; margin:12px 0; }
+    button { padding:10px 14px; border-radius:8px; border:1px solid #ddd; cursor:pointer; }
+    #video { width:100%; max-width:480px; border-radius:12px; background:#000; }
+    .ok { color:#0a7c2f } .bad { color:#b00020 }
+    input { padding:10px; border:1px solid #ddd; border-radius:8px; width:100%; max-width:380px; }
+  </style>
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    import { BrowserMultiFormatReader } from "https://esm.sh/@zxing/browser";
+
+    // Nastavi tvoje vrednosti ali jih vgradi iz <script> window.__env
+    const SUPABASE_URL = "{{SUPABASE_URL}}";
+    const SUPABASE_ANON_KEY = "{{SUPABASE_ANON_KEY}}";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const S = { session: null, scanner: null };
+
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+      S.session = session;
+      supabase.auth.onAuthStateChange((_e, s) => { S.session = s?.session || null; render(); });
+      render();
+    }
+
+    async function signIn() {
+      const email = document.getElementById("email").value;
+      const { error } = await supabase.auth.signInWithOtp({ email });
+      alert(error ? "Napaka: " + error.message : "Poslali smo povezavo za prijavo na email.");
+    }
+
+    async function startScan() {
+      const video = document.getElementById("video");
+      const reader = new BrowserMultiFormatReader();
+      S.scanner = reader;
+      try {
+        await reader.decodeFromVideoDevice(undefined, video, async (res) => {
+          if (!res) return;
+          let token = res.getText();
+          const m = token.match(/\/r\/([a-z0-9-]{10,})/i);
+          if (m) token = m[1];
+          await redeem(token);
+          stopScan();
+        });
+      } catch {
+        alert("Kamera ni na voljo ali dovoljenje zavrnjeno.");
+      }
+    }
+
+    function stopScan() {
+      if (S.scanner) { S.scanner.reset(); S.scanner = null; }
+    }
+
+    async function redeem(token) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/redeem/${token}`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${session?.access_token || ""}` }
+      });
+      const json = await res.json();
+      const out = document.getElementById("result");
+      if (json.ok) {
+        out.innerHTML = `<div class="card">
+          <h3 class="ok">VELJAVNO ✔</h3>
+          <p>${json.type === "coupon" ? "Kupon" : "Vstopnica"} – ${json.display_benefit || ""}</p>
+          <p>Kupčeva e-pošta: ${json.customer_email || "-"}</p>
+          <p>Čas unovčitve: ${new Date(json.redeemed_at).toLocaleString()}</p>
+        </div>`;
+      } else {
+        out.innerHTML = `<div class="card"><h3 class="bad">NEVELJAVNO ✖</h3><p>${json.reason || "Napaka"}</p></div>`;
+      }
+    }
+
+    function render() {
+      const app = document.getElementById("app");
+      if (!S.session) {
+        app.innerHTML = `<div class="card">
+          <h2>Prijava za ponudnike</h2>
+          <input id="email" type="email" placeholder="tvoj@email" />
+          <button onclick="signIn()">Pošlji prijavno povezavo</button>
+        </div>`;
+      } else {
+        app.innerHTML = `
+          <div class="card"><strong>Prijavljen:</strong> ${S.session.user.email}</div>
+          <div class="card">
+            <button onclick="startScan()">Začni skeniranje</button>
+            <button onclick="stopScan()">Ustavi</button>
+            <video id="video" playsinline muted></video>
+          </div>
+          <div id="result"></div>`;
+      }
+      window.signIn = signIn; window.startScan = startScan; window.stopScan = stopScan;
+    }
+    init();
+  </script>
+</head>
+<body>
+  <h1>getneargo – Checker</h1>
+  <div id="app"></div>
+</body>
+</html>

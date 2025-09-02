@@ -17,7 +17,6 @@
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
     import { BrowserMultiFormatReader } from "https://esm.sh/@zxing/browser";
 
-    // 🔹 Supabase
     const SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
     const SUPABASE_ANON_KEY =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
@@ -25,71 +24,19 @@
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const S = { session: null, scanner: null, scanning: false };
 
-    // ---------- INIT: obdelaj vse tipe povratkov iz e-pošte ----------
+    // Prikaži UI glede na sejo
     async function init() {
-      const href = window.location.href;
-      const url  = new URL(href);
-
-      // 1) PKCE: ?code=...
-      const code = url.searchParams.get("code");
-      if (code) {
-        try {
-          await supabase.auth.exchangeCodeForSession(href);
-        } catch (e) {
-          console.warn("exchangeCodeForSession:", e?.message || e);
-        } finally {
-          cleanUrl(url);
-        }
-      }
-
-      // 2) Hash: #access_token=...&refresh_token=...
-      if (url.hash && (url.hash.includes("access_token") || url.hash.includes("provider_token"))) {
-        const h = new URLSearchParams(url.hash.slice(1));
-        const access_token  = h.get("access_token")  || h.get("provider_token");
-        const refresh_token = h.get("refresh_token");
-        if (access_token && refresh_token) {
-          try {
-            await supabase.auth.setSession({ access_token, refresh_token });
-          } catch (e) {
-            console.warn("setSession:", e?.message || e);
-          } finally {
-            cleanUrl(url);
-          }
-        }
-      }
-
-      // 3) token_hash (Confirm signup / Magic link v nekaterih šablonah)
-      const token_hash = url.searchParams.get("token_hash");
-      const type = url.searchParams.get("type"); // signup | magiclink | recovery | email_change
-      if (token_hash && type) {
-        try {
-          await supabase.auth.verifyOtp({ type, token_hash });
-        } catch (e) {
-          console.warn("verifyOtp:", e?.message || e);
-        } finally {
-          cleanUrl(url);
-        }
-      }
-
-      // Poberi sejo & poslušaj spremembe
       const { data: { session } } = await supabase.auth.getSession();
       S.session = session;
       supabase.auth.onAuthStateChange((_e, s) => { S.session = s?.session || null; render(); });
-
       render();
     }
 
-    function cleanUrl(url){
-      history.replaceState(null, "", url.origin + url.pathname);
-    }
-
-    // ---------- MAGIC LINK ----------
+    // 🔹 Magic link – pošlji, a redirect je na auth-callback.html (tam se seja postavi)
     async function signIn() {
       const email = document.getElementById("email").value.trim();
       if (!email) return alert("Vnesi e-pošto.");
-      // cache-buster v queryju, da vedno naloži zadnjo kodo
-      const search = location.search || "?v=5";
-      const redirectTo = `${location.origin}${location.pathname}${search}`;
+      const redirectTo = `${location.origin}/auth-callback.html?v=1`;
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: redirectTo, shouldCreateUser: true }
@@ -97,14 +44,11 @@
       alert(error ? "Napaka: " + error.message : "Poslali smo prijavno povezavo na e-pošto.");
     }
 
-    // ---------- QR skeniranje ----------
     async function startScan() {
       if (S.scanning) return;
       S.scanning = true;
       const video = document.getElementById("video");
-      video.setAttribute("playsinline", "");
-      video.setAttribute("muted", "");
-      video.muted = true;
+      video.setAttribute("playsinline", ""); video.setAttribute("muted", ""); video.muted = true;
 
       const reader = new BrowserMultiFormatReader();
       S.scanner = reader;
@@ -122,12 +66,8 @@
         stopScan();
       }
     }
-    function stopScan() {
-      if (S.scanner) { S.scanner.reset(); S.scanner = null; }
-      S.scanning = false;
-    }
+    function stopScan(){ if (S.scanner) { S.scanner.reset(); S.scanner = null; } S.scanning = false; }
 
-    // ---------- Redeem ----------
     async function redeem(token) {
       token = (token || "").trim();
       if (!token) return alert("Manjka token.");
@@ -152,13 +92,8 @@
       }
     }
 
-    // ---------- UI ----------
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, c => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-      }[c]));
-    }
-    function render() {
+    function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[c]));}
+    function render(){
       const app = document.getElementById("app");
       if (!S.session) {
         app.innerHTML = `<div class="card">
@@ -180,9 +115,7 @@
           </div>
           <div id="result"></div>`;
       }
-      window.signIn = signIn;
-      window.startScan = startScan;
-      window.stopScan = stopScan;
+      window.signIn = signIn; window.startScan = startScan; window.stopScan = stopScan;
     }
 
     init();

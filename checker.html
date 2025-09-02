@@ -12,11 +12,7 @@
       padding: 0;
       color: #111827;
     }
-    .container {
-      max-width: 700px;
-      margin: 40px auto;
-      padding: 20px;
-    }
+    .container { max-width: 700px; margin: 40px auto; padding: 20px; }
     .card {
       background: #fff;
       padding: 30px;
@@ -24,76 +20,102 @@
       box-shadow: 0 4px 20px rgba(0,0,0,0.05);
       text-align: center;
     }
-    h2 {
-      font-size: 26px;
-      font-weight: 800;
-      margin-bottom: 10px;
-    }
-    p {
-      color: #374151;
-      font-size: 15px;
-      margin-bottom: 20px;
-    }
+    h2 { font-size: 26px; font-weight: 800; margin-bottom: 10px; }
+    p  { color: #374151; font-size: 15px; margin-bottom: 20px; }
     input {
-      flex: 1;
-      min-width: 220px;
-      max-width: 320px;
-      padding: 12px 14px;
-      font-size: 15px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
+      flex: 1; min-width: 220px; max-width: 320px;
+      padding: 12px 14px; font-size: 15px;
+      border: 1px solid #d1d5db; border-radius: 8px;
     }
     button {
       background: linear-gradient(90deg, #06b6d4, #0ea5e9);
-      border: none;
-      color: #fff;
-      padding: 12px 18px;
-      font-size: 15px;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
+      border: none; color: #fff; padding: 12px 18px;
+      font-size: 15px; border-radius: 8px; font-weight: 600; cursor: pointer;
     }
-    button:hover {
-      opacity: 0.9;
-    }
-    #video {
-      width: 100%;
-      max-width: 480px;
-      border-radius: 12px;
-      background: #000;
-      margin-top: 10px;
-    }
-    .ok { color: #0a7c2f; font-weight: bold; }
+    button:hover { opacity: 0.9; }
+    button[disabled]{ opacity:.6; cursor:not-allowed; }
+    #video { width: 100%; max-width: 480px; border-radius: 12px; background: #000; margin-top: 10px; }
+    .ok  { color: #0a7c2f; font-weight: bold; }
     .bad { color: #b00020; font-weight: bold; }
     .result-card {
-      border: 1px solid #eee;
-      border-radius: 12px;
-      padding: 16px;
-      margin: 12px 0;
-      text-align: left;
+      border: 1px solid #eee; border-radius: 12px; padding: 16px;
+      margin: 12px 0; text-align: left;
     }
+    .row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center; }
+    .hint { margin-top: 10px; font-size: 13px; color: #6b7280; }
   </style>
+
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
     import { BrowserMultiFormatReader } from "https://esm.sh/@zxing/browser";
 
+    // --- tvoje vrednosti ---
     const SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
-    
+    // -----------------------
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const S = { session: null, scanner: null };
 
+    // Po preusmeritvi iz magic linka bo v URL hash (#access_token=...)
+    // Supabase ob prvem klicu avtomatsko prebere hash in shrani sejo.
+    function cleanupAuthHash() {
+      if (location.hash.includes('access_token') || location.hash.includes('refresh_token') || location.hash.includes('error=')) {
+        history.replaceState({}, "", location.pathname); // skrij hash iz URL-ja
+      }
+    }
+
     async function init() {
+      // cleanup hash, če je prisoten
+      cleanupAuthHash();
+
+      // dobi trenutno sejo
       const { data: { session } } = await supabase.auth.getSession();
       S.session = session;
-      supabase.auth.onAuthStateChange((_e, s) => { S.session = s?.session || null; render(); });
+
+      // reagiraj na spremembe auth stanja
+      supabase.auth.onAuthStateChange((_event, s) => {
+        S.session = s?.session || null;
+        render();
+      });
+
       render();
     }
 
+    function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
     async function signIn() {
-      const email = document.getElementById("email").value;
-      const { error } = await supabase.auth.signInWithOtp({ email });
-      alert(error ? "Napaka: " + error.message : "Poslali smo povezavo za prijavo na email.");
+      const emailEl = document.getElementById("email");
+      const btn     = document.getElementById("sendBtn");
+      const email   = emailEl.value.trim();
+
+      if (!isValidEmail(email)) {
+        alert("Vnesite veljaven e-poštni naslov.");
+        emailEl.focus();
+        return;
+      }
+
+      btn.disabled = true;
+
+      // Ključno: emailRedirectTo – NA KAKO STRAN NAJ PREUSMERI MAGIC LINK
+      // Proizvodnja: https://getneargo.com/checker.html
+      // Lokalno/preview bo ustrezal location.origin.
+      const redirectTo = `${location.origin}/checker.html`;
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: redirectTo,
+          shouldCreateUser: true
+        }
+      });
+
+      btn.disabled = false;
+
+      alert(error
+        ? "Napaka: " + error.message
+        : "Poslali smo povezavo za prijavo na vaš e-poštni naslov."
+      );
     }
 
     async function startScan() {
@@ -134,23 +156,27 @@
           <p>Čas unovčitve: ${new Date(json.redeemed_at).toLocaleString()}</p>
         </div>`;
       } else {
-        out.innerHTML = `<div class="result-card"><h3 class="bad">NEVELJAVNO ✖</h3><p>${json.reason || "Napaka"}</p></div>`;
+        out.innerHTML = `<div class="result-card">
+          <h3 class="bad">NEVELJAVNO ✖</h3>
+          <p>${json.reason || "Napaka"}</p>
+        </div>`;
       }
     }
 
     function render() {
       const app = document.getElementById("app");
+
       if (!S.session) {
         app.innerHTML = `
           <div class="card">
             <img src="icon-192.png" alt="NearGo Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
             <h2>Prijava za ponudnike</h2>
             <p>Vpišite vaš e-mail naslov in prejeli boste povezavo do prijave.<br>Odprite jo na tej napravi in samodejno boste prijavljeni.</p>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-              <input id="email" type="email" placeholder="vas@email.si" />
-              <button onclick="signIn()">Pošlji prijavno povezavo</button>
+            <div class="row">
+              <input id="email" type="email" placeholder="vas@email.si" autocomplete="email" />
+              <button id="sendBtn" onclick="signIn()">Pošlji prijavno povezavo</button>
             </div>
-            <p style="margin-top: 10px; font-size: 13px; color: #6b7280;">
+            <p class="hint">
               Namig: če sporočila ne vidite, preverite mapo »Promocije« ali »Neželena pošta«.
             </p>
           </div>
@@ -160,24 +186,26 @@
           <div class="card">
             <img src="icon-192.png" alt="NearGo Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
             <div style="margin-bottom: 20px;"><strong>Prijavljen:</strong> ${S.session.user.email}</div>
-            <button onclick="startScan()">📷 Začni skeniranje</button>
-            <button onclick="stopScan()" style="background:#ef4444; margin-left:10px;">✖ Ustavi</button>
+            <div class="row" style="justify-content:center;">
+              <button onclick="startScan()">📷 Začni skeniranje</button>
+              <button onclick="stopScan()" style="background:#ef4444;">✖ Ustavi</button>
+            </div>
             <video id="video" playsinline muted></video>
             <div id="result"></div>
           </div>
         `;
       }
-      window.signIn = signIn;
+
+      // expose za gumbe
+      window.signIn   = signIn;
       window.startScan = startScan;
-      window.stopScan = stopScan;
+      window.stopScan  = stopScan;
     }
 
     init();
   </script>
 </head>
 <body>
-  <div class="container">
-    <div id="app"></div>
-  </div>
+  <div class="container"><div id="app"></div></div>
 </body>
 </html>

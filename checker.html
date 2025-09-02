@@ -5,108 +5,100 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NearGo – Checker</title>
   <style>
-    body {
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: #f0f9ff;
-      margin: 0;
-      padding: 0;
-      color: #111827;
+    :root{
+      --bg:#f0f9ff; --card:#fff; --text:#0b1b2b; --muted:#556b7b;
+      --brand:#06b6d4; --brand2:#0ea5e9; --danger:#ef4444; --ok:#0a7c2f;
+      --shadow:0 12px 30px rgba(0,0,0,.07); --border:#e5eef5;
     }
-    .container {
-      max-width: 700px;
-      margin: 40px auto;
-      padding: 20px;
-    }
-    .card {
-      background: #fff;
-      padding: 30px;
-      border-radius: 14px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-      text-align: center;
-    }
-    h2 {
-      font-size: 26px;
-      font-weight: 800;
-      margin-bottom: 10px;
-    }
-    p {
-      color: #374151;
-      font-size: 15px;
-      margin-bottom: 20px;
-    }
-    input {
-      flex: 1;
-      min-width: 220px;
-      max-width: 320px;
-      padding: 12px 14px;
-      font-size: 15px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-    }
-    button {
-      background: linear-gradient(90deg, #06b6d4, #0ea5e9);
-      border: none;
-      color: #fff;
-      padding: 12px 18px;
-      font-size: 15px;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    button:hover {
-      opacity: 0.9;
-    }
-    #video {
-      width: 100%;
-      max-width: 480px;
-      border-radius: 12px;
-      background: #000;
-      margin-top: 10px;
-    }
-    .ok { color: #0a7c2f; font-weight: bold; }
-    .bad { color: #b00020; font-weight: bold; }
-    .result-card {
-      border: 1px solid #eee;
-      border-radius: 12px;
-      padding: 16px;
-      margin: 12px 0;
-      text-align: left;
-    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);
+         font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+    .wrap{max-width:760px;margin:36px auto;padding:16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;
+          box-shadow:var(--shadow);padding:22px;text-align:center}
+    header{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:6px}
+    header img{width:40px;height:40px}
+    h1{font-size:24px;margin:6px 0 2px}
+    p.muted{color:var(--muted);margin:0 0 16px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:6px 0 10px}
+    input[type=email]{min-width:220px;max-width:340px;width:100%;padding:12px 14px;
+      border:1px solid var(--border);border-radius:10px;font-size:15px}
+    .btn{border:none;border-radius:10px;background:linear-gradient(90deg,var(--brand),var(--brand2));
+         color:#fff;font-weight:800;padding:12px 16px;cursor:pointer}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}
+    video{width:100%;max-width:540px;border-radius:14px;background:#000;margin-top:10px}
+    .pill{display:inline-block;padding:8px 12px;border-radius:999px;border:1px solid var(--border);
+          background:#fff;font-size:13px}
+    .ok{color:var(--ok);font-weight:700}
+    .bad{color:#b00020;font-weight:700}
+    .result{border:1px solid var(--border);border-radius:14px;padding:14px;margin-top:12px;text-align:left}
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;
+           background:#fff;border:1px solid var(--border);box-shadow:var(--shadow);
+           border-radius:10px;padding:10px 14px;font-weight:700;display:none;z-index:1000}
+    .toast.show{display:block}
   </style>
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
     import { BrowserMultiFormatReader } from "https://esm.sh/@zxing/browser";
 
+    // --- TVOJI podatki (pusti kot sta) ---
     const SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
-    
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const S = { session: null, scanner: null };
 
+    const $ = (s)=>document.querySelector(s);
+    const showToast = (msg) => {
+      const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'), 4000);
+    };
+
+    // --- KEY PART: vedno podaj emailRedirectTo! ---
+    function redirectTarget() {
+      // produkcija:
+      return "https://getneargo.com/checker.html";
+      // lokalni test: odkomentiraj spodaj, če testiraš z Netlify dev/localhost
+      // return location.origin + "/checker.html";
+    }
+
     async function init() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data:{ session } } = await supabase.auth.getSession();
       S.session = session;
       supabase.auth.onAuthStateChange((_e, s) => { S.session = s?.session || null; render(); });
       render();
     }
 
     async function signIn() {
-      const email = document.getElementById("email").value;
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: 'https://getneargo.com/checker.html'
-        }
-      });
-      alert(error ? "Napaka: " + error.message : "Poslali smo povezavo za prijavo na email.");
+      const email = $("#email").value.trim();
+      if (!email) { showToast("Vpiši e-poštni naslov."); return; }
+
+      $("#btnSend").disabled = true;
+      try {
+        const { data, error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: redirectTarget(), // <— NUJNO
+            // shouldCreateUser: true  // po želji
+          }
+        });
+        console.log("signInWithOtp →", { data, error });
+        if (error) throw error;
+        showToast("Povezava je poslana. Preveri e-pošto.");
+      } catch (e) {
+        console.error(e);
+        showToast("Napaka pri pošiljanju povezave: " + (e?.message || e));
+      } finally {
+        $("#btnSend").disabled = false;
+      }
     }
 
     async function startScan() {
-      const video = document.getElementById("video");
       const reader = new BrowserMultiFormatReader();
       S.scanner = reader;
       try {
-        await reader.decodeFromVideoDevice(undefined, video, async (res) => {
+        await reader.decodeFromVideoDevice(undefined, $("#video"), async (res) => {
           if (!res) return;
           let token = res.getText();
           const m = token.match(/\/r\/([a-z0-9-]{10,})/i);
@@ -114,75 +106,82 @@
           await redeem(token);
           stopScan();
         });
-      } catch {
-        alert("Kamera ni na voljo ali dovoljenje zavrnjeno.");
+      } catch (e) {
+        console.error(e);
+        showToast("Kamera ni na voljo ali dovoljenje zavrnjeno.");
       }
     }
-
-    function stopScan() {
-      if (S.scanner) { S.scanner.reset(); S.scanner = null; }
-    }
+    function stopScan() { if (S.scanner) { S.scanner.reset(); S.scanner = null; } }
 
     async function redeem(token) {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`/api/redeem/${token}`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${session?.access_token || ""}` }
-      });
-      const json = await res.json();
-      const out = document.getElementById("result");
-      if (json.ok) {
-        out.innerHTML = `<div class="result-card">
-          <h3 class="ok">VELJAVNO ✔</h3>
-          <p>${json.type === "coupon" ? "Kupon" : "Vstopnica"} – ${json.display_benefit || ""}</p>
-          <p>Kupčeva e-pošta: ${json.customer_email || "-"}</p>
-          <p>Čas unovčitve: ${new Date(json.redeemed_at).toLocaleString()}</p>
-        </div>`;
-      } else {
-        out.innerHTML = `<div class="result-card"><h3 class="bad">NEVELJAVNO ✖</h3><p>${json.reason || "Napaka"}</p></div>`;
+      const { data:{ session } } = await supabase.auth.getSession();
+      try {
+        const r = await fetch(`/api/redeem/${token}`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session?.access_token || ""}` }
+        });
+        const json = await r.json();
+        console.log("redeem →", json);
+        const out = $("#result");
+        if (json.ok) {
+          out.innerHTML = `<div class="result">
+            <div class="ok">VELJAVNO ✔</div>
+            <div>${json.type === "coupon" ? "Kupon" : "Vstopnica"} – ${json.display_benefit || ""}</div>
+            <div>Kupčeva e-pošta: ${json.customer_email || "-"}</div>
+            <div>Čas unovčitve: ${new Date(json.redeemed_at).toLocaleString()}</div>
+          </div>`;
+          showToast("Uspešno unovčeno.");
+        } else {
+          out.innerHTML = `<div class="result"><div class="bad">NEVELJAVNO ✖</div><div>${json.reason || "Napaka"}</div></div>`;
+          showToast("Koda ni veljavna.");
+        }
+      } catch (e) {
+        console.error(e);
+        showToast("Napaka pri unovčitvi.");
       }
     }
 
     function render() {
-      const app = document.getElementById("app");
-      if (!S.session) {
-        app.innerHTML = `
-          <div class="card">
-            <img src="icon-192.png" alt="NearGo Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
-            <h2>Prijava za ponudnike</h2>
-            <p>Vpišite vaš e-mail naslov in prejeli boste povezavo do prijave.<br>Odprite jo na tej napravi in samodejno boste prijavljeni.</p>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-              <input id="email" type="email" placeholder="vas@email.si" />
-              <button onclick="signIn()">Pošlji prijavno povezavo</button>
-            </div>
-            <p style="margin-top: 10px; font-size: 13px; color: #6b7280;">
-              Namig: če sporočila ne vidite, preverite mapo »Promocije« ali »Neželena pošta«.
-            </p>
+      const loggedIn = !!S.session;
+      $("#app").innerHTML = loggedIn ? `
+        <div class="card">
+          <header><img src="icon-192.png" alt=""><div class="pill">Prijavljen: ${S.session.user.email}</div></header>
+          <h1>Skeniraj QR kodo</h1>
+          <p class="muted">Začni s skeniranjem in unovi vstopnico/kupon.</p>
+          <div class="row">
+            <button class="btn" onclick="startScan()">📷 Začni skeniranje</button>
+            <button class="btn btn-outline" onclick="stopScan()">✖ Ustavi</button>
           </div>
-        `;
-      } else {
-        app.innerHTML = `
-          <div class="card">
-            <img src="icon-192.png" alt="NearGo Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
-            <div style="margin-bottom: 20px;"><strong>Prijavljen:</strong> ${S.session.user.email}</div>
-            <button onclick="startScan()">📷 Začni skeniranje</button>
-            <button onclick="stopScan()" style="background:#ef4444; margin-left:10px;">✖ Ustavi</button>
-            <video id="video" playsinline muted></video>
-            <div id="result"></div>
+          <video id="video" playsinline muted></video>
+          <div id="result"></div>
+        </div>
+      ` : `
+        <div class="card">
+          <header><img src="icon-192.png" alt=""><div class="pill">NearGo • Checker</div></header>
+          <h1>Prijava za ponudnike</h1>
+          <p class="muted">Vpišite e-pošto in prejeli boste prijavno povezavo. Odprite jo na tej napravi.</p>
+          <div class="row">
+            <input id="email" type="email" placeholder="vas@email.si">
+            <button id="btnSend" class="btn" onclick="signIn()">Pošlji prijavno povezavo</button>
           </div>
-        `;
-      }
-      window.signIn = signIn;
+          <p class="muted" style="font-size:13px;margin-top:6px">
+            Namig: če sporočila ne vidite, preverite mapi »Promocije« ali »Neželena pošta«.
+          </p>
+        </div>
+      `;
+      // rebind global handlers
       window.startScan = startScan;
       window.stopScan = stopScan;
+      window.signIn = signIn;
     }
 
     init();
   </script>
 </head>
 <body>
-  <div class="container">
+  <div class="wrap">
     <div id="app"></div>
   </div>
+  <div id="toast" class="toast"></div>
 </body>
 </html>

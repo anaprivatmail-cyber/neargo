@@ -126,4 +126,37 @@ exports.handler = async (event) => {
   // (opcijsko) ujemanje eventId
   if (eventId && String(eventId) !== String(ticket.event_id || "")) {
     await logScan({ result: "WRONG_EVENT", ticketId: ticket.id, eventId, providedKey: scannerKey, raw: { ticket_event: ticket.event_id } });
-    return json({ ok: false, error: "wrong_event", forEven_
+    return json({ ok: false, error: "wrong_event", forEvent: ticket.event_id }, 409);
+  }
+
+  // Že vnovčeno?
+  if (ticket.status === "redeemed") {
+    await logScan({ result: "ALREADY_USED", ticketId: ticket.id, eventId: ticket.event_id, providedKey: scannerKey, raw: { redeemed_at: ticket.redeemed_at } });
+    return json({ ok: true, alreadyRedeemed: true, redeemed_at: ticket.redeemed_at });
+  }
+
+  // Označi kot vnovčeno (idempotentno: samo iz 'issued')
+  const now = new Date().toISOString();
+  const { data: updated, error: upErr } = await supa
+    .from("tickets")
+    .update({
+      status: "redeemed",
+      redeemed_at: now,
+      redeemed_by: authedUser ? authedUser.id : "scanner",
+    })
+    .eq("id", ticket.id)
+    .eq("status", "issued")
+    .select("id, status, redeemed_at")
+    .single();
+
+  if (upErr) return json({ ok: false, error: "db_error", detail: upErr.message }, 500);
+
+  if (!updated) {
+    // Race condition – nekdo je medtem vnovčil
+    await logScan({ result: "ALREADY_USED", ticketId: ticket.id, eventId: ticket.event_id, providedKey: scannerKey, raw: { race: true } });
+    return json({ ok: true, alreadyRedeemed: true, redeemed_at: ticket.redeemed_at });
+  }
+
+  await logScan({ result: "VALID", ticketId: updated.id, eventId: ticket.event_id, providedKey: scannerKey });
+  return json({ ok: true, status: updated.status, redeemed_at: updated.redeemed_at });
+};

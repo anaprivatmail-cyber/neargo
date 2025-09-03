@@ -1,17 +1,17 @@
-// netlify/functions/ticket-redeem.js
-const { supa } = require("../../providers/supa");
+// netlify/functions/ticket-redeem.js  (ESM, ker je package.json -> "type": "module")
+import { supa } from "../../providers/supa.js";
 
-function cors() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, x-scanner-key",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "content-type": "application/json",
-  };
-}
-function json(body, status = 200) {
-  return { statusCode: status, headers: cors(), body: JSON.stringify(body) };
-}
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-scanner-key",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "content-type": "application/json",
+};
+const json = (body, status = 200) => ({
+  statusCode: status,
+  headers: corsHeaders,
+  body: JSON.stringify(body),
+});
 
 async function userFromAuth(header) {
   try {
@@ -25,19 +25,25 @@ async function userFromAuth(header) {
   }
 }
 
-exports.handler = async (event) => {
-  // CORS preflight
-  if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: cors(), body: "" };
-  if (event.httpMethod !== "POST") return json({ ok: false, error: "method_not_allowed" }, 405);
+export const handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 204, headers: corsHeaders, body: "" };
+  }
+  if (event.httpMethod !== "POST") {
+    return json({ ok: false, error: "method_not_allowed" }, 405);
+  }
 
-  // auth: dovolimo Supabase JWT ali x-scanner-key
+  // Auth: dovolimo Supabase JWT ali x-scanner-key
   const scannerKey = event.headers["x-scanner-key"] || event.headers["X-Scanner-Key"];
   const SK = process.env.SCANNER_KEY || "";
   const scannerOk = !!SK && scannerKey === SK;
-  const authedUser = await userFromAuth(event.headers.authorization);
-  if (!authedUser && !scannerOk) return json({ ok: false, error: "unauthorized" }, 401);
 
-  // vhod
+  const authedUser = await userFromAuth(event.headers.authorization);
+  if (!authedUser && !scannerOk) {
+    return json({ ok: false, error: "unauthorized" }, 401);
+  }
+
+  // Body / query params
   let token = null, eventId = null;
   try {
     const body = JSON.parse(event.body || "{}");
@@ -45,7 +51,7 @@ exports.handler = async (event) => {
     eventId = body.eventId || null;
   } catch {}
 
-  // fallback iz poti/query
+  // fallback iz poti / querystringa
   if (!token) {
     const seg = (event.path || "").split("/").pop();
     if (seg && seg !== "ticket-redeem") token = seg;
@@ -56,7 +62,7 @@ exports.handler = async (event) => {
   }
   if (!token) return json({ ok: false, error: "missing_token" }, 400);
 
-  // poišči vstopnico
+  // Najdi ticket
   const { data: ticket, error: findErr } = await supa
     .from("tickets")
     .select("*")
@@ -65,7 +71,7 @@ exports.handler = async (event) => {
 
   if (findErr || !ticket) return json({ ok: false, error: "not_found" }, 404);
 
-  // (opcijsko) preveri organizatorja, če je vključeno
+  // (opcijsko) preveri organizatorja
   if ((process.env.ENFORCE_PROVIDER || "false") === "true" && ticket.event_id && authedUser) {
     const { data: ev } = await supa
       .from("events")
@@ -87,7 +93,7 @@ exports.handler = async (event) => {
     return json({ ok: true, alreadyRedeemed: true, redeemed_at: ticket.redeemed_at });
   }
 
-  // posodobitev - optimistično, samo če je bil "issued"
+  // posodobi samo, če je bil "issued" (prepreči dvojno vnovčitev)
   const now = new Date().toISOString();
   const { data: updated, error: upErr } = await supa
     .from("tickets")

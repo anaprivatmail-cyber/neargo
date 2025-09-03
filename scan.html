@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="sl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NearGo – Skener kuponov</title>
+<script src="https://unpkg.com/html5-qrcode" defer></script>
+<style>
+  body{font:16px/1.5 system-ui, Arial;margin:20px}
+  .card{max-width:720px;margin:auto;padding:16px;border:1px solid #eee;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.05)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input,button{font:16px;padding:10px;border:1px solid #ccc;border-radius:10px}
+  button{cursor:pointer}
+  #reader{width:360px;margin:12px auto}
+  .ok{color:#0a7d2a} .err{color:#b00020}
+  code{font-family:ui-monospace,Menlo,monospace}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Skener kuponov</h2>
+
+  <div class="row">
+    <label>Dogodek ID:</label>
+    <input id="eventId" placeholder="npr. event-123">
+    <label>Scanner key:</label>
+    <input id="key" placeholder="vnesi SCANNER_KEY">
+    <button id="save">Shrani</button>
+  </div>
+
+  <div id="reader"></div>
+
+  <div class="row">
+    <input id="manual" placeholder="prilepi token ročno" style="flex:1">
+    <button id="redeemBtn">Vnovči</button>
+  </div>
+
+  <p id="out"></p>
+</div>
+
+<script>
+const BASE = location.origin;
+const $ = (id)=>document.getElementById(id);
+const keyInput = $("key"), eventInput = $("eventId"), manual = $("manual"), out = $("out");
+
+keyInput.value = localStorage.getItem("scanner_key") || "";
+eventInput.value = localStorage.getItem("event_id") || "";
+
+$("save").onclick = ()=>{
+  localStorage.setItem("scanner_key", keyInput.value.trim());
+  localStorage.setItem("event_id", eventInput.value.trim());
+  out.textContent = "Shranjeno.";
+};
+
+async function redeem(token){
+  const key = keyInput.value.trim(), ev = eventInput.value.trim();
+  if(!key || !ev){ out.innerHTML = '<span class="err">Manjka scanner key ali eventId.</span>'; return; }
+  const res = await fetch(`${BASE}/.netlify/functions/redeem`, {
+    method:"POST",
+    headers:{ "content-type":"application/json", "x-scanner-key": key },
+    body: JSON.stringify({ token, eventId: ev })
+  });
+  const data = await res.json().catch(()=>({}));
+  if(res.ok && data.ok){
+    out.innerHTML = `<span class="ok">OK</span> – status: <b>${data.status}</b>${data.alreadyRedeemed ? " (že vnovčeno)" : ""}${data.redeemedAt ? " – "+new Date(data.redeemedAt).toLocaleString() : ""}`;
+  }else{
+    out.innerHTML = `<span class="err">Napaka:</span> <code>${(data && (data.error||JSON.stringify(data))) || res.status}</code>`;
+  }
+}
+
+$("redeemBtn").onclick = ()=>{ if(manual.value.trim()) redeem(manual.value.trim()); };
+
+window.addEventListener("load", ()=>{
+  if(!window.Html5Qrcode) return;
+  const qr = new Html5Qrcode("reader");
+  Html5Qrcode.getCameras().then(cams=>{
+    const id = cams?.[0]?.id;
+    if(!id){ out.textContent = "Kamera ni na voljo."; return; }
+    qr.start(id, { fps:10, qrbox:{ width:250, height:250 } },
+      (text)=>{ qr.pause(true); redeem(text.trim()); setTimeout(()=>qr.resume(), 1500); },
+      ()=>{}
+    );
+  }).catch(()=> out.textContent = "Kamera ni dovoljena.");
+});
+</script>
+</body>
+</html>

@@ -1,4 +1,9 @@
 // netlify/functions/ticket-redeem.cjs
+// CJS handler + zanesljiv dinamični import ESM modula supa.js
+
+const path = require("path");
+const { pathToFileURL } = require("url");
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, x-scanner-key",
@@ -12,8 +17,17 @@ const json = (body, status = 200) => ({
 });
 
 exports.handler = async (event) => {
-  // dinamično uvozi ESM supa modul
-  const { supa } = await import("../../providers/supa.js");
+  // --- ZANESLJIV dinamični import ESM modula (relativno na to datoteko)
+  const supaUrl = pathToFileURL(
+    path.join(__dirname, "../../providers/supa.js")
+  ).href;
+  const supaModule = await import(supaUrl);
+  const { supa } = supaModule || {};
+
+  if (!supa || typeof supa.from !== "function") {
+    // Če do tega pride, pomeni da pot/eksport nista pravilna
+    return json({ ok: false, error: "supa_unavailable" }, 500);
+  }
 
   async function userFromAuth(header) {
     try {
@@ -52,6 +66,7 @@ exports.handler = async (event) => {
     eventId = body.eventId || null;
   } catch {}
 
+  // fallback iz poti / querystringa
   if (!token) {
     const seg = (event.path || "").split("/").pop();
     if (seg && seg !== "ticket-redeem") token = seg;
@@ -68,6 +83,7 @@ exports.handler = async (event) => {
     .select("*")
     .eq("token", token)
     .single();
+
   if (findErr || !ticket) return json({ ok: false, error: "not_found" }, 404);
 
   // (opcijsko) preveri organizatorja
@@ -108,6 +124,7 @@ exports.handler = async (event) => {
 
   if (upErr) return json({ ok: false, error: "db_error", detail: upErr.message }, 500);
   if (!updated) {
+    // race condition: nekdo drug je vmes vnovčil
     return json({ ok: true, alreadyRedeemed: true, redeemed_at: ticket.redeemed_at });
   }
 

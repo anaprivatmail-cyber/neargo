@@ -1,39 +1,36 @@
 // /netlify/functions/blobs-test.js
-import { createBlob, getBlob, listBlobs, deleteBlob } from "@netlify/blobs";
+import { getStore } from "@netlify/blobs";
+
+const store = getStore("neargo"); // poljubno ime "store"-a
 
 export const handler = async (event) => {
-  // CORS (da lahko kličeš iz brskalnika)
+  // CORS
   if (event.httpMethod === "OPTIONS") return resp(204, "");
   const path = event.queryStringParameters?.path || "demo/test.json";
 
   try {
     if (event.httpMethod === "POST") {
-      // Zapišemo/posodobimo blob
+      // zapiši / posodobi
       const body = event.body || "{}";
-      await createBlob({
-        name: path,                 // "imenik/datoteka"
-        data: body,                 // lahko je string, Buffer ali Readable
-        contentType: "application/json",
-        metadata: { sample: "true" } // poljubno
-      });
+      await store.set(path, body, { contentType: "application/json" });
       return resp(200, JSON.stringify({ ok: true, action: "write", path }));
     }
 
     if (event.httpMethod === "GET") {
-      // Preberemo blob ali listing
+      // preberi ali izpiši seznam
       const list = event.queryStringParameters?.list;
       if (list === "1") {
-        const items = await listBlobs({ prefix: path.replace(/\/[^/]*$/, "/") }); // seznam v "imeniku"
+        const items = await store.list({ prefix: path.replace(/\/[^/]*$/, "/") });
         return resp(200, JSON.stringify({ ok: true, action: "list", prefix: path, items }));
       }
-      const blob = await getBlob(path);
+      const blob = await store.get(path); // vrne Blob ali null
       if (!blob) return resp(404, JSON.stringify({ ok: false, error: "not_found", path }));
       const text = await blob.text();
       return resp(200, JSON.stringify({ ok: true, action: "read", path, data: safeJson(text) }));
     }
 
     if (event.httpMethod === "DELETE") {
-      await deleteBlob(path);
+      await store.delete(path);
       return resp(200, JSON.stringify({ ok: true, action: "delete", path }));
     }
 

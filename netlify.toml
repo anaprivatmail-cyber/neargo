@@ -91,7 +91,8 @@
   [headers.values]
     Access-Control-Allow-Origin  = "*"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    # ➜ DODANO: x-scanner-key, da preflight uspešno preteče
+    Access-Control-Allow-Headers = "Content-Type, Authorization, x-scanner-key"
 
 # ===== SPA fallback =====
 [[redirects]]
@@ -103,3 +104,5 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/blobs", "@supabase/supabase-js", "busboy"]
+  # ➜ DODANO: vključi mapo providers/ v paket funkcij (da bo providers/supa.js na voljo v /var/task)
+  included_files = ["providers/**"]

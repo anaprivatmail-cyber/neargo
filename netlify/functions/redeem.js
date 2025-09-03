@@ -1,82 +1,55 @@
-// netlify/functions/redeem.js
-// Prod redeem endpoint: ponudnik skenira QR (token) -> označi kot "redeemed"
-const { supa } = require("../../providers/supa");
+// /netlify/functions/redeem.js
+import { getStore } from "@netlify/blobs";
+import { parseToken, json } from "./utils.js";
 
-/** Preveri Supabase user iz Bearer tokena (Supabase Auth JWT) */
-async function getUserFromAuth(header) {
-  try {
-    if (!header || !header.startsWith("Bearer ")) return null;
-    const jwt = header.slice(7);
-    const { data, error } = await supa.auth.getUser(jwt);
-    if (error) return null;
-    return data.user;
-  } catch {
-    return null;
-  }
+function makeStore() {
+  const siteID = process.env.BLOBS_SITE_ID;
+  const token  = process.env.BLOBS_TOKEN;
+  if (!siteID || !token) throw new Error("Missing BLOBS_SITE_ID or BLOBS_TOKEN");
+  return getStore({ name: "entitlements", siteID, token });
 }
 
-exports.handler = async (event) => {
-  try {
-    // CORS preflight
-    if (event.httpMethod === "OPTIONS") {
-      return { statusCode: 204, headers: cors(), body: "" };
-    }
-    if (event.httpMethod !== "POST") {
-      return { statusCode: 405, headers: cors(), body: "Method Not Allowed" };
-    }
+export const handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") return json(204, {});
+  if (event.httpMethod !== "POST")     return json(405, { error: "Use POST" });
 
-    // Auth
-    const user = await getUserFromAuth(event.headers.authorization);
-    if (!user) return json({ ok: false, reason: "Unauthenticated" }, 401);
+  // avtentikacija skenerja
+  const providedKey = event.headers["x-scanner-key"] || event.headers["X-Scanner-Key"];
+  if (!process.env.SCANNER_KEY || providedKey !== process.env.SCANNER_KEY) {
+    return json(401, { ok:false, error:"unauthorized_scanner" });
+  }
 
-    // /api/redeem/<token>  (prek netlify.toml redirecta) ali /.netlify/functions/redeem/<token>
-    const path = event.path || "";
-    // vzemi zadnji segment; poskrbi, da ne vrne "redeem"
-    let token = path.split("/").pop();
-    if (!token || token.toLowerCase() === "redeem") {
-      // poskusi še iz query stringa ?token=...
-      const qs = new URLSearchParams(event.rawQuery || event.queryStringParameters || "");
-      token = qs.get("token");
-    }
-    if (!token) return json({ ok: false, reason: "Missing token" }, 400);
+  const { token, eventId } = JSON.parse(event.body || "{}");
+  if (!token || !eventId) return json(400, { ok:false, error:"Required: token, eventId" });
 
-    // Najdi ticket/kupon po tokenu
-    const { data: ticket, error } = await supa
-      .from("tickets")
-      .select("*")
-      .eq("token", token)
-      .single();
+  const parsed = parseToken(token, process.env.QR_SECRET || "");
+  if (!parsed.ok) return json(400, { ok:false, error:"invalid_token", reason: parsed.reason });
 
-    if (error || !ticket) return json({ ok: false, reason: "Not found" }, 404);
+  const store = makeStore();
+  const path = `entitlements/${token}.json`;
+  const blob = await store.get(path);
+  if (!blob) return json(404, { ok:false, error:"not_found" });
 
-    // (opcijsko) preveri, da prijavljeni ponudnik lahko unovči ta event
-    if (String(process.env.ENFORCE_PROVIDER || "false") === "true" && ticket.event_id) {
-      const { data: ev } = await supa
-        .from("events")
-        .select("id, provider_user_id")
-        .eq("id", ticket.event_id)
-        .single();
+  const data = JSON.parse(await blob.text());
 
-      if (ev?.provider_user_id && ev.provider_user_id !== user.id) {
-        return json({ ok: false, reason: "Forbidden" }, 403);
-      }
-    }
+  // preveri pravilen dogodek
+  if (String(data.eventId) !== String(eventId)) {
+    return json(409, { ok:false, error:"wrong_event", forEvent: data.eventId });
+  }
 
-    // Že unovčeno?
-    if (ticket.status === "redeemed") {
-      return json({
-        ok: false,
-        reason: "Already redeemed",
-        redeemed_at: ticket.redeemed_at
-      });
-    }
+  // preveri veljavnost (če je določena)
+  if (data?.coupon?.validTo && new Date(data.coupon.validTo) < new Date()) {
+    return json(409, { ok:false, error:"expired" });
+  }
 
-    // Označi kot unovčeno
-    const { data: updated, error: upErr } = await supa
-      .from("tickets")
-      .update({
-        status: "redeemed",
-        redeemed_at: new Date().toISOString(),
-        redeemed_by: user.id
-      })
-      .eq("id", ticket.id)
+  // idempotentno – že vnovčeno
+  if (data.status === "REDEEMED") {
+    return json(200, { ok:true, alreadyRedeemed:true, redeemedAt: data.redeemedAt });
+  }
+
+  data.status = "REDEEMED";
+  data.redeemedAt = new Date().toISOString();
+  await store.set(path, JSON.stringify(data), { contentType: "application/json" });
+
+  return json(200, { ok:true, status: data.status, redeemedAt: data.redeemedAt });
+};

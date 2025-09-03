@@ -1,136 +1,146 @@
 <!doctype html>
 <html lang="sl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#06b6d4">
-<title>Skener vstopnic</title>
-<script src="https://unpkg.com/html5-qrcode" defer></script>
-<style>
-  :root{
-    --pad: max(16px, env(safe-area-inset-left));
-    --padR: max(16px, env(safe-area-inset-right));
-    --padT: max(16px, env(safe-area-inset-top));
-    --padB: max(20px, env(safe-area-inset-bottom));
-  }
-  html,body{height:100%}
-  body{
-    margin:0; padding:var(--padT) var(--padR) var(--padB) var(--pad);
-    font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    background:#f7fafc; color:#0f172a;
-  }
-  .wrap{max-width:560px;margin:0 auto}
-  h2{margin:0 0 12px;font-size:22px}
-  .card{
-    background:#fff;border:1px solid #e5e7eb;border-radius:14px;
-    box-shadow:0 6px 20px rgba(0,0,0,.06); padding:14px;
-  }
-  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
-  label{font-size:14px;color:#475569}
-  input{
-    flex:1; min-height:48px; padding:12px 14px; border:1px solid #cbd5e1; border-radius:12px;
-    font:16px/1.2 inherit; width:100%; box-sizing:border-box; background:#fff;
-  }
-  button{
-    min-height:48px; padding:12px 16px; border:0; border-radius:12px;
-    font-weight:600; font-size:16px; cursor:pointer;
-  }
-  .btn{background:#06b6d4;color:#fff}
-  .btn:active{transform:scale(.99)}
-  #reader{width:100%; max-width:420px; margin:10px auto}
-  .ok{color:#047857} .err{color:#b91c1c}
-  .mono{font:12px/1.3 ui-monospace, Menlo, monospace; color:#64748b}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#06b6d4">
+  <title>Skener vstopnic</title>
+  <!-- Knjižnica za QR (deluje v brskalniku in na telefonu) -->
+  <script src="https://unpkg.com/html5-qrcode" defer></script>
+  <style>
+    :root{
+      --pad: max(16px, env(safe-area-inset-left));
+      --padR: max(16px, env(safe-area-inset-right));
+      --padT: max(16px, env(safe-area-inset-top));
+      --padB: max(20px, env(safe-area-inset-bottom));
+    }
+    html,body{height:100%}
+    body{
+      margin:0; padding:var(--padT) var(--padR) var(--padB) var(--pad);
+      font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:#f7fafc; color:#0f172a;
+    }
+    .wrap{max-width:560px;margin:0 auto}
+    h2{margin:0 0 12px;font-size:22px}
+    .card{
+      background:#fff;border:1px solid #e5e7eb;border-radius:14px;
+      box-shadow:0 6px 20px rgba(0,0,0,.06); padding:14px;
+    }
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+    label{font-size:14px;color:#475569}
+    input{
+      flex:1; min-height:48px; padding:12px 14px; border:1px solid #cbd5e1; border-radius:12px;
+      font:16px/1.2 inherit; width:100%; box-sizing:border-box; background:#fff;
+    }
+    button{
+      min-height:48px; padding:12px 16px; border:0; border-radius:12px;
+      font-weight:600; font-size:16px; cursor:pointer;
+    }
+    .btn{background:#06b6d4;color:#fff}
+    .btn:active{transform:scale(.99)}
+    #reader{width:100%; max-width:420px; margin:10px auto}
+    .ok{color:#047857} .err{color:#b91c1c}
+    .mono{font:12px/1.3 ui-monospace,Menlo,monospace; color:#64748b; word-break:break-all}
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="card">
-    <h2>Skener vstopnic</h2>
+  <div class="wrap">
+    <div class="card">
+      <h2>Skener vstopnic</h2>
 
-    <div class="row">
-      <label for="eventId">Dogodek ID</label>
-      <input id="eventId" placeholder="npr. event-123" inputmode="text" autocomplete="off">
+      <div class="row">
+        <label for="eventId">Dogodek ID</label>
+        <input id="eventId" placeholder="npr. event-123" inputmode="text" autocomplete="off">
+      </div>
+
+      <div class="row">
+        <label for="key">Scanner key</label>
+        <input id="key" placeholder="SCANNER_KEY" inputmode="text" autocomplete="off">
+        <button id="save" class="btn" aria-label="Shrani nastavitve">Shrani</button>
+      </div>
+
+      <div id="reader" aria-label="Iskanje QR kode z zadnjo kamero"></div>
+
+      <div class="row">
+        <input id="manual" placeholder="prilepi token vstopnice ročno" inputmode="text" autocomplete="off">
+        <button id="redeemBtn" class="btn">Vnovči</button>
+      </div>
+
+      <p id="out" class="mono"></p>
     </div>
-
-    <div class="row">
-      <label for="key">Scanner key</label>
-      <input id="key" placeholder="SCANNER_KEY" inputmode="text" autocomplete="off">
-      <button id="save" class="btn" aria-label="Shrani nastavitve">Shrani</button>
-    </div>
-
-    <div id="reader" aria-label="Iskanje QR kode z zadnjo kamero"></div>
-
-    <div class="row">
-      <input id="manual" placeholder="prilepi token vstopnice ročno" inputmode="text" autocomplete="off">
-      <button id="redeemBtn" class="btn">Vnovči</button>
-    </div>
-
-    <p id="out" class="mono"></p>
   </div>
-</div>
 
-<script>
-const BASE = location.origin;
-const $ = id => document.getElementById(id);
-const keyEl = $("key"), evEl = $("eventId"), manual = $("manual"), out = $("out");
+  <script>
+    const BASE = location.origin;
+    const $ = id => document.getElementById(id);
+    const keyEl = $("key"), evEl = $("eventId"), manual = $("manual"), out = $("out");
 
-// – shranjevanje nastavitev (lokalno, brez strežnika)
-keyEl.value = localStorage.getItem("ticket_scanner_key") || "";
-evEl.value  = localStorage.getItem("ticket_event_id") || "";
-$("save").onclick = ()=>{
-  localStorage.setItem("ticket_scanner_key", keyEl.value.trim());
-  localStorage.setItem("ticket_event_id",   evEl.value.trim());
-  out.textContent = "Shranjeno.";
-};
+    // – naloži/shrani nastavitve lokalno (ne gre na strežnik)
+    keyEl.value = localStorage.getItem("ticket_scanner_key") || "";
+    evEl.value  = localStorage.getItem("ticket_event_id") || "";
+    $("save").onclick = ()=>{
+      localStorage.setItem("ticket_scanner_key", keyEl.value.trim());
+      localStorage.setItem("ticket_event_id",   evEl.value.trim());
+      out.textContent = "Shranjeno.";
+    };
 
-// – klic na varni backend endpoint
-async function redeem(token){
-  const key = keyEl.value.trim(), ev = evEl.value.trim();
-  if(!key || !ev){ out.innerHTML = '<span class="err">Manjka scanner key ali eventId.</span>'; return; }
-  try{
-    const res = await fetch(`${BASE}/.netlify/functions/ticket-redeem`, {
-      method:"POST",
-      headers:{ "content-type":"application/json", "x-scanner-key": key },
-      body: JSON.stringify({ token, eventId: ev })
+    // – pomožna: varno izpisovanje
+    function esc(x){ return String(x).replace(/[&<>"'`]/g, s=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;","`":"&#96;" }[s])); }
+
+    // – klic na varni backend endpoint za vnovčitev
+    async function redeem(token){
+      const key = keyEl.value.trim(), ev = evEl.value.trim();
+      if(!key || !ev){ out.innerHTML = '<span class="err">Manjka scanner key ali eventId.</span>'; return; }
+      try{
+        const res = await fetch(`${BASE}/.netlify/functions/ticket-redeem`, {
+          method:"POST",
+          headers:{ "content-type":"application/json", "x-scanner-key": key },
+          body: JSON.stringify({ token, eventId: ev })
+        });
+
+        // preberi surovo telo + poskusi JSON
+        const raw = await res.clone().text();
+        let data;
+        try { data = JSON.parse(raw); }
+        catch(e){ data = { parseError: String(e), raw }; }
+
+        if(res.ok && data && data.ok){
+          out.innerHTML = `<span class="ok">OK</span> – status: <b>${data.status||'redeemed'}</b>${data.alreadyRedeemed?' (že vnovčeno)':''}${data.redeemed_at?(' – '+new Date(data.redeemed_at).toLocaleString()):''}`;
+        }else{
+          out.innerHTML = `<span class="err">Napaka:</span> status=${res.status} ${esc(res.statusText)} · body=${esc(JSON.stringify(data))}`;
+        }
+      }catch(err){
+        out.innerHTML = `<span class="err">Napaka omrežja:</span> ${esc(err)}`;
+      }
+    }
+    $("redeemBtn").onclick = ()=>{ if(manual.value.trim()) redeem(manual.value.trim()); };
+
+    // – raje zadnja (rear) kamera; če je ni, vzame prvo
+    window.addEventListener("load", async ()=>{
+      if(!window.Html5Qrcode) return;
+      const qr = new Html5Qrcode("reader");
+
+      try{
+        const cams = await Html5Qrcode.getCameras();
+        if(!cams || !cams.length){ out.textContent = "Kamera ni na voljo."; return; }
+
+        // poskušaj najti 'back'/'rear' kamero po imenu
+        let camId = cams[0].id;
+        for(const c of cams){
+          const name = (c.label || "").toLowerCase();
+          if(name.includes("back") || name.includes("rear")) { camId = c.id; break; }
+        }
+
+        await qr.start(
+          camId,
+          { fps: 12, qrbox: { width: 260, height: 260 } },
+          text => { qr.pause(true); redeem(text.trim()); setTimeout(()=>qr.resume(), 1200); },
+          () => {}
+        );
+      }catch(e){
+        out.textContent = "Kamera zavrnjena ali nedostopna.";
+      }
     });
-    const data = await res.json().catch(()=>({}));
-    if(res.ok && data.ok){
-      out.innerHTML = `<span class="ok">OK</span> – status: <b>${data.status||'redeemed'}</b>${data.alreadyRedeemed?' (že vnovčeno)':''}${data.redeemed_at?(' – '+new Date(data.redeemed_at).toLocaleString()):''}`;
-    }else{
-      out.innerHTML = `<span class="err">Napaka:</span> ${ (data && (data.error||JSON.stringify(data))) || res.status }`;
-    }
-  }catch(err){
-    out.innerHTML = `<span class="err">Napaka omrežja:</span> ${String(err)}`;
-  }
-}
-$("redeemBtn").onclick = ()=>{ if(manual.value.trim()) redeem(manual.value.trim()); };
-
-// – raje zadnja kamera (rear). Če ni na voljo, pade nazaj na prvo.
-window.addEventListener("load", async ()=>{
-  if(!window.Html5Qrcode) return;
-  const qr = new Html5Qrcode("reader");
-
-  try{
-    const cams = await Html5Qrcode.getCameras();
-    if(!cams || !cams.length){ out.textContent = "Kamera ni na voljo."; return; }
-
-    // najdi “back/rear” kamero, sicer vzemi prvo
-    let camId = cams[0].id;
-    for(const c of cams){
-      const name = (c.label || "").toLowerCase();
-      if(name.includes("back") || name.includes("rear")) { camId = c.id; break; }
-    }
-
-    await qr.start(
-      camId,
-      { fps: 12, qrbox: { width: 260, height: 260 } },
-      text => { qr.pause(true); redeem(text.trim()); setTimeout(()=>qr.resume(), 1200); },
-      () => {}
-    );
-  }catch(e){
-    out.textContent = "Kamera zavrnjena ali nedostopna.";
-  }
-});
-</script>
+  </script>
 </body>
 </html>

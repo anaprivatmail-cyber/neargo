@@ -19,7 +19,7 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // pošiljanje prek Brevo (Sendinblue)
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 
-const FROM_EMAIL = process.env.FROM_EMAIL || 'info@getneargo.com';  // privzeto na tvoj naslov
+const FROM_EMAIL = process.env.FROM_EMAIL || 'info@getneargo.com';
 const FROM_NAME  = process.env.FROM_NAME  || 'NearGo';
 const DOMAIN     = process.env.DOMAIN     || 'https://getneargo.com';
 
@@ -47,14 +47,25 @@ function requireFields(p){
     ['description',    'Opis'],
     ['category',       'Kategorija']
   ];
-  if (!p.city && !p.city2) missing.push('Mesto/kraj');
+  if (!String(p.city || p.city2 || '').trim()) missing.push('Mesto/kraj');
   for (const [k, label] of need) if (!String(p[k] ?? '').trim()) missing.push(label);
 
   const saleType = p.offerType || p.saleType || 'none';
   if (saleType === 'ticket' || saleType === 'coupon'){
-    if (p.price == null || p.price === '')  missing.push('Cena');
+    // cena: zahteva se pri vstopnicah; pri kuponu je vedno fiksno 2 €
+    if (saleType === 'ticket' && (p.price == null || p.price === ''))  missing.push('Cena');
     if (p.stock == null || p.stock === '')  missing.push('Zaloga');
   }
+
+  // DODANO: validacija kupona
+  if (saleType === 'coupon'){
+    const k = p.couponKind;
+    if (!k || !['PERCENT','VALUE','FREEBIE'].includes(k)) missing.push('Tip kupona');
+    if (k === 'PERCENT' && !(Number(p.couponPercentOff) > 0 && Number(p.couponPercentOff) <= 100)) missing.push('% popusta (1–100)');
+    if (k === 'VALUE'   && !(Number(p.couponValueEur) > 0)) missing.push('Vrednost kupona (€)');
+    if (k === 'FREEBIE' && !String(p.couponFreebieLabel || '').trim()) missing.push('Opis brezplačne ugodnosti');
+  }
+
   return missing;
 }
 
@@ -132,6 +143,11 @@ export const handler = async (event) => {
   try{ payload = JSON.parse(event.body || '{}'); }
   catch{ return json({ ok:false, error:'Neveljaven JSON body' }, 400); }
 
+  // DODANO: prisili ceno na 2 € pri kuponu (ne zanašaj se na front-end)
+  if ((payload.offerType || payload.saleType) === 'coupon') {
+    payload.price = 2;
+  }
+
   const missing = requireFields(payload);
   if (missing.length) return json({ ok:false, error:'Manjkajoča polja: ' + missing.join(', ') }, 400);
 
@@ -150,7 +166,7 @@ export const handler = async (event) => {
       if (gc){ payload.venueLat = gc.lat; payload.venueLon = gc.lon; }
     }
 
-    // Izpostavitev – 7 dni
+    // Izpostavitev – 7 dni (brezplačno; samo datum)
     if (payload.featured){
       const until = new Date(Date.now() + 7*24*3600*1000);
       payload.featuredUntil = until.toISOString();
@@ -158,6 +174,17 @@ export const handler = async (event) => {
 
     // Urejevalni žeton
     const editToken = crypto.randomBytes(24).toString('hex');
+
+    // DODANO: kupon polja (varno normaliziraj)
+    if ((payload.offerType || payload.saleType) === 'coupon'){
+      payload.couponKind = String(payload.couponKind || '').toUpperCase();
+      payload.couponPercentOff   = payload.couponKind==='PERCENT' ? Number(payload.couponPercentOff || 0) : null;
+      payload.couponValueEur     = payload.couponKind==='VALUE'   ? Number(payload.couponValueEur || 0) : null;
+      payload.couponFreebieLabel = payload.couponKind==='FREEBIE' ? String(payload.couponFreebieLabel || '').trim() : null;
+      payload.couponDesc = String(payload.couponDesc || payload.couponFreebieLabel || '').trim() ||
+                           (payload.couponKind==='PERCENT' ? `${payload.couponPercentOff||''}%` :
+                            payload.couponKind==='VALUE'   ? `${payload.couponValueEur||''}€` : '');
+    }
 
     // Shrani oddajo v Supabase Storage (kot do zdaj)
     const now = new Date();
@@ -181,7 +208,7 @@ export const handler = async (event) => {
     // Povezava za urejanje (ostaja enak mehanizem provider-edit)
     const editLink = `${DOMAIN}/api/provider-edit?key=${encodeURIComponent(path)}&token=${encodeURIComponent(editToken)}`;
 
-    // Pošlji e-pošto organizatorju
+    // Pošlji e-pošto organizatorju (posodobljeno besedilo za featured)
     try{
       const html = `
         <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
@@ -189,7 +216,8 @@ export const handler = async (event) => {
           <p>Pozdravljeni, <b>${payload.organizer}</b>! Vaša objava je bila prejeta.</p>
           <p><b>${payload.eventName}</b><br>${payload.venue}${payload.city ? ', ' + payload.city : ''}${payload.country ? ', ' + payload.country : ''}</p>
           <p><b>Začetek:</b> ${payload.start || ''} • <b>Konec:</b> ${payload.end || ''}</p>
-          ${payload.featured ? '<p><b>Izpostavitev:</b> vključena (7 dni). <i>Opomba: ob preklicu se plačilo za izpostavitev ne vrača.</i></p>' : ''}
+          ${payload.offerType==='coupon' ? `<p><b>Kupon:</b> ${payload.couponDesc || 'vnovčljiv pri ponudniku'} (cena za kupca: 2,00 €)</p>` : ''}
+          ${payload.featured ? '<p><b>Izpostavitev:</b> vključena (7 dni) – <i>brezplačno</i>.</p>' : ''}
           <p><b>Uredi objavo kadar koli:</b><br><a href="${editLink}">${editLink}</a></p>
           <p>Hvala,<br>ekipa NearGo</p>
         </div>`;

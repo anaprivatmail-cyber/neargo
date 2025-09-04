@@ -46,20 +46,32 @@ exports.handler = async (event) => {
 
     if (type === "coupon") {
       // Kupon je vedno fiksno COUPON_PRICE_CENTS, ime povzamemo iz display_benefit (če obstaja)
-      const name = metadata.display_benefit ? `Kupon – ${metadata.display_benefit}` : "Kupon";
+      const evTitle = metadata.event_title ? ` (Za: ${metadata.event_title})` : "";
+      const name = metadata.display_benefit
+        ? `Kupon – ${metadata.display_benefit}`
+        : "Kupon";
+      const desc = `Vnovči se pri ponudniku${evTitle}`;
       lineItems = [{
         currency: "eur",
         name,
-        description: metadata.event_title ? `Za: ${metadata.event_title}` : undefined,
+        description: desc,
         amount: COUPON_PRICE_CENTS, // v centih
         quantity: 1,
       }];
+
+      // zagotovimo, da je v metadata viden tip postavke
+      metadata.type = "coupon";
+      if (!metadata.display_benefit && evTitle) metadata.display_benefit = "Kupon";
     } else {
       // Ticket ali ostalo – obdržimo obstoječe vedenje
       if (!Array.isArray(rawLineItems) || !rawLineItems.length) {
         return json({ ok: false, error: "Missing lineItems." });
       }
+      // minimalna validacija zneskov
+      const bad = rawLineItems.find(it => !(Number(it.amount) > 0));
+      if (bad) return json({ ok:false, error:"Invalid amount in lineItems." });
       lineItems = rawLineItems;
+      metadata.type = metadata.type || "ticket";
     }
 
     // x-www-form-urlencoded za Stripe
@@ -69,10 +81,8 @@ exports.handler = async (event) => {
     form.set("cancel_url", cancelUrl);
     if (customerEmail) form.set("customer_email", customerEmail);
 
-    // Dodamo metapodatke (zelo pomembno za webhook)
-    // Primer: metadata[event_id]=..., metadata[type]=coupon, ...
-    const fullMetadata = { ...metadata, type: type || (metadata.type ?? "ticket") };
-    Object.entries(fullMetadata).forEach(([k, v]) => {
+    // Metapodatki (za webhooke / računovodstvo)
+    Object.entries(metadata).forEach(([k, v]) => {
       if (v === undefined || v === null) return;
       form.set(`metadata[${k}]`, String(v));
     });
@@ -85,7 +95,7 @@ exports.handler = async (event) => {
         form.set(`line_items[${i}][price_data][product_data][description]`, it.description);
       }
       // znesek v CENTIH
-      form.set(`line_items[${i}][price_data][unit_amount]`, String(it.amount));
+      form.set(`line_items[${i}][price_data][unit_amount]`, String(Math.round(Number(it.amount))));
       form.set(`line_items[${i}][quantity]`, String(it.quantity || 1));
     });
 
@@ -127,4 +137,3 @@ function json(obj, statusCode = 200) {
   };
 }
 function safeJson(s) { try { return s ? JSON.parse(s) : null; } catch { return null; } }
-

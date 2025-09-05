@@ -1,4 +1,4 @@
-// netlify/functions/provider-submit.js
+ // netlify/functions/provider-submit.js
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 
@@ -109,7 +109,6 @@ async function fromCacheOrGeocode(supabase, city, country) {
       await supabase.from('geo_cache').insert({ city: cityQ, country: countryQ, lat, lon });
     }
   } catch {}
-
   return { lat, lon, cached: false };
 }
 
@@ -209,36 +208,48 @@ export const handler = async (event) => {
     // link za urejanje
     const editLink = `${DOMAIN}/api/provider-edit?key=${encodeURIComponent(path)}&token=${encodeURIComponent(editToken)}`;
 
-    // potrditev organizatorju
-    try{
-      const html = `
-        <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
-          <h2>NearGo – potrditev oddaje & povezava za urejanje</h2>
-          <p>Pozdravljeni, <b>${payload.organizer}</b>! Vaša objava je bila prejeta.</p>
-          <p><b>${payload.eventName}</b><br>${payload.venue}${payload.city ? ', ' + payload.city : ''}${payload.country ? ', ' + payload.country : ''}</p>
-          <p><b>Začetek:</b> ${payload.start || ''} • <b>Konec:</b> ${payload.end || ''}</p>
-          ${payload.offerType==='coupon' ? `<p><b>Kupon:</b> ${payload.couponDesc || 'vnovčljiv pri ponudniku'} (cena za kupca: 2,00 €)</p>` : ''}
-          ${payload.featured ? '<p><b>Izpostavitev:</b> vključena (7 dni) – <i>brezplačno</i>.</p>' : ''}
-          <p><b>Uredi objavo kadar koli:</b><br><a href="${editLink}">${editLink}</a></p>
-          <p>Hvala,<br>ekipa NearGo</p>
-        </div>`;
-      await sendMailBrevo({
-        to: payload.organizerEmail,
-        subject: 'NearGo – potrditev oddaje & povezava za urejanje',
-        html
-      });
-    } catch (e) {
-      console.warn('Email send failed:', e?.message || e);
+    // --- DIAGNOSTIKA E-POŠTE ---
+    let emailStatus = "skipped";
+    if (!BREVO_API_KEY) {
+      console.log("[provider-submit] BREVO_API_KEY manjka – e-mail se preskoči");
+    } else {
+      try{
+        console.log("[provider-submit] Pošiljam mail organizatorju:", payload.organizerEmail);
+        const html = `
+          <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif">
+            <h2>NearGo – potrditev oddaje & povezava za urejanje</h2>
+            <p>Pozdravljeni, <b>${payload.organizer}</b>! Vaša objava je bila prejeta.</p>
+            <p><b>${payload.eventName}</b><br>${payload.venue}${payload.city ? ', ' + payload.city : ''}${payload.country ? ', ' + payload.country : ''}</p>
+            <p><b>Začetek:</b> ${payload.start || ''} • <b>Konec:</b> ${payload.end || ''}</p>
+            ${payload.offerType==='coupon' ? `<p><b>Kupon:</b> ${payload.couponDesc || 'vnovčljiv pri ponudniku'} (cena za kupca: 2,00 €)</p>` : ''}
+            ${payload.featured ? '<p><b>Izpostavitev:</b> vključena (7 dni) – <i>brezplačno</i>.</p>' : ''}
+            <p><b>Uredi objavo kadar koli:</b><br><a href="${editLink}">${editLink}</a></p>
+            <p>Hvala,<br>ekipa NearGo</p>
+          </div>`;
+        await sendMailBrevo({
+          to: payload.organizerEmail,
+          subject: 'NearGo – potrditev oddaje & povezava za urejanje',
+          html
+        });
+        emailStatus = "sent";
+        console.log("[provider-submit] Mail poslan OK");
+      } catch (e) {
+        emailStatus = `failed: ${e?.message || e}`;
+        console.error("[provider-submit] Napaka pri pošiljanju maila:", e?.message || e);
+      }
     }
+    // --- /DIAGNOSTIKA ---
 
     return json({
       ok: true,
       key: path,
       lat: payload.venueLat ?? null,
       lon: payload.venueLon ?? null,
-      editLink
+      editLink,
+      emailStatus        // <— vidiš v Network response in v logu
     });
   }catch(e){
+    console.error("[provider-submit] FATAL:", e?.message || e);
     return json({ ok:false, error:String(e?.message || e) }, 500);
   }
-};
+}; 

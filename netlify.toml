@@ -28,6 +28,19 @@
   status = 200
   force = true
 
+# ➜ NOVO: urejanje in posodobitev dogodka
+[[redirects]]
+  from = "/api/provider-edit"
+  to   = "/.netlify/functions/provider-edit"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/provider-update"
+  to   = "/.netlify/functions/provider-update"
+  status = 200
+  force = true
+
 # Stripe Checkout
 [[redirects]]
   from = "/api/checkout"
@@ -60,6 +73,13 @@
 [[redirects]]
   from = "/api/ticket-redeem"
   to   = "/.netlify/functions/ticket-redeem"
+  status = 200
+  force = true
+
+# ➜ NOVO: checker (organizatorski pregled + QR)
+[[redirects]]
+  from = "/api/checker"
+  to   = "/.netlify/functions/scan"
   status = 200
   force = true
 
@@ -116,4 +136,3 @@
 # ➜ NOVO: per-function nastavitev – ne bundlaj ticket-redeem (dinamični import)
 [functions."ticket-redeem"]
   node_bundler = "none"
-

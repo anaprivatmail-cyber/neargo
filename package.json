@@ -16,7 +16,7 @@
     "qrcode": "^1.5.3",
     "nodemailer": "^6.9.5",
     "uuid": "^9.0.1",
-    "@getbrevo/brevo": "^3.1.0",
+    "@getbrevo/brevo": "^2.3.0",
     "pdf-lib": "^1.17.1"
   }
 }

@@ -3,11 +3,26 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "index.js",
+  "license": "MIT",
   "engines": {
     "node": ">=20"
+  },
+  "scripts": {
+    "build": "echo \"No build step\"",
+    "start": "netlify dev"
   },
   "dependencies": {
     "stripe": "^12.0.0",
     "@netlify/functions": "^2.7.0",
     "@netlify/blobs": "^6.5.0",
-    "@supabase/supabase-js": 
+    "@supabase/supabase-js": "^2.45.0",
+    "busboy": "^1.6.0",
+    "pg": "^8.11.3",
+    "qrcode": "^1.5.3",
+    "nodemailer": "^6.9.5",
+    "uuid": "^9.0.1",
+    "@getbrevo/brevo": "^2.3.0",
+    "pdf-lib": "^1.17.1"
+  }
+}

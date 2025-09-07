@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NearGo – Checker</title>
+  <style>
+    :root{
+      --bg:#f0f9ff; --card:#fff; --text:#0b1b2b; --muted:#556b7b;
+      --brand:#06b6d4; --brand2:#0ea5e9; --danger:#ef4444; --ok:#0a7c2f;
+      --shadow:0 12px 30px rgba(0,0,0,.07); --border:#e5eef5;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);
+         font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}
+    .wrap{max-width:760px;margin:36px auto;padding:16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;
+          box-shadow:var(--shadow);padding:22px;text-align:center}
+    header{display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:6px}
+    header img{width:40px;height:40px}
+    h1{font-size:24px;margin:6px 0 2px}
+    p.muted{color:var(--muted);margin:0 0 16px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:6px 0 10px}
+    input[type=email]{min-width:220px;max-width:340px;width:100%;padding:12px 14px;
+      border:1px solid var(--border);border-radius:10px;font-size:15px}
+    .btn{border:none;border-radius:10px;background:linear-gradient(90deg,var(--brand),var(--brand2));
+         color:#fff;font-weight:800;padding:12px 16px;cursor:pointer}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .btn-outline{background:#fff;color:var(--text);border:1px solid var(--border)}
+    video{width:100%;max-width:540px;border-radius:14px;background:#000;margin-top:10px}
+    .pill{display:inline-block;padding:8px 12px;border-radius:999px;border:1px solid var(--border);
+          background:#fff;font-size:13px}
+    .ok{color:var(--ok);font-weight:700}
+    .bad{color:#b00020;font-weight:700}
+    .result{border:1px solid var(--border);border-radius:14px;padding:14px;margin-top:12px;text-align:left}
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;
+           background:#fff;border:1px solid var(--border);box-shadow:var(--shadow);
+           border-radius:10px;padding:10px 14px;font-weight:700;display:none;z-index:1000}
+    .toast.show{display:block}
+  </style>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    import { BrowserMultiFormatReader } from "https://esm.sh/@zxing/browser";
+
+    // --- TVOJI podatki (pusti kot sta) ---
+    const SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const S = { session: null, scanner: null, haveKey: false };
+    const $ = (s)=>document.querySelector(s);
+    const showToast = (msg) => { const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 4000); };
+
+    // (A) MAGIC LINK: ?k=SCANNER_KEY -> shrani v localStorage.scanner_key in očisti URL
+    (() => {
+      try {
+        const u = new URL(location.href);
+        const k = u.searchParams.get("k");
+        if (k) {
+          localStorage.setItem("scanner_key", k);
+          u.searchParams.delete("k");
+          history.replaceState({}, "", u.pathname + (u.search ? "?" + u.search : ""));
+        }
+      } catch {}
+    })();
+
+    // (B) redirect target za Supabase OTP (ostane)
+    const redirectTarget = () => "https://getneargo.com/checker.html";
+
+    async function init() {
+      const { data:{ session } } = await supabase.auth.getSession();
+      S.session = session;
+      S.haveKey = !!localStorage.getItem("scanner_key");
+      supabase.auth.onAuthStateChange((_e, s)=>{ S.session = s?.session || null; render(); });
+      render();
+    }
+
+    async function signIn() {
+      const email = $("#email")?.value?.trim();
+      if (!email) { showToast("Vpiši e-poštni naslov."); return; }
+      $("#btnSend").disabled = true;
+      try {
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: redirectTarget() }
+        });
+        if (error) throw error;
+        showToast("Povezava je poslana. Preveri e-pošto.");
+      } catch (e) {
+        console.error(e); showToast("Napaka pri pošiljanju povezave: " + (e?.message || e));
+      } finally { $("#btnSend").disabled = false; }
+    }
+
+    async function startScan() {
+      const reader = new BrowserMultiFormatReader();
+      S.scanner = reader;
+      try {
+        await reader.decodeFromVideoDevice(undefined, $("#video"), async (res) => {
+          if (!res) return;
+          let token = res.getText();
+          const m = token.match(/\/r\/([a-z0-9-]{10,})/i);
+          if (m) token = m[1];
+          await redeem(token);
+          stopScan();
+        });
+      } catch (e) {
+        console.error(e);
+        showToast("Kamera ni na voljo ali dovoljenje zavrnjeno.");
+      }
+    }
+    function stopScan(){ if(S.scanner){ S.scanner.reset(); S.scanner=null; } }
+
+    // (C) Unovči kodo – z magic ključem pošlji x-scanner-key, drugače stari način z Authorization
+    async function redeem(token) {
+      const scannerKey = localStorage.getItem("scanner_key") || "";
+      const haveKey = !!scannerKey;
+
+      try {
+        let json;
+        if (haveKey) {
+          const r = await fetch(`/api/redeem`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              "x-scanner-key": scannerKey
+            },
+            body: JSON.stringify({ token, eventId: "" })
+          });
+          json = await r.json();
+        } else {
+          const { data:{ session } } = await supabase.auth.getSession();
+          const r = await fetch(`/api/redeem/${token}`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${session?.access_token || ""}` }
+          });
+          json = await r.json();
+        }
+
+        console.log("redeem →", json);
+        const out = $("#result");
+        if (json.ok) {
+          out.innerHTML = `<div class="result">
+            <div class="ok">VELJAVNO ✔</div>
+            <div>${json.type === "coupon" ? "Kupon" : "Vstopnica"} – ${json.display_benefit || ""}</div>
+            <div>Kupčeva e-pošta: ${json.customer_email || "-"}</div>
+            <div>Čas unovčitve: ${new Date(json.redeemedAt || json.redeemed_at || Date.now()).toLocaleString()}</div>
+          </div>`;
+          showToast("Uspešno unovčeno.");
+        } else {
+          out.innerHTML = `<div class="result"><div class="bad">NEVELJAVNO ✖</div><div>${json.reason || json.error || "Napaka"}</div></div>`;
+          showToast("Koda ni veljavna.");
+        }
+      } catch (e) {
+        console.error(e); showToast("Napaka pri unovčitvi.");
+      }
+    }
+
+    function render() {
+      S.haveKey = !!localStorage.getItem("scanner_key");
+      const loggedIn = S.haveKey || !!S.session;
+
+      $("#app").innerHTML = loggedIn ? `
+        <div class="card">
+          <header>
+            <img src="icon-192.png" alt="">
+            <div class="pill">
+              ${ S.haveKey ? "Prijavljen (ključ)" : ("Prijavljen: " + (S.session?.user?.email || "")) }
+            </div>
+          </header>
+          <h1>Skeniraj QR kodo</h1>
+          <p class="muted">Začni s skeniranjem in unovi vstopnico/kupon.</p>
+          <div class="row">
+            <button class="btn" onclick="startScan()">📷 Začni skeniranje</button>
+            <button class="btn btn-outline" onclick="stopScan()">✖ Ustavi</button>
+          </div>
+          <video id="video" playsinline muted></video>
+          <div id="result"></div>
+        </div>
+      ` : `
+        <div class="card">
+          <header><img src="icon-192.png" alt=""><div class="pill">NearGo • Checker</div></header>
+          <h1>Prijava za ponudnike</h1>
+          <p class="muted">Vpišite e-pošto in prejeli boste prijavno povezavo. Odprite jo na tej napravi.</p>
+          <div class="row">
+            <input id="email" type="email" placeholder="vas@email.si">
+            <button id="btnSend" class="btn" onclick="signIn()">Pošlji prijavno povezavo</button>
+          </div>
+          <p class="muted" style="font-size:13px;margin-top:6px">
+            Namig: če sporočila ne vidite, preverite mapi »Promocije« ali »Neželena pošta«.
+          </p>
+        </div>
+      `;
+
+      // rebind global handlers
+      window.startScan = startScan;
+      window.stopScan  = stopScan;
+      window.signIn    = signIn;
+    }
+
+    init();
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <div id="app"></div>
+  </div>
+  <div id="toast" class="toast"></div>
+</body>
+</html>

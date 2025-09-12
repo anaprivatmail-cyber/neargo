@@ -10,7 +10,7 @@ exports.handler = async (event) => {
     const qrPath = `passes/qr/${token}.png`;
 
     const { data, error } = await supabase
-      .storage.from("invoices")  // ali 'passes' če ga ločiš – nato posodobi tudi webhook
+      .storage.from("invoices") // če ločiš bucket, zamenjaj v 'passes'
       .createSignedUrl(qrPath, 60 * 60 * 24 * 7);
 
     if (error || !data?.signedUrl) return { statusCode: 404, body: "Not found" };

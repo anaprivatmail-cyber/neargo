@@ -1,0 +1,151 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# ===== Redirects to serverless functions (API) =====
+
+[[redirects]]
+  from = "/api/search"
+  to   = "/.netlify/functions/tm-search"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/provider-submit"
+  to   = "/.netlify/functions/provider-submit"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/provider-upload"
+  to   = "/.netlify/functions/provider-upload"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/provider-list"
+  to   = "/.netlify/functions/provider-list"
+  status = 200
+  force = true
+
+# Urejanje in posodobitev dogodka (za link TUKAJ)
+[[redirects]]
+  from = "/api/provider-edit"
+  to   = "/.netlify/functions/provider-edit"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/provider-update"
+  to   = "/.netlify/functions/provider-update"
+  status = 200
+  force = true
+
+# Stripe Checkout
+[[redirects]]
+  from = "/api/checkout"
+  to   = "/.netlify/functions/checkout"
+  status = 200
+  force = true
+
+# Redeem (QR unovčitev) – kuponi
+[[redirects]]
+  from = "/api/redeem/*"
+  to   = "/.netlify/functions/redeem/:splat"
+  status = 200
+  force = true
+
+# Enostaven API za skeniranje (če ga kličeš iz appa)
+[[redirects]]
+  from = "/api/checker"
+  to   = "/.netlify/functions/scan"
+  status = 200
+  force = true
+
+# Stripe webhook pod /api
+[[redirects]]
+  from = "/api/stripe-webhook"
+  to   = "/.netlify/functions/stripe-webhook"
+  status = 200
+  force = true
+
+# Lep URL za vstopnice (če ga uporabljaš)
+[[redirects]]
+  from = "/api/ticket-redeem"
+  to   = "/.netlify/functions/ticket-redeem"
+  status = 200
+  force = true
+
+# Light ping/analytics (opcijsko)
+[[redirects]]
+  from = "/api/analytics"
+  to   = "/.netlify/functions/analytics"
+  status = 200
+  force = true
+
+# === NOVO: posrednik za QR-kodo in kratek URL ===
+[[redirects]]
+  from = "/api/redirect-qr"
+  to   = "/.netlify/functions/redirect-qr"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/r/:token"
+  to   = "/.netlify/functions/ticket-redeem?token=:token"
+  status = 200
+  force = true
+
+# === NOVO: lookup za nakupe (dodaj v "Moje") ===
+[[redirects]]
+  from = "/api/purchase-lookup"
+  to   = "/.netlify/functions/purchase-lookup"
+  status = 200
+  force = true
+
+# ===== Static asset caching =====
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    cache-control = "public, max-age=60, must-revalidate"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    cache-control = "public, max-age=31536000, immutable"
+
+# ===== Security headers =====
+[[headers]]
+  for = "/*"
+  [headers.values]
+    x-content-type-options = "nosniff"
+    x-frame-options = "SAMEORIGIN"
+    referrer-policy = "strict-origin-when-cross-origin"
+    permissions-policy = "geolocation=(self), camera=(self)"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+
+# ===== CORS for functions =====
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin  = "*"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization, x-scanner-key"
+
+# ===== SPA fallback =====
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200
+
+# ===== Functions bundling (global) =====
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["@netlify/blobs", "@supabase/supabase-js", "busboy"]
+  included_files = [
+    "providers/**",
+    "netlify/functions/fonts/**"
+  ]
+
+[functions."ticket-redeem"]
+  node_bundler = "none"

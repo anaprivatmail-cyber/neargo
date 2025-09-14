@@ -504,11 +504,64 @@ theme.onchange=()=>{const m=theme.checked?"dark":"light"; localStorage.setItem("
   });
 })();
 
-/* ===== Toast (success/cancel) ===== */
+/* ===== Toast (success/cancel) + “Moje” auto-save ===== */
 (function(){
-  const t=$("#toast"), show=(msg,ok=true)=>{ t.textContent=msg; t.className="toast "+(ok?"ok":"bad"); t.style.display="flex"; setTimeout(()=>t.style.display="none", 4000); };
-  if(location.hash==="#success"){ show("Plačilo uspešno ✅ — vstopnica/kupon in račun so poslani na e-pošto.", true); history.replaceState(null,"",location.pathname+location.search); }
-  if(location.hash==="#cancel"){  show("Plačilo preklicano. ❌", false); history.replaceState(null,"",location.pathname+location.search); }
+  const t=$("#toast");
+  const show=(msg,ok=true)=>{ t.textContent=msg; t.className="toast "+(ok?"ok":"bad"); t.style.display="flex"; setTimeout(()=>t.style.display="none", 4000); };
+
+  const url = new URL(location.href);
+  const success = url.searchParams.get('success') === '1';
+  const cs = url.searchParams.get('cs');
+
+  // Back-compat: #success/#cancel iz starega flowa
+  if (location.hash==="#cancel") {
+    show("Plačilo preklicano. ❌", false);
+    history.replaceState(null,"",url.pathname + url.search); // odstrani hash
+    return;
+  }
+  if (location.hash==="#success" && !success) {
+    show("Plačilo uspešno ✅ — vstopnica/kupon in račun so poslani na e-pošto.", true);
+    history.replaceState(null,"",url.pathname + url.search); // odstrani hash
+  }
+
+  // Nova pot: ?success=1&cs=...
+  if (success) {
+    show("Plačilo uspešno ✅ — vstopnica/kupon in račun so poslani na e-pošto.", true);
+
+    if (cs) {
+      fetch(`/api/purchase-lookup?cs=${encodeURIComponent(cs)}`)
+        .then(r=>r.json())
+        .then(d=>{
+          if (!d || !d.ok) return;
+          const storeKey = 'NEARGO_MY_CODES';
+          const now = new Date().toISOString();
+
+          // pripravi item za “Moje”
+          const ev = d.event || {};
+          const item = {
+            token: d.ticket?.token,
+            type: d.ticket?.type,                           // 'ticket' | 'coupon'
+            benefit: d.ticket?.display_benefit || '',
+            title: ev.name || '',
+            venue: (ev.venue?.address || ev.venue || '') || '',
+            start: ev.start || '',
+            image: (Array.isArray(ev.images) ? ev.images[0] : (ev.images||'')) || '',
+            addedAt: now
+          };
+          if (!item.token) return;
+
+          const arr = JSON.parse(localStorage.getItem(storeKey)||'[]');
+          if (!arr.find(x=>x.token===item.token)) arr.unshift(item);
+          localStorage.setItem(storeKey, JSON.stringify(arr));
+        })
+        .catch(()=>{ /* ignoriramo: koda je v e-pošti */ });
+    }
+
+    // očisti URL (da se auto-save ne ponovi ob refreshu)
+    url.searchParams.delete('success');
+    url.searchParams.delete('cs');
+    history.replaceState(null,'',url.pathname + url.search + url.hash);
+  }
 })();
 
 /* ===== Paneli ===== */

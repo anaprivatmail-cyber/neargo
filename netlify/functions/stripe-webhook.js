@@ -301,3 +301,36 @@ exports.handler = async (event) => {
             <p style="margin:0 0 6px">Račun <b>${seq}</b> je priložen kot PDF.</p>
             ${legalNote}
             <p style="margin:16px 0 0;color:#5b6b7b;font-size:13px">Vprašanja? <a href="mailto:${SUPPORT_EMAIL}" style="color:${primary};font-weight:800">${SUPPORT_EMAIL}</a></p>
+          </div>
+        </div>`;
+
+      // Pošlji e-pošto (če imamo ključ in prejemnika)
+      try {
+        if (process.env.BREVO_API_KEY && customerEmail) {
+          const email = new Brevo.SendSmtpEmail();
+          email.sender      = { email: FROM_EMAIL, name: FROM_NAME };
+          email.to          = [{ email: customerEmail }];
+          email.subject     = subject;
+          email.htmlContent = html;
+          email.attachment  = [
+            { name: "qr.png",           content: qrPngBuffer.toString("base64") },
+            { name: `Racun-${seq}.pdf`, content: Buffer.from(pdfBytes).toString("base64") }
+          ];
+          await brevoApi.sendTransacEmail(email);
+        } else {
+          console.error("[webhook] Brevo not configured or customerEmail missing");
+        }
+      } catch (mailErr) {
+        console.error("[webhook] Brevo send error:", mailErr?.message || mailErr);
+      }
+
+    } // end if stripeEvent.type === 'checkout.session.completed'
+
+    // uspešen odgovor webhooka
+    return { statusCode:200, headers:cors(), body: JSON.stringify({ ok:true }) };
+
+  } catch (e) {
+    console.error("[webhook] fatal:", e?.message || e);
+    return { statusCode:200, headers:cors(), body: JSON.stringify({ received:true }) };
+  }
+};

@@ -17,17 +17,22 @@ export const handler = async (event) => {
       type,                     // "ticket" | "coupon"
       metadata = {},
       lineItems: raw = [],
-      successUrl = `${BASE_URL}/#success`,
+      // privzeto: ?success=1&cs={CHECKOUT_SESSION_ID}
+      successUrl = `${BASE_URL}/?success=1&cs={CHECKOUT_SESSION_ID}`,
       cancelUrl  = `${BASE_URL}/#cancel`,
       customerEmail
     } = payload;
 
+    // Vedno zagotovimo, da je v success_url tudi cs={CHECKOUT_SESSION_ID}
+    const successWithCs = ensureCs(successUrl);
+
     const form = new URLSearchParams();
     form.set("mode","payment");
-    form.set("success_url", successUrl);
+    form.set("success_url", successWithCs);
     form.set("cancel_url", cancelUrl);
     if (customerEmail) form.set("customer_email", customerEmail);
 
+    // metadata passthrough (+ type)
     Object.entries({ ...metadata, type: type || metadata.type || "ticket" }).forEach(([k,v])=>{
       if (v !== undefined && v !== null) form.set(`metadata[${k}]`, String(v));
     });
@@ -49,7 +54,7 @@ export const handler = async (event) => {
         currency: it.currency || "eur",
         name: it.name || "Vstopnica",
         description: it.description || "",
-        amount: Math.round(Number(it.amount) * 100), // EVRE -> CENTI
+        amount: normalizeAmountToCents(it.amount), // EVRE -> CENTI (varno)
         quantity: it.quantity || 1,
         image: it.image || ""
       }));
@@ -58,6 +63,7 @@ export const handler = async (event) => {
       }
     }
 
+    // mapiranje line_items
     items.forEach((it,i)=>{
       form.set(`line_items[${i}][price_data][currency]`, it.currency);
       form.set(`line_items[${i}][price_data][product_data][name]`, it.name);
@@ -81,6 +87,45 @@ export const handler = async (event) => {
   }
 };
 
-function cors(){ return { "Access-Control-Allow-Origin":"*", "Access-Control-Allow-Methods":"POST,OPTIONS", "Access-Control-Allow-Headers":"content-type" }; }
-function json(obj, status=200){ return { statusCode:status, headers:{ "content-type":"application/json", ...cors() }, body:JSON.stringify(obj) }; }
+function cors(){
+  return {
+    "Access-Control-Allow-Origin":"*",
+    "Access-Control-Allow-Methods":"POST,OPTIONS",
+    "Access-Control-Allow-Headers":"content-type"
+  };
+}
+function json(obj, status=200){
+  return { statusCode:status, headers:{ "content-type":"application/json", ...cors() }, body:JSON.stringify(obj) };
+}
 function safeJson(s){ try{ return s? JSON.parse(s) : null; }catch{ return null; } }
+
+// Če je amount v evrih, ga pretvorimo v cente; če je že v centih (>=50 in celo število), pustimo.
+function normalizeAmountToCents(val){
+  const n = Number(val);
+  if (!Number.isFinite(n)) return 0;
+  // Heuristika: če je >= 50 in celo število, predvidevamo že cente
+  if (n >= 50 && Number.isInteger(n)) return n;
+  // sicer obravnavamo kot evre
+  return Math.round(n * 100);
+}
+
+// Doda ?success=1&cs={CHECKOUT_SESSION_ID} na podani successUrl, če še ni
+function ensureCs(u){
+  try{
+    // netlify funkcije lahko dobijo “relative” URL; če ni absoluten, prilepimo BASE_URL
+    const absolute = /^https?:\/\//i.test(u) ? u : `${BASE_URL.replace(/\/$/,"")}/${u.replace(/^\//,"")}`;
+    const url = new URL(absolute);
+    if (!url.searchParams.has("success")) url.searchParams.set("success","1");
+    if (!/\{CHECKOUT_SESSION_ID\}/.test(url.search)) {
+      url.searchParams.set("cs","{CHECKOUT_SESSION_ID}");
+    }
+    return url.toString();
+  }catch{
+    // fallback – enostavno pripni parametre
+    const sep = u.includes("?") ? "&" : "?";
+    const hasSuccess = /[?&]success=/.test(u);
+    const withSuccess = hasSuccess ? u : `${u}${sep}success=1`;
+    const sep2 = withSuccess.includes("?") ? "&" : "?";
+    return /{CHECKOUT_SESSION_ID}/.test(withSuccess) ? withSuccess : `${withSuccess}${sep2}cs={CHECKOUT_SESSION_ID}`;
+  }
+    }

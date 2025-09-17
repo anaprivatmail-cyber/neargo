@@ -1,5 +1,4 @@
 // netlify/functions/redeem.js
-// Unovči QR iz Supabase "tickets" (ESM)
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL  = process.env.SUPABASE_URL;
@@ -22,18 +21,18 @@ export const handler = async (event) => {
     if (event.httpMethod !== "POST")   return bad("use_post", 405);
 
     // Avtorizacija skenerja
-    const providedKey = event.headers["x-scanner-key"] || event.headers["x-scanner-key".toLowerCase()] || "";
+    const providedKey = event.headers["x-scanner-key"] || event.headers["X-Scanner-Key"] || "";
     if (!SCANNER_KEY || providedKey !== SCANNER_KEY) return bad("unauthorized_scanner", 401);
 
-    // Body
     let body = {};
     try { body = JSON.parse(event.body || "{}"); } catch { return bad("invalid_json", 400); }
     const token   = (body.token || "").trim();
-    const eventId = (body.eventId || "").trim();   // opcijsko – če ga pošiljaš iz scan.html
+    const eventId = (body.eventId || "").trim();
+    const scannerEmail = (body.scannerEmail || "").trim(); // opcijsko iz UI
 
     if (!token) return bad("missing_token");
 
-    // Najdi ticket po tokenu (in po želji validiraj eventId)
+    // Poišči ticket
     let q = supa.from("tickets")
       .select("id,type,status,display_benefit,customer_email,redeemed_at,event_id")
       .eq("token", token)
@@ -51,6 +50,7 @@ export const handler = async (event) => {
 
     // Če je že unovčen
     if (statusLc === "redeemed") {
+      await logScan(row, token, scannerEmail, providedKey, true); // log tudi ponovni scan
       return ok({
         ok: true,
         alreadyRedeemed: true,
@@ -62,7 +62,7 @@ export const handler = async (event) => {
       });
     }
 
-    // Unovči (posodobi status in čas)
+    // Posodobi na redeemed
     const nowIso = new Date().toISOString();
     const { error: upErr } = await supa
       .from("tickets")
@@ -70,6 +70,8 @@ export const handler = async (event) => {
       .eq("id", row.id);
 
     if (upErr) return bad("update_failed", 500);
+
+    await logScan(row, token, scannerEmail, providedKey, false);
 
     return ok({
       ok: true,
@@ -84,3 +86,18 @@ export const handler = async (event) => {
     return bad(String(e?.message || e), 200);
   }
 };
+
+// Zapis v tabelo scans
+async function logScan(row, token, scannerEmail, scannerKey, already) {
+  try {
+    await supa.from("scans").insert({
+      ticket_id: row.id,
+      event_id: row.event_id,
+      token,
+      scanner_email: scannerEmail || null,
+      scanner_key: scannerKey || null
+    });
+  } catch(e) {
+    console.error("[redeem] logScan error", e.message);
+  }
+}

@@ -14,6 +14,7 @@
   #reader{width:360px;margin:12px auto}
   .ok{color:#0a7d2a} .err{color:#b00020}
   code{font-family:ui-monospace,Menlo,monospace}
+  .grow{flex:1}
 </style>
 </head>
 <body>
@@ -28,10 +29,17 @@
     <button id="save">Shrani</button>
   </div>
 
+  <!-- NOVO: Stats token + gumb za analitiko -->
+  <div class="row" style="margin-top:8px">
+    <label>Stats token:</label>
+    <input id="stats" class="grow" placeholder="prilepi stats-token (če ga imaš)">
+    <button id="openStats" title="Odpri analitiko za ta dogodek" disabled>Odpri analitiko</button>
+  </div>
+
   <div id="reader"></div>
 
   <div class="row">
-    <input id="manual" placeholder="prilepi token ročno" style="flex:1">
+    <input id="manual" class="grow" placeholder="prilepi token ročno">
     <button id="redeemBtn">Vnovči</button>
   </div>
 
@@ -41,15 +49,52 @@
 <script>
 const BASE = location.origin;
 const $ = (id)=>document.getElementById(id);
-const keyInput = $("key"), eventInput = $("eventId"), manual = $("manual"), out = $("out");
+const keyInput   = $("key");
+const eventInput = $("eventId");
+const statsInput = $("stats");
+const manual     = $("manual");
+const out        = $("out");
 
-keyInput.value = localStorage.getItem("scanner_key") || "";
-eventInput.value = localStorage.getItem("event_id") || "";
+// Prefill iz localStorage
+keyInput.value   = localStorage.getItem("scanner_key") || "";
+eventInput.value = localStorage.getItem("event_id")    || "";
+statsInput.value = localStorage.getItem("stats_token") || "";
+
+// Prefill iz URL parametrov (?k=...&eventId=...&stats=...)
+(function fromQuery(){
+  try{
+    const u = new URL(location.href);
+    const k = u.searchParams.get("k");
+    const ev= u.searchParams.get("eventId") || u.searchParams.get("eid");
+    const st= u.searchParams.get("stats");
+    if(k){ keyInput.value = k; localStorage.setItem("scanner_key", k); u.searchParams.delete("k"); }
+    if(ev){ eventInput.value = ev; localStorage.setItem("event_id", ev); u.searchParams.delete("eventId"); u.searchParams.delete("eid"); }
+    if(st){ statsInput.value = st; localStorage.setItem("stats_token", st); u.searchParams.delete("stats"); }
+    if(k || ev || st){ history.replaceState({}, "", u.pathname + (u.search?("?"+u.search):"")); }
+  }catch{}
+})();
+
+// Enable/disable gumb za analitiko
+function syncStatsBtn(){
+  $("openStats").disabled = !(statsInput.value.trim() && eventInput.value.trim());
+}
+syncStatsBtn();
 
 $("save").onclick = ()=>{
   localStorage.setItem("scanner_key", keyInput.value.trim());
-  localStorage.setItem("event_id", eventInput.value.trim());
+  localStorage.setItem("event_id",    eventInput.value.trim());
+  localStorage.setItem("stats_token", statsInput.value.trim());
+  syncStatsBtn();
   out.textContent = "Shranjeno.";
+};
+
+// Odpri org-stats samo za ta dogodek
+$("openStats").onclick = ()=>{
+  const stats = statsInput.value.trim();
+  const ev    = eventInput.value.trim();
+  if(!stats || !ev){ out.innerHTML = '<span class="err">Manjka stats token ali eventId.</span>'; return; }
+  const url = `${BASE}/org-stats.html?stats=${encodeURIComponent(stats)}&eventId=${encodeURIComponent(ev)}`;
+  window.location.href = url; // ali: window.open(url, '_blank')
 };
 
 async function redeem(token){

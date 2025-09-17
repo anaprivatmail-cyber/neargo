@@ -291,41 +291,75 @@ exports.handler = async (event) => {
         : '';
 
       const html = `
-        <div style="font-family:Arial,Helvetica,sans-serif;max-width:680px;margin:auto;border:1px solid #e3eef7;border-radius:12px;overflow:hidden">
-          <div style="background:${primary};padding:16px 20px;color:#fff;display:flex;align-items:center;gap:12px">
-            <img src="${logoUrl}" width="32" height="32" alt="NearGo" style="border-radius:8px;border:1px solid rgba(255,255,255,.35)">
-            <div style="font-weight:900;letter-spacing:.3px">NearGo</div>
+  <div style="font-family:Arial,Helvetica,sans-serif;background:#f6fbfe;padding:0;margin:0">
+    <div style="max-width:680px;margin:0 auto;border:1px solid #e3eef7;border-radius:14px;overflow:hidden;background:#fff">
+
+      <!-- HEADER -->
+      <div style="background:${primary};padding:18px 22px;color:#fff;display:flex;align-items:center;gap:16px">
+        <img src="${logoUrl}" width="36" height="36" alt="NearGo"
+             style="border-radius:8px;border:1px solid rgba(255,255,255,.35);background:#fff;padding:4px">
+        <div style="font-weight:900;font-size:20px;letter-spacing:.5px">NearGo</div>
+      </div>
+
+      <!-- VSEBINA -->
+      <div style="padding:20px 22px;color:#0b1b2b">
+        <h2 style="margin:0 0 12px 0;font-size:20px;line-height:1.35">${mailIntro}</h2>
+
+        <!-- DOGODEK + SLIKA -->
+        ${ imgInMail ? `
+          <img src="${imgInMail}" alt="" width="100%"
+               style="max-height:240px;object-fit:cover;border-radius:12px;border:1px solid #e3eef7;margin:8px 0 14px">`
+        : "" }
+
+        <!-- LOKACIJA / TERMIN -->
+        ${(venueText || whenText) ? `
+          <div style="border:1px solid #e3eef7;border-radius:12px;padding:12px 14px;margin:10px 0;background:#f9fcff">
+            ${ venueText ? `<div style="margin:2px 0"><b>Lokacija:</b> ${escapeHtml(venueText)}</div>` : '' }
+            ${ whenText  ? `<div style="margin:2px 0"><b>Termin:</b> ${escapeHtml(whenText)}</div>` : '' }
+          </div>` : ''}
+
+        <!-- POVZETEK NAKUPA -->
+        <div style="border:1px solid #cfe1ee;border-radius:12px;padding:14px 16px;margin:12px 0;background:#fff">
+          <div style="font-weight:900;margin-bottom:6px">${escapeHtml(eventTitle)}</div>
+          <div style="margin:2px 0">
+            ${ type==="coupon"
+                ? `Kupon: <b>${escapeHtml(benefitPretty || "ugodnost")}</b>`
+                : `Vstopnica: <b>1×</b>` }
           </div>
-          <div style="padding:18px 20px;color:#0b1b2b">
-            <h2 style="margin:0 0 10px">${mailIntro}</h2>
-
-            ${(venueText || whenText) ? `
-              <div style="border:1px solid #e3eef7;border-radius:12px;padding:10px 12px;margin:10px 0;background:#f9fcff">
-                ${ venueText ? `<div><b>Lokacija:</b> ${escapeHtml(venueText)}</div>` : '' }
-                ${ whenText  ? `<div><b>Termin:</b> ${escapeHtml(whenText)}</div>` : '' }
-              </div>` : '' }
-
-            ${ imgInMail ? `<img src="${imgInMail}" width="100%" style="max-height:220px;object-fit:cover;border-radius:10px;border:1px solid #e3eef7;margin:8px 0">` : "" }
-
-            <div style="border:1px solid #cfe1ee;border-radius:10px;padding:12px 14px;margin:10px 0;background:#fff">
-              <div><b>${escapeHtml(eventTitle)}</b></div>
-              <div>${ type==="coupon" ? `Kupon: <b>${escapeHtml(benefitPretty || "ugodnost")}</b>` : `Vstopnica: <b>1×</b>` }</div>
-              <div>Skupaj: <b>${(totalGross/100).toFixed(2)} ${CURRENCY.toUpperCase()}</b></div>
-            </div>
-
-            <p style="margin:12px 0 6px">
-              Vaša ${type==="coupon"?"<b>QR koda kupona</b>":"<b>QR koda vstopnice</b>"} je v priponki (<i>qr.png</i>),
-              koda pa je <b>samodejno shranjena</b> v zavihku <b>Moje</b> v aplikaciji NearGo.
-            </p>
-
-            <p style="margin:0 0 6px">Do kode lahko dostopate tudi <a href="${redeemUrl}">tukaj</a>.</p>
-
-            <p style="margin:0 0 6px">Koda: <b>${token}</b></p>
-            <p style="margin:0 0 6px">Račun <b>${seq}</b> je priložen kot PDF.</p>
-            ${legalNote}
-            <p style="margin:16px 0 0;color:#5b6b7b;font-size:13px">Vprašanja? <a href="mailto:${SUPPORT_EMAIL}" style="color:${primary};font-weight:800">${SUPPORT_EMAIL}</a></p>
+          <div style="margin:6px 0 0"><span style="opacity:.75">Skupaj:</span>
+            <b style="font-size:18px">${(totalGross/100).toFixed(2)} ${CURRENCY.toUpperCase()}</b>
           </div>
-        </div>`;
+        </div>
+
+        <!-- KODA / GUMBI -->
+        <p style="margin:12px 0">
+          Vaša ${type==="coupon" ? "<b>QR koda kupona</b>" : "<b>QR koda vstopnice</b>"} je priložena (<i>qr.png</i>).
+          Kodo lahko odprete tudi
+          <a href="${redeemUrl}" style="color:${primary};font-weight:800">tukaj</a>.
+        </p>
+
+        <div style="margin:10px 0 14px">
+          <a href="${redeemUrl}"
+             style="display:inline-block;background:${primary};color:#fff;text-decoration:none;
+                    padding:10px 14px;border-radius:10px;font-weight:800">Odpri kodo</a>
+          <span style="display:inline-block;margin-left:10px;color:#5b6b7b">
+            Račun <b>${seq}</b> je priložen kot PDF.
+          </span>
+        </div>
+
+        ${ type === 'coupon' ? `
+          <p style="margin:10px 0 0;font-size:13px;color:#5b6b7b">
+            Opomba: kupon stane <b>2 €</b>; njegova vrednost (popust, znesek ali gratis)
+            se unovči pri organizatorju in ni zamenljiva za denar.
+          </p>` : '' }
+
+        <!-- FOOTER -->
+        <div style="margin:18px 0 4px;color:#5b6b7b;font-size:13px">
+          Vprašanja? <a href="mailto:${SUPPORT_EMAIL}" style="color:${primary};font-weight:800">${SUPPORT_EMAIL}</a>
+        </div>
+      </div>
+    </div>
+  </div>`;
 
       try {
         const email = new Brevo.SendSmtpEmail();

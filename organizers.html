@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>NearGo – Za organizatorje</title>
+  <style>
+    :root{
+      --bg:#f6fbfe; --card:#fff; --text:#0b1b2b; --muted:#5b6b7b; --border:#e6eef7;
+      --brand:#0bbbd6; --brand2:#089ab1; --shadow:0 12px 30px rgba(0,0,0,.06);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);
+      font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    .wrap{max-width:900px;margin:24px auto;padding:16px}
+    .card{background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:20px}
+    h1{margin:6px 0 14px;font-size:24px}
+    .muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:16px}
+    @media(min-width:680px){ .grid{grid-template-columns:1fr 1fr 1fr} }
+    .btn{
+      display:block;text-align:center;text-decoration:none;border-radius:16px;
+      padding:18px;font-weight:900;box-shadow:var(--shadow); transition:transform .06s ease
+    }
+    .btn:active{ transform:scale(.98); }
+    .btn.primary{background:linear-gradient(90deg,var(--brand),var(--brand2)); color:#fff; border:0;}
+    .btn.link{background:#fff;color:var(--text);border:1px solid var(--border)}
+    .hint{font-size:12px;color:var(--muted);margin-top:10px}
+
+    /* Mini header (enak na vseh) */
+    .topbar{position:sticky; top:0; z-index:10; backdrop-filter:blur(6px);
+      background: color-mix(in srgb, #ffffff 88%, transparent);
+      border-bottom: 1px solid #e6eef7;}
+    .topnav{max-width:1100px; margin:0 auto; padding:10px 14px; display:flex; align-items:center; gap:10px;}
+    .brand-mini{display:flex; align-items:center; gap:10px; font-weight:900; font-size:18px; color:#0b1b2b; text-decoration:none}
+    .brand-mini svg{width:26px; height:26px}
+    .topnav .spacer{flex:1}
+    .topbtn{display:inline-block; padding:8px 12px; border-radius:999px; font-weight:800; text-decoration:none;}
+    .topbtn.link{background:#fff; color:#0b1b2b; border:1px solid #e6eef7}
+    .topbtn.cta{background:#0bbbd6; color:#fff; border:0}
+    .topbtn.back{ background:#fff; color:#0b1b2b; border:1px solid #e6eef7; }
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <div class="topbar">
+    <div class="topnav">
+      <a href="/" class="brand-mini" aria-label="NearGo">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <defs><radialGradient id="g1" cx="50%" cy="50%"><stop offset="0%" stop-color="#0bbbd6"/><stop offset="100%" stop-color="#7de3f0"/></radialGradient></defs>
+          <circle cx="16" cy="16" r="12" fill="none" stroke="url(#g1)" stroke-width="2"/>
+          <circle cx="16" cy="16" r="3.2" fill="#0bbbd6"/>
+        </svg>
+        NearGo
+      </a>
+      <span class="spacer"></span>
+      <a href="/" class="topbtn back" id="btnBack">Nazaj</a>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="wrap">
+    <div class="card">
+      <h1>Za organizatorje</h1>
+      <div class="muted">Izberi, kaj želiš narediti.</div>
+
+      <div class="grid">
+        <a class="btn link"    href="/#orgPanel">Objavi dogodek</a>
+        <a class="btn primary" href="/scan.html?v=2">Skeniraj QR</a>
+        <a class="btn link"    href="/org-stats.html">Analitika</a>
+      </div>
+
+      <div class="hint">Analitika za posamezen dogodek se odpre iz povezave v potrditvenem e-mailu (stats token).</div>
+    </div>
+  </div>
+
+  <script>
+    // Pameten "Nazaj": če je referrer iz iste domene, uporabi history.back()
+    (function(){
+      const b=document.getElementById('btnBack'); if(!b) return;
+      b.addEventListener('click', function(e){
+        const ref = document.referrer;
+        if(ref && new URL(ref).origin === location.origin){ e.preventDefault(); history.back(); }
+      });
+    })();
+  </script>
+</body>
+</html>

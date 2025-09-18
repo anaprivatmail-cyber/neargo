@@ -1258,4 +1258,14 @@ document.addEventListener('click', (e)=>{
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); });
 }
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const wantOrg = (location.hash === '#orgPanel') || (sessionStorage.getItem('openOrg') === '1');
+  if (wantOrg) {
+    showPanel('orgPanel');
+    try { sessionStorage.removeItem('openOrg'); } catch {}
+  }
+});
 </script>
+</body>
+</html>

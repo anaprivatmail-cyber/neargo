@@ -876,6 +876,10 @@ function attachMiniActions(){
 } else {
   alert("Checkout ni uspel: " + (data?.error || JSON.stringify(data)));
 }
+} catch(e) {
+  alert("Checkout ni uspel (omrežje): " + e.message);
+}
+}
 
 /* ISKANJE */
 let currentPage=0;

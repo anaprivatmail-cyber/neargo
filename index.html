@@ -390,11 +390,13 @@ input[type="checkbox"]:checked::after{ opacity:1 }
       </div>
 
       <div class="inline" style="margin-top:6px">
-        <label class="inline">
-          <input type="checkbox" id="featured">
-          <span>Izpostavi (7 dni) – <b>brezplačno</b></span>
-        </label>
-        <span class="muted" style="font-size:13px">Izpostavljeni dogodki se pokažejo najprej.</span>
+  <label class="inline">
+    <input type="checkbox" id="featured">
+    <span>Izpostavi (7 dni) – <b>brezplačno</b></span>
+  </label>
+  <div class="muted" style="font-size:13px; margin-top:4px">
+    Izpostavljeni dogodki se pokažejo najprej.
+  </div>
       </div>
 
       <div class="row" style="margin-top:8px">
@@ -516,6 +518,16 @@ $("#btnMap").onclick=()=>{showPanel("mapPanel");refreshTopMap();};
 $("#btnCloseMap")?.addEventListener("click",()=>showPanel("searchPanel"));
 $("#btnMine")?.addEventListener("click",()=>{ location.href="/my.html"; });
 
+/* Števec znakov opisa (0 / 800) */
+(function(){
+  const d = document.getElementById('desc');
+  const c = document.getElementById('descCount');
+  if (!d || !c) return;
+  const update = () => { c.textContent = `${d.value.length} / ${d.getAttribute('maxlength') || 800}`; };
+  d.addEventListener('input', update, {passive:true});
+  update();
+})();
+  
 /* Organizatorji – odpiranje obrazca */
 document.addEventListener('DOMContentLoaded', () => {
   const wantOrg = (location.hash === '#orgPanel') || (sessionStorage.getItem('openOrg') === '1');
@@ -771,32 +783,30 @@ async function loadFeatured(){
   startAutoScroll();   // kroženje
 }
 
-/* Počasno kroženje + PAVZA ob dotiku/miški */
-let autoScrollTimer=null, baseW=0, paused=false;
+/* Karusel – počasneje + ustavi na klik/tap */
+let autoScrollTimer = null, baseW = 0, paused = false;
 function startAutoScroll(){
-  const box=$("#carousel");
+  const box = document.getElementById("carousel");
   if(!box) return;
-
-  const pause = ()=>{ paused=true; };
-  const resume= ()=>{ paused=false; };
-
-  // pavza ob dotiku, držanju ali vstopu miške; nadaljuj ob spustu/izhodu
-  ['pointerdown','touchstart','mousedown','mouseenter','focusin','click'].forEach(ev=>box.addEventListener(ev, pause, {passive:true}));
-  ['pointerup','touchend','mouseup','mouseleave','focusout'].forEach(ev=>box.addEventListener(ev, resume, {passive:true}));
 
   if(!baseW){
     baseW = box.scrollWidth;
     const clones=[...box.children].map(n=>n.cloneNode(true));
     clones.forEach(n=>box.appendChild(n));
   }
+
+  // ustavi/zaženi na klik/tap
+  box.addEventListener('click', ()=>{ paused = !paused; }, {passive:true});
+  box.addEventListener('touchstart', ()=>{ paused = true; }, {passive:true});
+  box.addEventListener('touchend', ()=>{ paused = false; }, {passive:true});
+
   if(autoScrollTimer) clearInterval(autoScrollTimer);
-  autoScrollTimer=setInterval(()=>{
-    if(paused) return;
-    if(box.scrollLeft >= baseW){ box.scrollLeft -= baseW; }
-    // POČASNEJE: ~0.25 širine zaslona v ~6 s
-    box.scrollBy({left: Math.max(1, Math.floor(box.clientWidth*0.0025)), behavior:"smooth"});
-  }, 120);
-  }
+  autoScrollTimer = setInterval(()=>{
+    if (paused) return;
+    if (box.scrollLeft >= baseW){ box.scrollLeft -= baseW; }
+    box.scrollBy({ left: Math.max(1, Math.floor(box.clientWidth * 0.006)), behavior: "smooth" });
+  }, 90);
+}
 
 /* Deljenje / ics / Več / Kupi (brez sprememb backend) */
 function attachMiniActions(){
@@ -861,12 +871,10 @@ function attachMiniActions(){
         try{
           const r=await fetch("/api/checkout",{method:"POST",headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
           const data=await r.json();
-          if(data&&data.ok&&data.url){ location.href=data.url; }
-          else { alert(`Checkout ni uspel${data?.error?`: ${data.error}`:''}.`); }
-        }catch(e){ alert("Checkout ni uspel (omrežje)."); }
-      }
-    };
-  });
+          if (data && data.ok && data.url) {
+  location.href = data.url;
+} else {
+  alert("Checkout ni uspel: " + (data?.error || JSON.stringify(data)));
 }
 
 /* ISKANJE */
@@ -1007,6 +1015,26 @@ document.querySelector("#linkPrivacy")?.addEventListener("click",(e)=>{
   modal.style.display="block"; modal.scrollIntoView({behavior:"smooth", block:"start"});
   document.getElementById('closeLegal')?.addEventListener('click',()=>{ modal.style.display='none'; });
 });
+
+/* Modal: Pogoji za plačljive dogodke */
+document.getElementById('showProviderTerms')?.addEventListener('click', (e)=>{
+  e.preventDefault();
+  const modal = document.getElementById('legalModal');
+  if(!modal) return;
+  modal.innerHTML = `
+    <h3>Pogoji za plačljive dogodke</h3>
+    <div class="muted" style="font-size:14px; line-height:1.5">
+      <p><b>1.</b> Organizator je odgovoren za točnost podatkov, cene in razpoložljivost.</p>
+      <p><b>2.</b> Plačila se obdelajo prek pogodbenega procesorja; račun prejme kupec po e-pošti.</p>
+      <p><b>3.</b> V primeru sprememb/odpovedi organizator ravna skladno z zakonodajo.</p>
+      <p><b>4.</b> Pri kuponih je izdaja 2 €; vrednost se unovči pri organizatorju in ni zamenljiva za denar.</p>
+      <p><b>5.</b> Podpora: <a href="mailto:info@getneargo.com">info@getneargo.com</a></p>
+      <div style="margin-top:10px"><button id="closeLegal" class="btn mini link">Zapri</button></div>
+    </div>`;
+  modal.style.display = "block";
+  modal.scrollIntoView({behavior:"smooth", block:"start"});
+  document.getElementById('closeLegal')?.addEventListener('click', ()=>{ modal.style.display="none"; });
+});  
 
 /* Cookie banner */
 (function(){

@@ -66,6 +66,24 @@
       border:2px solid #a9c3d6; border-radius:4px; background:#fff; outline:none;
       display:inline-block; vertical-align:middle;
     }
+    /* --- tiny checkbox fix (override generic input rule) --- */
+label.inline, .inline label{ align-items:center; }
+input[type="checkbox"]{
+  width:14px !important;
+  height:14px !important;
+  min-height:0 !important;
+  padding:0 !important;
+  display:inline-block;
+  vertical-align:middle;
+  border:2px solid #a9c3d6; border-radius:4px; background:#fff; box-sizing:content-box;
+}
+input[type="checkbox"]::after{
+  content:""; position:absolute; left:2px; top:-1px; width:6px; height:10px;
+  border-right:3px solid var(--primary); border-bottom:3px solid var(--primary);
+  transform:rotate(45deg); opacity:0; transition:opacity .12s;
+}
+input[type="checkbox"]:checked{ border-color:var(--primary) }
+input[type="checkbox"]:checked::after{ opacity:1 }
     input[type="checkbox"]::after{
       content:""; position:absolute; left:2px; top:-1px; width:6px; height:10px;
       border-right:3px solid var(--primary); border-bottom:3px solid var(--primary);
@@ -754,8 +772,9 @@ function startAutoScroll(){
   const pause = ()=>{ paused=true; };
   const resume= ()=>{ paused=false; };
 
-  ['pointerdown','touchstart','mouseenter','focusin'].forEach(ev=>box.addEventListener(ev, pause, {passive:true}));
-  ['pointerup','touchend','mouseleave','focusout'].forEach(ev=>box.addEventListener(ev, resume, {passive:true}));
+  // pavza ob dotiku, držanju ali vstopu miške; nadaljuj ob spustu/izhodu
+  ['pointerdown','touchstart','mousedown','mouseenter','focusin','click'].forEach(ev=>box.addEventListener(ev, pause, {passive:true}));
+  ['pointerup','touchend','mouseup','mouseleave','focusout'].forEach(ev=>box.addEventListener(ev, resume, {passive:true}));
 
   if(!baseW){
     baseW = box.scrollWidth;
@@ -766,10 +785,10 @@ function startAutoScroll(){
   autoScrollTimer=setInterval(()=>{
     if(paused) return;
     if(box.scrollLeft >= baseW){ box.scrollLeft -= baseW; }
-    /* počasneje: ~0.4 ekrana / 5 s */
-    box.scrollBy({left: Math.max(1, Math.floor(box.clientWidth*0.004)), behavior:"smooth"});
-  }, 90);
-}
+    // POČASNEJE: ~0.25 širine zaslona v ~6 s
+    box.scrollBy({left: Math.max(1, Math.floor(box.clientWidth*0.0025)), behavior:"smooth"});
+  }, 120);
+  }
 
 /* Deljenje / ics / Več / Kupi (brez sprememb backend) */
 function attachMiniActions(){

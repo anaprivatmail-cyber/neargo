@@ -1,4 +1,4 @@
-<!doctype html>
+ki<!doctype html>
 <html lang="sl">
 <head>
   <meta charset="utf-8" />
@@ -91,6 +91,14 @@ input[type="checkbox"]:checked::after{ opacity:1 }
     }
     input[type="checkbox"]:checked{ border-color:var(--primary) }
     input[type="checkbox"]:checked::after{ opacity:1 }
+    label.inline {
+  display: inline-flex;
+  flex-direction: row;     /* poravnava: checkbox pred besedilom */
+  align-items: center;     /* poravnava po višini */
+  gap: 6px;                /* razmik med kvadratkom in tekstom */
+  font-weight: 800;
+  font-size: 13px;
+    }
 
     /* ===== Layout ===== */
     main{max-width:1100px; margin:0 auto; padding:12px 14px 64px}

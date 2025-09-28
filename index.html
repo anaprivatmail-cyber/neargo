@@ -25,6 +25,20 @@
   <main id="app"></main>
 
   <!-- Naš JS (ES modules) -->
-  <script type="module" src="assets/main.js"></script>
+  <script type="module" src="assets/main.js?v=navfix-4"></script>
+
+  <!-- Fallback varovalka: premakni vse ne-.nav elemente iz headerja v main -->
+  <script>
+    (function(){
+      const h = document.getElementById('topbar');
+      const a = document.getElementById('app');
+      if (!h || !a) return;
+      Array.from(h.children).forEach(n => {
+        if (!n.classList || !n.classList.contains('nav')) {
+          a.appendChild(n);
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

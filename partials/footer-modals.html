@@ -1,0 +1,62 @@
+<section class="card" id="benefits">
+  <div class="title">Zakaj NearGo?</div>
+  <ul class="typing" style="margin:8px 0 0 18px; color:var(--muted); line-height:1.6">
+    <li><b>Vsi dogodki na enem mestu</b> – hitro brskanje in primerjava.</li>
+    <li><b>Vstopnice ali kupone</b> lahko kupite tukaj ali na povezavi.</li>
+    <li><b>Dodaj v koledar</b> z enim klikom.</li>
+    <li><b>Povabi prijatelje</b> — deljenje “Greš tudi ti?”.</li>
+    <li><b>Zemljevid</b> z markerji in hitro navigacijo.</li>
+  </ul>
+</section>
+
+<section class="card panel" id="providerTermsPanel" style="display:none">
+  <div class="title" style="display:flex;justify-content:space-between;align-items:center">
+    <span>Pogoji za plačljive dogodke</span>
+    <button class="btn mini link" id="closeProviderTerms">Zapri</button>
+  </div>
+  <div class="muted" style="font-size:14px; line-height:1.55">
+    <p><b>1.</b> Organizator jamči za točnost cen, razpoložljivost in zakonitost dogodka. NearGo je posrednik za izdajo vstopnic/kuponov.</p>
+    <p><b>2.</b> Plačila se obdelajo prek pogodbenega procesorja; račun in QR-koda sta poslana na e-pošto kupca.</p>
+    <p><b>3.</b> Vračila, spremembe in odpovedi ureja organizator po zakonodaji; stroški procesiranja se ne vračajo, razen če zakon določa drugače.</p>
+    <p><b>4.</b> Kupon vedno stane 2 € (izdaja); njegova vrednost se unovči pri organizatorju in ni zamenljiva za denar.</p>
+    <p><b>5.</b> NearGo si pridržuje pravico do začasne skritosti ali odstranitve dogodka ob sumu zlorabe.</p>
+    <p><b>6.</b> Kontakt: <a href="mailto:info@getneargo.com">info@getneargo.com</a>.</p>
+  </div>
+</section>
+
+<footer class="legal">
+  © NearGo • <a href="/terms.html#terms">Pogoji uporabe</a> • <a href="/terms.html#privacy">Zasebnost</a> •
+  <a href="mailto:info@getneargo.com">info@getneargo.com</a>
+  <div id="legalModal" class="card panel" style="display:none; margin-top:12px"></div>
+</footer>
+
+<div class="modal" id="pickModal" role="dialog" aria-modal="true" aria-label="Izberi lokacijo">
+  <div class="box">
+    <div class="bar">
+      <span>Izberi lokacijo za iskanje</span>
+      <button class="btn mini link" id="pickClose">Zapri</button>
+    </div>
+    <div class="content">
+      <div class="row2">
+        <input id="pickSearch" type="search" placeholder="npr. Celje, Ljubljana, Vienna …">
+        <button class="btn mini link" id="pickUseGPS">📍 Moja lokacija</button>
+      </div>
+      <div id="pickMap" style="height:360px; border:1px solid var(--chipborder); border-radius:12px"></div>
+      <div class="row2">
+        <button class="btn mini link" id="pickMinus">−</button>
+        <div class="muted" id="pickRadiusLbl" style="flex:1;text-align:center">Polmer: — km</div>
+        <button class="btn mini link" id="pickPlus">+</button>
+        <button class="btn" id="pickApply">Uporabi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="cookieBanner" class="card" style="position:fixed;bottom:12px;left:12px;right:12px;z-index:1001;display:none;padding:12px;border-radius:12px;border:1px solid var(--chipborder);background:var(--card);box-shadow:var(--shadow)">
+  <p style="margin:0 0 6px 0;font-size:14px;line-height:1.4">
+    Ta aplikacija uporablja le nujne piškotke (seja, jezik, tema). Aplikacija uporablja <b>lokacijo</b> (GPS) in po potrebi <b>kamero</b> (QR skeniranje) – obe le z vašo privolitvijo.
+  </p>
+  <button class="btn mini" id="cookieAccept">Razumem</button>
+</div>
+
+<div id="toast" class="toast"></div>

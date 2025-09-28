@@ -1,0 +1,107 @@
+<section class="card panel" id="orgPanel" style="display:none">
+  <div class="title">Objavi dogodek</div>
+  <p class="muted">Objava je brezplačna.</p>
+  <div class="row row--3">
+    <input id="orgName" placeholder="Ime organizatorja *" required>
+    <input id="orgFullName" placeholder="Ime in priimek (kontaktna oseba) *" required>
+    <input id="orgEmail" type="email" placeholder="E-pošta za potrditev *" required>
+  </div>
+  <div class="row row--3">
+    <input id="eventName" placeholder="Naslov dogodka *" required>
+    <input id="venue" placeholder="Lokacija (ime prizorišča) *" required>
+    <input id="city2" placeholder="Mesto/kraj *" required>
+  </div>
+  <div class="row row--3">
+    <select id="country" required>
+      <option value="">Država (izberi) *</option>
+      <option value="SI">Slovenija (SI)</option><option value="AT">Avstrija (AT)</option>
+      <option value="HR">Hrvaška (HR)</option><option value="IT">Italija (IT)</option>
+      <option value="HU">Madžarska (HU)</option><option value="DE">Nemčija (DE)</option>
+      <option value="FR">Francija (FR)</option><option value="GB">Združeno kraljestvo (GB)</option>
+      <option value="US">ZDA (US)</option>
+    </select>
+    <label>Začetek * <input id="start" type="datetime-local" required></label>
+    <label>Konec * <input id="end" type="datetime-local" required></label>
+  </div>
+  <div class="row row--2">
+    <input id="url" placeholder="Povezava za več info / nakup (če obstaja)">
+    <select id="category" required>
+      <option value="">Kategorija (izberi) *</option>
+      <option value="koncert">Koncert</option><option value="kultura">Kultura</option>
+      <option value="otroci">Otroci</option><option value="hrana">Hrana</option>
+      <option value="narava">Narava</option><option value="sport">Šport</option>
+      <option value="za-podjetja">Za podjetja</option>
+    </select>
+  </div>
+  <div class="row row--2">
+    <label>Tip dogodka
+      <select id="offerType">
+        <option value="none" selected>Brez plačila</option>
+        <option value="ticket">Vstopnice – prodaja prek NearGo</option>
+        <option value="coupon">Kupon – unovčljiv prek NearGo</option>
+      </select>
+    </label>
+    <div class="euro" id="priceWrap">
+      <input id="price" type="number" min="0" step="0.01" placeholder="Cena (ena cena)">
+      <span>€</span>
+    </div>
+  </div>
+  <div class="row" id="ticketPricesBlock" style="display:none">
+    <div class="title" style="margin:0">Cenik vstopnic</div>
+    <div id="ticketStepList" class="row" style="margin-top:6px"></div>
+  </div>
+  <div class="row" id="couponCfg" style="display:none">
+    <div class="row row--2" style="margin-top:-8px">
+      <label>Tip kupona
+        <select id="couponKind">
+          <option value="PERCENT" selected>% popusta</option>
+          <option value="VALUE">Vrednost v €</option>
+          <option value="FREEBIE">Konkretno (npr. 2 za 1 / gratis)</option>
+        </select>
+      </label>
+      <div></div>
+    </div>
+    <div class="row row--3">
+      <label id="lblPercent">% popusta
+        <input id="couponPercent" type="number" min="1" max="100" step="1" placeholder="npr. 20">
+      </label>
+      <label id="lblValue" style="display:none">Vrednost (€)
+        <input id="couponValue" type="number" min="0.1" step="0.01" placeholder="npr. 5.00">
+      </label>
+      <label id="lblFreebie" style="display:none">Konkretno (opis)
+        <input id="couponFreebie" placeholder="npr. 2 za 1, gratis kosilo …">
+      </label>
+    </div>
+  </div>
+  <div class="row row--2">
+    <input id="stock" type="number" min="0" step="1" placeholder="Zaloga (št. kosov)" required>
+    <input id="maxPerOrder" type="number" min="1" step="1" placeholder="Max na naročilo">
+  </div>
+  <div class="row">
+    <div class="file-wrap">
+      <input id="image" type="file" accept="image/*">
+      <span id="fileName" class="file-name">Fotografija ni izbrana</span>
+      <img id="imgPreview" alt="" style="display:none;width:56px;height:56px;border-radius:8px;border:1px solid var(--chipborder);object-fit:cover">
+    </div>
+  </div>
+  <div class="inline" style="margin-top:6px">
+    <label class="inline" style="gap:8px; align-items:center">
+      <input type="checkbox" id="featured">
+      <span>Izpostavi (7 dni) – <b>brezplačno</b></span>
+    </label>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <textarea id="desc" placeholder="Opis dogodka *" maxlength="800" required></textarea>
+    <div class="muted" id="descCount" style="font-size:12px; text-align:right">0 / 800</div>
+  </div>
+  <div class="inline" style="margin-top:6px">
+    <label class="inline" style="gap:8px; align-items:center">
+      <input type="checkbox" id="agreeFees">
+      <span>Strinjam se s <a href="#provider-terms" id="showProviderTerms">Pogoji za plačljive dogodke</a>.</span>
+    </label>
+  </div>
+  <div style="margin-top:10px">
+    <button class="btn" id="btnSubmitEvent">Objavi</button>
+    <span id="orgMsg" class="muted" style="margin-left:10px"></span>
+  </div>
+      </section>

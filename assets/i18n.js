@@ -1,9 +1,6 @@
 export function initI18n(){
-  const wrap=document.getElementById("langWrap"),
-        menu=document.getElementById("langMenu"),
-        hidden=document.getElementById("lang"),
-        label=document.getElementById("langLabel");
-  const SUP=[["sl","SL"],["en","EN"],["de","DE"],["hr","HR"],["it","IT"]];
+  const wrap=document.getElementById("langWrap"), menu=document.getElementById("langMenu"), hidden=document.getElementById("lang"), label=document.getElementById("langLabel");
+  const SUP=[["sl","SL"],["en","EN"],["de","DE"],["hr","HR"],["it","IT"],["hu","HU"],["fr","FR"],["es","ES"],["pt","PT"],["nl","NL"],["pl","PL"],["cs","CS"],["sk","SK"],["ro","RO"],["bg","BG"],["sr","SR"],["bs","BS"],["uk","UK"]];
   if(menu) menu.innerHTML=SUP.map(([v,t])=>`<button type="button" data-val="${v}">${t}</button>`).join("");
   if(hidden) hidden.innerHTML=SUP.map(([v,t],i)=>`<option value="${v}" ${i===0?'selected':''}>${t}</option>`).join("");
   const pref=(navigator.language||"sl").slice(0,2).toLowerCase();

@@ -247,3 +247,31 @@ main, #app { padding-top: calc(var(--header-h) + 12px) !important; position: sta
 .hero, #searchPanel, #featuredCard, #carousel, #mapPanel {
   position: static !important;
 }
+/* === HARD FIX: fiksna je le .nav, header NI fiksiran === */
+:root { --header-h: 64px; }
+
+header { 
+  position: static !important;   /* header NI fiksiran */
+  height: auto !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+header .nav {
+  position: fixed !important;    /* fiksna je samo zgornja vrstica */
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  height: var(--header-h);
+  backdrop-filter: blur(6px);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  box-shadow: 0 4px 16px rgba(0,0,0,.05);
+}
+
+main, #app {
+  padding-top: calc(var(--header-h) + 12px) !important;  /* da vse ne zleze pod nav */
+  position: static !important;
+}
+
+.hero, #searchPanel, #featuredCard, #carousel, #mapPanel {
+  position: static !important;   /* eksplicitno NI sticky/fixed */
+}

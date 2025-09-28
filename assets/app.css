@@ -236,3 +236,14 @@ main{ padding-top:calc(var(--header-h) + 12px) !important; }
 
 /* dodatno zagotovimo, da hero/featured nista fiksna */
 .hero, #searchPanel, #featuredCard { position:static !important; }
+/* --- SAFETY NET: fiksna je samo top vrstica --- */
+:root { --header-h: 64px; }
+
+header { position: fixed !important; top:0; left:0; right:0; z-index:1000; }
+header .nav { position: relative !important; height: var(--header-h); }
+
+main, #app { padding-top: calc(var(--header-h) + 12px) !important; position: static !important; }
+
+.hero, #searchPanel, #featuredCard, #carousel, #mapPanel {
+  position: static !important;
+}

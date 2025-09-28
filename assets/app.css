@@ -275,3 +275,34 @@ main, #app {
 .hero, #searchPanel, #featuredCard, #carousel, #mapPanel {
   position: static !important;   /* eksplicitno NI sticky/fixed */
 }
+/* --- NAVBAR hard-fix --- */
+:root { --header-h: 64px; }
+
+header { position: relative !important; }
+header .nav{
+  position: fixed !important;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  height: var(--header-h);
+  display: flex; align-items: center; gap: 10px; /* varno */
+  backdrop-filter: blur(6px);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  box-shadow: 0 4px 16px rgba(0,0,0,.05);
+}
+
+/* vsebina naj steče pod fiksni nav */
+main, #app{ padding-top: calc(var(--header-h) + 12px) !important; }
+
+/* gumbi naj NISO podčrtani */
+a.cta, a.pill, .pill, .cta { text-decoration: none !important; }
+
+/* poravnave v desnem delu glave */
+.top-right{ margin-left:auto; display:flex; align-items:center; gap:10px; }
+.top-right .cta#btnOrganizersTop{ order: 1; } /* levo znotraj desne skupine */
+.top-right a.pill#btnMine{ order: 2; }        /* desno od “Za organizatorje” */
+
+/* jezikovni meni naj bo privzeto zaprt */
+.lang-menu{ display:none; }
+
+/* varno: hero/featured niso nikoli sticky/fixed */
+.hero, #featuredCard, #searchPanel, #mapPanel { position: static !important; }

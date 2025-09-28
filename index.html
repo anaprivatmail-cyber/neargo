@@ -5,21 +5,27 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>NearGo – najdi dogodke blizu</title>
 
+  <!-- PWA -->
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
   <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0bbbd6">
 
+  <!-- Leaflet -->
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- Naš CSS -->
   <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
+  <!-- Tu je samo “okostje”; vsebino naloži main.js iz partialov -->
   <header id="topbar"></header>
   <main id="app"></main>
+
+  <!-- Naš JS (ES modules) -->
   <script type="module" src="/assets/main.js"></script>
 </body>
 </html>

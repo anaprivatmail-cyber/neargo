@@ -306,3 +306,19 @@ a.cta, a.pill, .pill, .cta { text-decoration: none !important; }
 
 /* varno: hero/featured niso nikoli sticky/fixed */
 .hero, #featuredCard, #searchPanel, #mapPanel { position: static !important; }
+/* --- Razpored gumbov v glavi (mobile) --- */
+@media (max-width: 560px){
+  .top-right{
+    display: grid !important;
+    grid-auto-flow: row;
+    gap: 8px;
+    align-items: center;
+  }
+  /* oba gumba naj bosta čez celotno širino, "Za organizatorje" nad "Moje" */
+  #btnOrganizersTop{ grid-column: 1 / -1; order: 1; }
+  #btnMine{           grid-column: 1 / -1; order: 2; }
+
+  /* tema in jezik ostaneta spodaj v isti vrsti */
+  #btnThemeToggle{ order: 3; }
+  #langWrap{       order: 4; }
+}

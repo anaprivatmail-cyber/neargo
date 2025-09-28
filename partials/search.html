@@ -1,0 +1,62 @@
+<section class="card panel show" id="searchPanel">
+  <div class="title">Iskanje</div>
+  <div class="inline" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+    <button class="btn link" id="btnPickOnMap">Izberi lokacijo na zemljevidu</button>
+    <button class="btn link" id="btnUseLocation"><span class="txt">Uporabi mojo trenutno lokacijo</span></button>
+  </div>
+  <label>Oddaljenost od trenutne lokacije
+    <div class="range-line">
+      <input id="radius" type="range" min="5" max="400" step="5" value="30">
+      <span id="radiusLbl">30 km</span>
+    </div>
+  </label>
+  <div class="row row--1">
+    <label>Kje <input id="city" placeholder="Mesto/kraj"></label>
+  </div>
+  <label id="cityRadiusWrap" style="display:none">Oddaljenost od izbranega kraja
+    <div class="range-line">
+      <input id="radiusCity" type="range" min="5" max="400" step="5" value="30">
+      <span id="radiusCityLbl">30 km</span>
+    </div>
+  </label>
+  <div class="inline" style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-top:6px">
+    <button class="btn mini link quickDate" data-mode="today" type="button">Danes</button>
+    <button class="btn mini link quickDate" data-mode="weekend" type="button">Ta vikend</button>
+    <button class="btn mini link quickDate" data-mode="7" type="button">7 dni</button>
+    <button class="btn mini link quickDate" data-mode="30" type="button">30 dni</button>
+  </div>
+  <div class="row always-two" style="margin-top:6px">
+    <label>Od <input id="dateFrom" type="date"></label>
+    <label>Do <input id="dateTo" type="date"></label>
+  </div>
+  <div class="row row--1" style="margin-top:6px">
+    <label>Kaj <input id="q" placeholder="npr. Metallica, street food…"></label>
+  </div>
+  <div class="chips" id="cats" style="margin-top:8px" role="tablist" aria-label="Kategorije">
+    <button class="chip cat active" data-cat="">Vse</button>
+    <button class="chip cat" data-cat="koncert">Koncert</button>
+    <button class="chip cat" data-cat="kultura">Kultura</button>
+    <button class="chip cat" data-cat="otroci">Otroci</button>
+    <button class="chip cat" data-cat="hrana">Hrana</button>
+    <button class="chip cat" data-cat="narava">Narava</button>
+    <button class="chip cat" data-cat="sport">Šport</button>
+    <button class="chip cat" data-cat="za-podjetja">Za podjetja</button>
+  </div>
+  <div style="margin-top:6px">
+    <label class="inline" style="gap:8px; align-items:center">
+      <input type="checkbox" id="freeOnly">
+      <span>Samo brezplačni</span>
+    </label>
+  </div>
+  <div class="inline" style="margin-top:6px">
+    <button class="btn link" id="btnClear">Počisti filtre</button>
+  </div>
+  <div id="results" style="margin-top:8px"></div>
+  <div id="pagination" style="display:flex; gap:8px; margin-top:8px"></div>
+  <div class="inline" style="margin-top:8px">
+    <button class="btn link" id="btnToggleResultsMap">Pokaži zemljevid rezultatov</button>
+  </div>
+  <div id="mapSearchWrap" style="margin-top:8px; display:none; position:relative">
+    <div id="mapSearch" style="height:320px; border-radius:12px; border:1px solid var(--chipborder)"></div>
+  </div>
+</section>

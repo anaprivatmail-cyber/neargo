@@ -18,22 +18,21 @@ async function loadPart(id, url){
 }
 
 onReady(async () => {
-  // Naloži 5 partialov
-await loadPart('topbar', '/partials/hero.html');
-await loadPart('app',    '/partials/search.html');
-await loadPart('app',    '/partials/map.html');
-await loadPart('app',    '/partials/footer-modals.html');
+  // Uporabljaš staro organizers.html, zato tukaj ne nalagamo org panela
+  await loadPart('topbar', '/partials/hero.html');
+  await loadPart('app',    '/partials/search.html');
+  await loadPart('app',    '/partials/map.html');
+  await loadPart('app',    '/partials/footer-modals.html');
 
-  // Inicializacije (v tem vrstnem redu)
-  initTheme();          // temni/svetli način
-  initI18n();           // jezikovni meni
-  initToast();          // toast + hash success/cancel
-  wirePanels();         // preklapljanje panelov + hash odpiranje
+  initTheme();
+  initI18n();
+  initToast();
+  wirePanels();
 
-  initMaps();           // zgornji zemljevid (shell + event handler)
-  initPicker();         // modal za izbiro lokacije
-  initBuy();            // share/ics/checkout delegacija
+  initMaps();
+  initPicker();
+  initBuy();
 
-  initFeatured();       // “Izpostavljeno” + geo preload
-  initSearch();         // filtri & iskanje (handlerji že znotraj modula)
+  initFeatured();
+  initSearch();
 });

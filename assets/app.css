@@ -187,3 +187,20 @@ input[type="checkbox"]:checked::after{ opacity:1 }
 /* Objavi */
 #btnSubmitEvent{ background: color-mix(in srgb, var(--primary) 85%, white 15%); }
 #orgPanel:target{ display:block; }
+/* Desna skupina v glavi: vedno v stolpcu (Za organizatorje nad Moje) */
+.top-right{
+  margin-left:auto;
+  display:grid !important;
+  grid-auto-flow:row;
+  gap:8px;
+  align-items:end; /* poravnano na desno */
+}
+
+/* vrstni red gumbov */
+#btnOrganizersTop{ order:1; }
+#btnMine{           order:2; }
+#btnThemeToggle{    order:3; }
+#langWrap{          order:4; }
+
+/* nav je lahko višji od 64px – JS bo nastavil realno višino; za zdaj varno privzeto */
+:root { --header-h: 84px; } /* lahko tudi 96px, če želiš malo več zračnosti */

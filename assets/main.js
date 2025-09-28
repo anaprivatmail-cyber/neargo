@@ -10,29 +10,39 @@ import { initBuy } from './buy.js';
 import { initFeatured } from './featured.js';
 import { initSearch } from './search.js';
 
+/** Preprosto nalaganje partialov v dani host element */
 async function loadPart(id, url){
   const host = document.getElementById(id);
   if(!host) return;
-  const html = await fetch(url, {cache:'no-cache'}).then(r=>r.text());
+
+  // Dodamo preprost cache-bust, da ob deployu ne vleče stare verzije
+  const bust = `v=${encodeURIComponent((window.__BUILD_TS__||'') || new Date().toISOString().slice(0,10))}`;
+  const sep  = url.includes('?') ? '&' : '?';
+  const html = await fetch(`${url}${sep}${bust}`, { cache: 'no-cache' }).then(r => r.text());
+
   host.insertAdjacentHTML('beforeend', html);
 }
 
 onReady(async () => {
-  // Uporabljaš staro organizers.html, zato tukaj ne nalagamo org panela
-  await loadPart('topbar', '/partials/hero.html');
-  await loadPart('app',    '/partials/search.html');
-  await loadPart('app',    '/partials/map.html');
-  await loadPart('app',    '/partials/footer-modals.html');
+  // V HEADER gre SAMO prava glava (navbar) – fiksna vrstica
+  await loadPart('topbar', '/partials/navbar.html');
 
-  initTheme();
-  initI18n();
-  initToast();
-  wirePanels();
+  // V MAIN gre vse ostalo (hero/search, results+map, footer+modals)
+  await loadPart('app', '/partials/hero.html');              // "Najdi dogodke blizu …"
+  await loadPart('app', '/partials/search.html');            // filtri/obrazci
+  await loadPart('app', '/partials/map.html');               // rezultati + zemljevid
+  await loadPart('app', '/partials/footer-modals.html');     // footer + modals
 
-  initMaps();
-  initPicker();
-  initBuy();
+  // Inicializacije UI in logike
+  initTheme();     // temni/svetli način
+  initI18n();      // jezik
+  initToast();     // obvestila/toasti
+  wirePanels();    // odpiranje/zapiranje panelov/modals
 
-  initFeatured();
-  initSearch();
+  // Funkcionalnosti aplikacije
+  initMaps();      // Leaflet map
+  initPicker();    // npr. date/location pickerji
+  initBuy();       // gumbi "kupi" / kuponi
+  initFeatured();  // izpostavljeni dogodki (carousel)
+  initSearch();    // iskanje, event handlers itd.
 });

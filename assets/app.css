@@ -1,1 +1,39 @@
+/* --- Kritični UI popravki (če je kaj izpustilo) --- */
+button, .btn, .pill { -webkit-appearance:none; appearance:none; border:none; background:none; font:inherit; color:inherit; }
 
+.btn{
+  background:var(--primary); color:#fff; padding:12px 18px; border-radius:14px;
+  font-weight:900; cursor:pointer; font-size:16px; box-shadow:var(--shadow); border:none;
+}
+.btn.mini{ padding:8px 12px; font-size:13px; border-radius:12px }
+.btn.link{ background:#fff; color:#000; border:1px solid var(--chipborder); box-shadow:none }
+.btn.link.active{ background:var(--primary); color:#fff; border-color:transparent }
+
+.pill{
+  border:1px solid var(--chipborder); background:var(--chip); border-radius:999px;
+  height:34px; display:inline-flex; align-items:center; gap:8px; padding:0 10px;
+  font-weight:800; font-size:14px; white-space:nowrap;
+}
+
+/* Jezik meni – VERTIKALNO */
+#lang{ display:none !important }
+.pill.lang{ position:relative }
+.lang-menu{
+  position:absolute; top:calc(100% + 6px); left:0;
+  background:var(--card); border:1px solid var(--chipborder); border-radius:12px; box-shadow:var(--shadow);
+  padding:6px; display:none; z-index:10000; max-height:60vh; overflow:auto; min-width:64px;
+  display:flex; flex-direction:column; gap:4px;
+}
+.lang-menu button{
+  display:block; width:100%; text-align:left; border:none; background:transparent;
+  padding:8px 8px; border-radius:10px; font-weight:800; cursor:pointer;
+}
+.lang-menu button:hover{ background:rgba(11,187,214,.08) }
+
+/* Chips in hero/featured za lep rob in senco */
+.chips{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px }
+.chip{ border:1px solid var(--chipborder); border-radius:999px; padding:10px 14px; background:var(--chip); color:var(--muted); font-weight:700; cursor:pointer }
+.chip.active{ background:var(--primary); color:#fff; border-color:#fff }
+.hero.card, #featuredCard{ border:1px solid var(--chipborder); background:var(--card); border-radius:16px; box-shadow:var(--shadow) }
+#featuredCard .spot img{ width:100%; height:160px; object-fit:cover; display:block }
+.brand svg{ width:30px; height:30px }

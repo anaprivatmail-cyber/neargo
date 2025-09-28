@@ -206,3 +206,33 @@ input[type="checkbox"]:checked::after{ opacity:1 }
 
 /* BRAND */
 .brand svg{ width:30px; height:30px }
+/* --- POPRAVEK: fiksna samo prava glava (top bar) --- */
+:root { --header-h: 64px; } /* po potrebi prilagodi */
+
+header{
+  position:static !important;      /* celoten <header> NI fiksiran */
+  height:auto !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+  background:transparent !important;
+}
+
+/* fiksiramo samo .nav (zgornjo vrstico v headerju) */
+header .nav{
+  position:fixed !important;
+  top:0; left:0; right:0;
+  z-index:1000;
+  height:var(--header-h);
+  backdrop-filter:blur(6px);
+  background:color-mix(in srgb, var(--card) 92%, transparent);
+  box-shadow:0 4px 16px rgba(0,0,0,.05);
+}
+
+/* vse drugo v headerju (če je še kaj) naj se normalno pomika */
+header > :not(.nav){ position:static !important; }
+
+/* glavni del naj se začne pod fiksno vrstico */
+main{ padding-top:calc(var(--header-h) + 12px) !important; }
+
+/* dodatno zagotovimo, da hero/featured nista fiksna */
+.hero, #searchPanel, #featuredCard { position:static !important; }

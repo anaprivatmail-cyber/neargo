@@ -19,11 +19,10 @@ async function loadPart(id, url){
 
 onReady(async () => {
   // Naloži 5 partialov
-  await loadPart('topbar', '/partials/hero.html');
-  await loadPart('app',    '/partials/search.html');
-  await loadPart('app',    '/partials/map.html');
-  await loadPart('app',    '/partials/organizers.html');
-  await loadPart('app',    '/partials/footer-modals.html');
+await loadPart('topbar', '/partials/hero.html');
+await loadPart('app',    '/partials/search.html');
+await loadPart('app',    '/partials/map.html');
+await loadPart('app',    '/partials/footer-modals.html');
 
   // Inicializacije (v tem vrstnem redu)
   initTheme();          // temni/svetli način

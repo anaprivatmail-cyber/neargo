@@ -9,40 +9,58 @@ import { initPicker } from './picker.js';
 import { initBuy } from './buy.js';
 import { initFeatured } from './featured.js';
 import { initSearch } from './search.js';
+// (če uporabljaš obrazec kot partial, lahko dodaš še import { initOrganizers } from './organizers.js';
 
-/** Preprosto nalaganje partialov v dani host element */
-async function loadPart(id, url){
+async function loadPartStrict(id, url){
+  // varovalo: v header dovolimo LE navbar.html
+  if (id === 'topbar' && !/\/navbar\.html(\?|$)/i.test(url)) {
+    id = 'app';
+  }
   const host = document.getElementById(id);
   if(!host) return;
-
-  // Dodamo preprost cache-bust, da ob deployu ne vleče stare verzije
   const bust = `v=${encodeURIComponent((window.__BUILD_TS__||'') || new Date().toISOString().slice(0,10))}`;
   const sep  = url.includes('?') ? '&' : '?';
   const html = await fetch(`${url}${sep}${bust}`, { cache: 'no-cache' }).then(r => r.text());
-
   host.insertAdjacentHTML('beforeend', html);
 }
 
+function sanitizeHeaderToMain(){
+  const header = document.getElementById('topbar');
+  const app = document.getElementById('app');
+  if (!header || !app) return;
+  // prestavi VSE, kar ni .nav, iz headerja v main
+  Array.from(header.children).forEach(node => {
+    if (!node.classList || !node.classList.contains('nav')) {
+      app.appendChild(node);
+    }
+  });
+}
+
 onReady(async () => {
-  // V HEADER gre SAMO prava glava (navbar) – fiksna vrstica
-  await loadPart('topbar', '/partials/navbar.html');
+  // V HEADER gre samo navbar
+  await loadPartStrict('topbar', '/partials/navbar.html');
 
-  // V MAIN gre vse ostalo (hero/search, results+map, footer+modals)
-  await loadPart('app', '/partials/hero.html');              // "Najdi dogodke blizu …"
-  await loadPart('app', '/partials/search.html');            // filtri/obrazci
-  await loadPart('app', '/partials/map.html');               // rezultati + zemljevid
-  await loadPart('app', '/partials/footer-modals.html');     // footer + modals
+  // V MAIN gre vse ostalo
+  await loadPartStrict('app', '/partials/hero.html');
+  await loadPartStrict('app', '/partials/search.html');
+  await loadPartStrict('app', '/partials/map.html');
+  await loadPartStrict('app', '/partials/footer-modals.html');
+  // Če imaš obrazec kot partial:
+  // await loadPartStrict('app', '/partials/organizers.html');
 
-  // Inicializacije UI in logike
-  initTheme();     // temni/svetli način
-  initI18n();      // jezik
-  initToast();     // obvestila/toasti
-  wirePanels();    // odpiranje/zapiranje panelov/modals
+  // Varnostno: če je kaj pomotoma pristalo v headerju, prestavi v main
+  sanitizeHeaderToMain();
 
-  // Funkcionalnosti aplikacije
-  initMaps();      // Leaflet map
-  initPicker();    // npr. date/location pickerji
-  initBuy();       // gumbi "kupi" / kuponi
-  initFeatured();  // izpostavljeni dogodki (carousel)
-  initSearch();    // iskanje, event handlers itd.
+  // Init
+  initTheme();
+  initI18n();
+  initToast();
+  wirePanels();
+
+  initMaps();
+  initPicker();
+  initBuy();
+  initFeatured();
+  initSearch();
+  // initOrganizers && initOrganizers();
 });

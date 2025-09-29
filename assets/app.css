@@ -153,3 +153,12 @@ input[type="file"]::file-selector-button{padding:.35rem .6rem; border-radius:10p
 /* Footer */
 footer{text-align:center; color:var(--muted); margin-top:18px; font-size:14px}
 #benefits b{ color:var(--primary) }
+/* --- NAV: 2. vrstica točno po želji --- */
+/* levo: 🌙 tema, nato jezik; skrajno desno: Moje */
+header .nav > .second-row{ justify-content:flex-start !important; }
+#btnThemeToggle{ order:0; }
+#langWrap{ order:1; }
+#btnMine{ order:2; margin-left:auto; }
+
+/* skrij native <select id="lang">, da ne bo dvojnega "SL" */
+#lang{ display:none !important; }

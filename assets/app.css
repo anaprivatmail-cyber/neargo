@@ -1,0 +1,40 @@
+/* === NAVBAR: 2 VRSTICI, OBA SKUPAJ FIKSNA, DESNO PORAVNANA DRUGA VRSTICA === */
+:root { --header-h: 108px; } /* približek; main.js jo bo po loadu poravnal na realno */
+
+header { position: relative; }
+header .nav{
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; row-gap: 6px;
+  padding: 10px 14px; max-width: 1100px; margin: 0 auto;
+
+  /* polno ozadje, da ne proseva gradient telesa */
+  background: var(--card);
+  box-shadow: 0 4px 16px rgba(0,0,0,.05);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--chipborder);
+}
+
+/* 1. vrstica: logo levo, CTA skrajno desno */
+header .nav > .brand { order: 0; display:flex; align-items:center; gap:12px; font-weight:900; font-size:22px; }
+header .nav > #btnOrganizersTop { order: 1; margin-left: auto; }
+
+/* 2. vrstica: desno poravnana – tema → jeziki → Moje */
+header .nav > .second-row{
+  order: 2; width: 100%;
+  display: flex; align-items: center; gap: 10px;
+  justify-content: flex-end;             /* vse desno */
+}
+#btnThemeToggle{ order: 0; }
+#langWrap      { order: 1; position: relative; }
+#btnMine       { order: 2; }
+
+/* jezikovni meni naj bo zaprt, nad vsebino */
+.lang-menu{ display: none; position: absolute; top: calc(100% + 6px); right: 0;
+  background: var(--card); border: 1px solid var(--chipborder); border-radius: 12px;
+  box-shadow: var(--shadow); padding: 6px; z-index: 10000; max-height: 60vh; overflow: auto; min-width: 64px; }
+
+/* vsebina se začne pod glavo */
+main, #app { padding-top: calc(var(--header-h) + 8px); }
+
+/* gumbi brez podčrtave */
+a.cta, a.pill, .pill, .cta { text-decoration: none; }

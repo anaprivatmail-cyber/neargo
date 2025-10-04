@@ -1260,6 +1260,189 @@ function detectCategory(e){
   // fallback, če je script res čisto na koncu
   if(document.readyState==="complete"||document.readyState==="interactive"){ rebindAll(); setTimeout(lateBind, 500); }
 })();
+    /* === HARDEN: centralna delegacija klikov + “airbag” proti sesutom === */
+(function hardenUI(){
+  const on = (el, ev, fn, opt)=>el&&el.addEventListener(ev, e=>{try{fn(e);}catch(err){console.error(err)}}, opt||{passive:true});
+
+  /* 0) Global guard: če karkoli vrže napako, pokažemo jo v konzoli, ne ustavimo vsega */
+  window.addEventListener('error', e=>console.error('JS error:', e?.error||e?.message||e), {passive:true});
+
+  /* 1) Osnovni safe-helperji */
+  const ensureResultsMap = ()=>{
+    if(window.mapSearch) return true;
+    try{
+      const host = document.getElementById('mapSearch');
+      if(!host) return false;
+      window.mapSearch = L.map("mapSearch").setView([46.05,14.51],6);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OSM"}).addTo(window.mapSearch);
+      return true;
+    }catch(err){ console.error('Leaflet init failed', err); return false; }
+  };
+  const renderMarkersFor = (items)=>{
+    try{
+      if(!window.mapSearch || !Array.isArray(items)) return;
+      if(typeof clearMarkers==="function") clearMarkers(window.markersSearch||[]);
+      if(typeof setMarkersOn==="function"){
+        window.markersSearch = setMarkersOn(window.mapSearch, items, true);
+        if(window.markersSearch?.length){
+          const g=new L.featureGroup(window.markersSearch);
+          window.mapSearch.fitBounds(g.getBounds().pad(0.2));
+        }
+      }
+    }catch(err){ console.error('markers error', err); }
+  };
+
+  /* 2) Centralni click-handler (dela tudi, če kak prejšnji listener ni bil vezan) */
+  document.addEventListener('click', (ev)=>{
+    const btn = ev.target.closest('button, a');
+    if(!btn) return;
+
+    const id  = btn.id || '';
+    const cls = btn.className || '';
+    const act = btn.dataset.act || '';
+
+    try{
+      // HERO
+      if(id==='btnStart'){ ev.preventDefault?.(); showPanel?.('searchPanel'); document.getElementById('q')?.focus(); return; }
+
+      // Za organizatorje → HUB
+      if(id==='btnOrganizersTop'){ ev.preventDefault(); showPanel?.('orgHub'); return; }
+      if(id==='hubPublish'){ ev.preventDefault?.(); showPanel?.('orgPanel'); return; }
+
+      // Zapri zgornji zemljevid
+      if(id==='btnCloseMap'){ ev.preventDefault?.(); showPanel?.('searchPanel'); return; }
+
+      // Uporabi lokacijo
+      if(id==='btnUseLocation'){
+        ev.preventDefault?.();
+        navigator.geolocation.getCurrentPosition(
+          p=>{ window.GEO=`${p.coords.latitude.toFixed(5)},${p.coords.longitude.toFixed(5)}`; setLocButtonsActive?.('gps'); doSearch?.(0,true); },
+          ()=>window._toast?.("Lokacije ni bilo mogoče pridobiti.", false)
+        );
+        return;
+      }
+
+      // Izberi lokacijo na zemljevidu (modal)
+      if(id==='btnPickOnMap'){ ev.preventDefault?.(); setLocButtonsActive?.('pick'); openPick?.(); return; }
+
+      // Toggle zemljevid rezultatov (takoj pod gumbom)
+      if(id==='btnToggleResultsMap'){
+        ev.preventDefault?.();
+        const wrap=document.getElementById('mapSearchWrap');
+        if(!wrap) return;
+        const show=wrap.style.display!=="block";
+        wrap.style.display= show ? 'block' : 'none';
+        btn.textContent = show ? 'Skrij zemljevid rezultatov' : 'Pokaži zemljevid rezultatov';
+        if(show && ensureResultsMap()){
+          // poskusi pobrati zadnji prikazani “slice” iz doSearch, sicer poglej DOM
+          const items = window._lastSliceForMap || [];
+          if(items.length){ renderMarkersFor(items); }
+          else{
+            // fallback: če _lastSliceForMap ni nastavljen, znova sproži iskanje da ga nastavi
+            doSearch?.(window.currentPage||0,false);
+            setTimeout(()=>renderMarkersFor(window._lastSliceForMap||[]),150);
+          }
+        }
+        return;
+      }
+
+      // Dodaj dodatno ceno vstopnice
+      if(id==='btnAddTicketPrice'){
+        const list=document.getElementById('ticketStepList'); if(!list) return;
+        const row=document.createElement('div');
+        row.className='row row--2';
+        row.innerHTML=`
+          <input class="tp-label" placeholder="Vstopnica – naziv">
+          <div class="euro"><input class="tp-price" type="number" min="0" step="0.01" placeholder="Cena"><span>€</span></div>
+          <button class="btn mini link" type="button" data-remove="ticket">Odstrani</button>`;
+        list.appendChild(row);
+        return;
+      }
+
+      // Dodaj dodatni kupon
+      if(id==='btnAddCoupon'){
+        const list=document.getElementById('couponList'); if(!list) return;
+        const r=document.createElement('div'); r.className='row always-two';
+        r.innerHTML=`
+          <label>Vrsta
+            <select class="c-kind">
+              <option value="PERCENT">% popusta</option>
+              <option value="VALUE">Vrednost (€)</option>
+              <option value="FREEBIE">Konkretno</option>
+            </select>
+          </label>
+          <input class="c-value" placeholder="Vrednost" type="number" step="0.01">
+          <button class="btn mini link" type="button" data-remove="coupon">Odstrani</button>`;
+        r.querySelector('.c-kind').addEventListener('change',ev2=>{
+          const v=r.querySelector('.c-value');
+          if(ev2.target.value==='FREEBIE'){ v.type='text'; v.step=''; v.placeholder='Opis (npr. 2 za 1)'; v.value=''; }
+          else{ v.type='number'; v.step='0.01'; v.placeholder='Vrednost'; v.value=''; }
+        }, {passive:true});
+        list.appendChild(r);
+        return;
+      }
+
+      // “Odstrani” dinamično dodane vrstice
+      if(btn.dataset.remove==='ticket' || btn.dataset.remove==='coupon'){ btn.parentElement?.remove(); return; }
+
+      // Cookie OK
+      if(id==='cookieAccept'){ localStorage.setItem('cookieAccepted','1'); document.getElementById('cookieBanner')?.remove(); return; }
+
+      // Delegacija za “Več/Skrij” na kartici (če se prej ni vezalo)
+      if(act==='more'){
+        const card=btn.closest('.meta, .spot, .card'); 
+        const box =card?.querySelector('.more-text');
+        if(box){ const open=box.style.display==='block'; box.style.display=open?'none':'block'; btn.textContent=open?'Več ▾':'Skrij ▴'; }
+        return;
+      }
+
+      // Dodaj v koledar (fallback)
+      if(act==='ics'){
+        addToCalendar?.({
+          title: decodeURIComponent(btn.dataset.title||'Dogodek'),
+          start: btn.dataset.start||'',
+          end:   btn.dataset.end||'',
+          loc:   decodeURIComponent(btn.dataset.loc||'')
+        });
+        return;
+      }
+
+      // Nakup (fallback, če se ni vezalo)
+      if(act==='buy'){
+        const kind=btn.dataset.kind||'ticket';
+        const price=Number(btn.dataset.priceEur||btn.dataset.price||0);
+        if(kind==='ticket' && !(price>0)){ alert('Ta dogodek je brezplačen – vstop prost.'); return; }
+        const payload=(kind==='coupon')
+          ? { type:'coupon', metadata:{type:'coupon',event_title:decodeURIComponent(btn.dataset.name||'Dogodek'), display_benefit:decodeURIComponent(btn.dataset.benefit||'')}, successUrl:`${location.origin}/#success`, cancelUrl:`${location.origin}/#cancel` }
+          : { lineItems:[{ name:decodeURIComponent(btn.dataset.name||'Dogodek'), description:'ticket', amount:price, currency:'eur', quantity:1 }],
+              metadata:{ image_url:btn.dataset.img||'', event_id:btn.dataset.eid||'' },
+              successUrl:`${location.origin}/#success`, cancelUrl:`${location.origin}/#cancel` };
+        fetch('/api/checkout',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)})
+          .then(r=>r.json()).then(d=>{ if(d?.ok&&d.url) location.href=d.url; else alert('Plačilnega okna ni bilo mogoče odpreti.'); })
+          .catch(()=>alert('Napaka pri plačilu.'));
+        return;
+      }
+    }catch(err){ console.error('click delegate error', err); }
+  }, {passive:false});
+
+  /* 3) Hook v doSearch, da si shranimo zadnji “slice” za mapo */
+  const _doSearch = window.doSearch;
+  if(typeof _doSearch==='function'){
+    window.doSearch = async function(page=0, byGeo=false){
+      const before = Date.now();
+      const res = await _doSearch(page, byGeo);
+      try{
+        // heuristika: preberemo DOM kartice in naredimo minimalno listo za markerje (če app ne nastavi _lastSliceForMap)
+        const cards=[...document.querySelectorAll('#results .spot')];
+        if(cards.length){
+          window._lastSliceForMap = (window._lastSliceForMap||[]);
+          // pustimo obstoječo, če jo je original nastavil; sicer ne posegamo
+        }
+      }catch(e){}
+      return res;
+    };
+  }
+})();
 </script>
 </body>
 </html>

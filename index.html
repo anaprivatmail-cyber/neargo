@@ -1079,7 +1079,7 @@ function setMarkersOn(map, items){
       const id=hashId(e);
       m.bindPopup(`<a href="#${id}"><b>${(e.name||"Dogodek")}</b></a>`);
       m.on('click',()=>{
-        const el=document.getElementById(id);
+        const el = document.getElementById(id);
         if(el){ el.scrollIntoView({behavior:"smooth", block:"start"}); el.classList.add('highlight'); setTimeout(()=>el.classList.remove('highlight'),1200); }
         else if(e.url){ window.open(e.url,'_blank','noopener'); }
       });

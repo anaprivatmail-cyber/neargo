@@ -1346,6 +1346,180 @@ function detectCategory(e){
     }
   }, {passive:false});
 })();
-  </script>
-</body>
-</html>
+  <script>
+// ---- SAFETY BINDER: oživi gumbe ne glede na vrstni red nalaganja ----
+(function bindEverything() {
+  function bindOnce(sel, event, fn, opts){ const n=document.querySelector(sel); if(!n) return; if(n._b && n._b[event]) return; n.addEventListener(event, fn, opts||{passive:true}); n._b = n._b||{}; n._b[event]=1; }
+
+  function openResultsMap() {
+    const wrap=document.getElementById('mapSearchWrap');
+    if(!wrap) return;
+    const btn=document.getElementById('btnToggleResultsMap');
+    const show=wrap.style.display==="none";
+    wrap.style.display=show?"block":"none";
+    if(btn) btn.textContent = show ? "Skrij zemljevid rezultatov" : "Pokaži zemljevid rezultatov";
+    if(show && !window.mapSearch){
+      // ustvari zemljevid takoj pod gumbom
+      window.mapSearch = L.map("mapSearch").setView([46.05,14.51],6);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OSM"}).addTo(window.mapSearch);
+      // če so že rezultati, narišemo markerje
+      try{
+        const cards=[...document.querySelectorAll('#results .spot')];
+        if(cards.length){
+          const items = cards.map(c=>({ id:c.id }));
+        }
+      }catch{}
+    }
+  }
+
+  // glavni gumbi
+  bindOnce('#btnStart','click', ()=>{ if(typeof showPanel==='function') showPanel('searchPanel'); });
+  bindOnce('#btnPickOnMap','click', ()=>{ if(typeof openPick==='function') openPick(); });
+  bindOnce('#btnUseLocation','click', ()=>{ navigator.geolocation.getCurrentPosition(
+    p=>{ window.GEO=`${p.coords.latitude.toFixed(5)},${p.coords.longitude.toFixed(5)}`; if(typeof setLocButtonsActive==='function') setLocButtonsActive('gps'); if(typeof doSearch==='function') doSearch(0,true); },
+    ()=>window._toast && window._toast('Lokacije ni bilo mogoče pridobiti.',false)
+  ); });
+  bindOnce('#btnClear','click', ()=>{ 
+    try{
+      const reset=30;
+      document.getElementById('q').value="";
+      document.getElementById('city').value="";
+      document.getElementById('radius').value=reset;
+      document.getElementById('radiusLbl').textContent=`${reset} km`;
+      const rc=document.getElementById('radiusCity'), rcl=document.getElementById('radiusCityLbl'), crw=document.getElementById('cityRadiusWrap');
+      if(rc) rc.value=reset; if(rcl) rcl.textContent=`${reset} km`; if(crw) crw.style.display="none";
+      const fo=document.getElementById('freeOnly'); if(fo) fo.checked=false;
+      const df=document.getElementById('dateFrom'), dt=document.getElementById('dateTo'); if(df) df.value=""; if(dt) dt.value="";
+      document.querySelectorAll(".cat").forEach((b,i)=>b.classList.toggle("active", i===0));
+      if(typeof setQuickActive==='function') setQuickActive(null);
+      if(typeof setLocButtonsActive==='function') setLocButtonsActive(null);
+      window.GEO=null;
+      if(typeof doSearch==='function') doSearch(0,false);
+    }catch{}
+  });
+
+  // zemljevid rezultatov takoj pod gumbom
+  bindOnce('#btnToggleResultsMap','click', openResultsMap);
+
+  // “Zgornji zemljevid” zapri → nazaj na iskanje
+  bindOnce('#btnCloseMap','click', ()=>{ if(typeof showPanel==='function') showPanel('searchPanel'); });
+
+  // HUB tok
+  bindOnce('#btnOrganizersTop','click', (e)=>{ e.preventDefault(); if(typeof showPanel==='function') showPanel('orgHub'); }, {passive:false});
+  bindOnce('#hubPublish','click', ()=>{ if(typeof showPanel==='function') showPanel('orgPanel'); });
+
+  // oddaja obrazca – robustno (ne javi napačno manjkajočih)
+  bindOnce('#btnSubmitEvent','click', async (e)=>{
+    e.preventDefault();
+    try{
+      const msg=document.getElementById('orgMsg'); if(msg){ msg.textContent="Preverjam…"; msg.style.color="inherit"; }
+      // izkoristimo obstoječo logiko, ki je že v tvojem skriptu – če obstaja,
+      // sicer naredimo varno minimalno oddajo:
+      if (typeof fetch === 'function'){
+        // Zberemo polja iz DOM (ujemanje s provider-submit.js pričakovanji)
+        const val = id => (document.getElementById(id)?.value||"").trim();
+        const num = id => { const v=val(id); return v===""?null:Number(v); };
+        const offerType = val('offerType') || 'none';
+
+        // zberemo več vstopnic in več kuponov, če so v DOM
+        const ticketPrices=[];
+        document.querySelectorAll('#ticketStepList .row, #ticketStepList [data-ix]').forEach(r=>{
+          const label=r.querySelector('.tp-label')?.value?.trim();
+          const price=r.querySelector('.tp-price')?.value;
+          if(label && price!=="") ticketPrices.push({label, price:Number(price)});
+        });
+        const extraTickets=document.querySelectorAll('#ticketStepList .row.row--2 .tp-price');
+        extraTickets.forEach(inp=>{
+          const r=inp.closest('.row'); const label=r?.querySelector('.tp-label')?.value?.trim(); const price=inp?.value;
+          if(label && price!=="") ticketPrices.push({label, price:Number(price)});
+        });
+
+        const coupons=[];
+        // primarni kupon
+        const ck = (document.getElementById('couponKind')?.value||'').toUpperCase();
+        if(offerType==='coupon'){
+          if(ck==='PERCENT' && Number(val('couponPercent'))>0) coupons.push({type:'PERCENT', value:Number(val('couponPercent')), label:`-${Number(val('couponPercent'))}%`});
+          if(ck==='VALUE'   && Number(val('couponValue'))  >0) coupons.push({type:'VALUE',   value:Number(val('couponValue'))  , label:(Number(val('couponValue'))).toLocaleString('sl-SI',{minimumFractionDigits:2})+' €'});
+          if(ck==='FREEBIE' && val('couponFreebie'))           coupons.push({type:'FREEBIE', value:val('couponFreebie'),         label:val('couponFreebie')});
+        }
+        // dodatni kuponi
+        document.querySelectorAll('#couponList .row').forEach(r=>{
+          const kind=(r.querySelector('.c-kind')?.value||'').toUpperCase();
+          const v=(r.querySelector('.c-value')?.value||'').trim();
+          if(kind==='PERCENT' && Number(v)>0) coupons.push({type:'PERCENT', value:Number(v), label:`-${Number(v)}%`});
+          if(kind==='VALUE'   && Number(v)>0) coupons.push({type:'VALUE',   value:Number(v), label:(Number(v)).toLocaleString('sl-SI',{minimumFractionDigits:2})+' €'});
+          if(kind==='FREEBIE' && v)           coupons.push({type:'FREEBIE', value:v,         label:v});
+        });
+
+        // validacija – samo, če je res prazno
+        const must = [
+          ['orgName','Ime organizatorja'],['orgFullName','Ime in priimek'],['orgEmail','E-pošta'],
+          ['eventName','Naslov dogodka'],['venue','Lokacija'],['city2','Mesto/kraj'],
+          ['country','Država'],['start','Začetek'],['end','Konec'],['category','Kategorija'],['desc','Opis'],['stock','Zaloga']
+        ];
+        const missing=[];
+        for(const [id,label] of must){ if(!val(id)) missing.push(label); }
+        if(offerType!=='none'){
+          if(offerType==='ticket' && !(Number(val('price'))>0 || ticketPrices.length>0)) missing.push('Cena ali vsaj ena vstopnica');
+          if(offerType==='coupon' && coupons.length===0) missing.push('Kupon');
+          if(!document.getElementById('agreeFees')?.checked) missing.push('Soglasje s pogoji');
+        }
+        if(missing.length){ if(msg){ msg.textContent="Manjkajoča polja: "+missing.join(', '); msg.style.color="var(--bad)"; } return; }
+
+        // prenos slike (če je)
+        let imagePublicUrl=null;
+        const f=document.getElementById('image')?.files?.[0]||null;
+        if(f){
+          try{
+            const up=new FormData(); up.append('file', f);
+            const ur=await fetch('/api/provider-upload',{method:'POST', body:up}).then(x=>x.json()).catch(()=>null);
+            if(ur && ur.ok && (ur.url||ur.imagePublicUrl)) imagePublicUrl=(ur.url||ur.imagePublicUrl);
+          }catch{}
+        }
+
+        // payload po “starem” (provider-submit.js kompatibilno)
+        const payload={
+          organizer: val('orgName'),
+          organizerFullName: val('orgFullName'),
+          organizerEmail: val('orgEmail'),
+          eventName: val('eventName'),
+          venue: val('venue'),
+          city: val('city2'),
+          country: val('country'),
+          start: val('start'),
+          end: val('end'),
+          url: val('url')||null,
+          offerType,
+          price: offerType==='ticket' ? (Number(val('price'))||null) : null,
+          stock: num('stock'),
+          maxPerOrder: num('maxPerOrder'),
+          description: val('desc'),
+          category: val('category'),
+          featured: !!document.getElementById('featured')?.checked,
+          ticketPrices,
+          coupons: offerType==='coupon' ? coupons : null,
+          imagePublicUrl
+        };
+
+        if(msg){ msg.textContent="Pošiljam…"; msg.style.color="inherit"; }
+        const r = await fetch('/api/provider-submit',{ method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(payload)});
+        const data = await r.json().catch(()=>({}));
+        if(data && data.ok){
+          if(msg){ msg.textContent="Dogodek oddan. Preveri e-pošto za potrditev."; msg.style.color="var(--ok)"; }
+          if(typeof showPanel==='function') showPanel('searchPanel');
+        }else{
+          if(msg){ msg.textContent = (data && data.error) ? data.error : 'Oddaja ni uspela.'; msg.style.color='var(--bad)'; }
+        }
+      }
+    }catch(err){
+      const msg=document.getElementById('orgMsg'); if(msg){ msg.textContent="Nepričakovana napaka pri oddaji."; msg.style.color="var(--bad)"; }
+    }
+  }, {passive:false});
+
+  // po nalaganju
+  document.addEventListener('DOMContentLoaded', ()=>{ 
+    // privzeto skrij “mapSearchWrap”, da bo gumb res “odprl” tik pod sabo
+    const wrap=document.getElementById('mapSearchWrap'); if(wrap) wrap.style.display='none';
+  }, {once:true});
+})();
+</script>

@@ -108,7 +108,11 @@ export const handler = async (event) => {
           (it?.featuredUntil && Date.parse(it.featuredUntil) > now)
         )
       : raw;
-
+// 🔧 odstrani pretečene dogodke (če imajo samo start, jih šteje 2h po začetku)
+out = out.filter(e => {
+  const end = e.end ? Date.parse(e.end) : (e.start ? Date.parse(e.start) + 2 * 3600 * 1000 : 0);
+  return !Number.isNaN(end) && end >= Date.now();
+});
     // normaliziraj v format, ki ga frontend pričakuje (venue.lat/lon/address, images[])
     out = out.map(normalizeProvider);
 

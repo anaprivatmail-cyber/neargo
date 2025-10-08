@@ -1,4 +1,4 @@
-z<!doctype html>
+<!doctype html>
 <html lang="sl">
 <head>
   <meta charset="utf-8" />
@@ -1274,37 +1274,89 @@ function detectCategory(e){
 })();
 </script>
   <script>
-/* === NearGo 2025 — KONČNA VERZIJA ZEMLJEVIDA Z MARKERJI === */
+/* === NearGo – stabilna verzija: zemljevid, izpostavljeni, oddaja === */
 
-/* 🔹 Pretvori koordinate v kilometre (Haversine) */
-function distKm(a,b){
+/* 🔹 Izpostavljeni dogodki – brez pretečenih + vedno vsaj 10 */
+const _oldLoadFeatured = loadFeatured;
+window.loadFeatured = async function(){
+  const now = Date.now(); let internal=[], external=[];
+  try { internal = await fetch(`/api/provider-list?featured=1&limit=200`).then(r=>r.json()).then(d=>d?.results||[]).catch(()=>[]); } catch {}
+  try { external = await fetch(`/api/search?size=200&page=0`).then(r=>r.json()).then(d=>d?.results||[]).catch(()=>[]); } catch {}
+  
+  const seen = new Set();
+  let items = [...internal,...external]
+    .filter(e=>{
+      const end = new Date(e.end||e.start).getTime();
+      return Number.isFinite(end) && end >= now;
+    })
+    .filter(e=>{
+      const key = `${(e.name||'').toLowerCase()}|${e.start||''}|${e.venue?.address||''}`;
+      if(seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+  if(GEO){
+    const [gl,go] = GEO.split(',').map(Number);
+    const intSet = new Set(internal.map(x=>x.id));
+    items = items.map(e=>{
+      const lat=+e?.venue?.lat, lon=+e?.venue?.lon;
+      const dist=(Number.isFinite(lat)&&Number.isFinite(lon))?Math.hypot(gl-lat,go-lon):1e9;
+      return {e,prio:intSet.has(e.id)?0:1,dist};
+    }).sort((a,b)=>a.prio-b.prio||a.dist-b.dist).map(x=>x.e);
+  }
+  
+  if(items.length<10){
+    const add = external.filter(x=>!items.find(y=>y.id===x.id));
+    items = [...items,...add.slice(0,10-items.length)];
+  }
+
+  const box = document.getElementById("carousel");
+  box.innerHTML="";
+  if(!items.length){
+    box.innerHTML=`<div class="card" style="color:var(--muted)">Trenutno ni izpostavljenih dogodkov.</div>`;
+    return;
+  }
+
+  items.slice(0,20).forEach(e=>{
+    const c = renderSpotCard(e);
+    c.style.flex="0 0 85%";
+    box.appendChild(c);
+  });
+
+  let pos=0,paused=false,speed=1.3;
+  function loop(){
+    if(!paused){
+      pos+=speed;
+      if(pos>=box.scrollWidth-box.clientWidth) pos=0;
+      box.scrollLeft=pos;
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+  box.addEventListener("mouseenter",()=>paused=true);
+  box.addEventListener("mouseleave",()=>paused=false);
+};
+
+/* 🔹 Zemljevid – markerji in filtriranje po radiju */
+function haversine(a,b){
   const R=6371, toRad=d=>d*Math.PI/180;
   const dLat=toRad(b.lat-a.lat), dLon=toRad(b.lon-a.lon);
   const x=Math.sin(dLat/2)**2+Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;
   return 2*R*Math.asin(Math.sqrt(x));
 }
-
-/* 🔹 Ustvari markerje z naslovom in povezavo */
-function renderMarkers(map, items){
-  if(!map) return;
-  map.eachLayer(l=>{ if(l instanceof L.Marker) map.removeLayer(l); });
+function showMarkers(items,center,rad){
+  if(!mapSearch) return;
+  mapSearch.eachLayer(l=>{if(l instanceof L.Marker) mapSearch.removeLayer(l);});
   const markers=[];
   items.forEach(e=>{
-    const lat=Number(e?.venue?.lat ?? e?.venueLat);
-    const lon=Number(e?.venue?.lon ?? e?.venueLon);
+    const lat=Number(e.venue?.lat??e.venueLat),lon=Number(e.venue?.lon??e.venueLon);
     if(!Number.isFinite(lat)||!Number.isFinite(lon)) return;
-
-    const id=e.id?`ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}`:`ev-${(e.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')}`;
-    const name=e.name||"Dogodek";
-    const addr=e.venue?.address||"";
-
-    const marker=L.marker([lat,lon]).addTo(map);
-    marker.bindPopup(
-      `<b>${name}</b><br>${addr}<br>
-       <a href="#${id}" style="color:#0077cc;text-decoration:underline">Odpri kartico</a>`
-    );
-
-    marker.on("click",()=>{
+    if(center && rad && haversine(center,{lat,lon})>rad) return;
+    const id=hashId(e), name=e.name||"Dogodek", addr=e.venue?.address||"";
+    const m=L.marker([lat,lon]).addTo(mapSearch);
+    m.bindPopup(`<b>${name}</b><br>${addr}<br><a href="#${id}" style="color:#0077cc;text-decoration:underline">Odpri kartico</a>`);
+    m.on("click",()=>{
       const card=document.getElementById(id);
       if(card){
         card.scrollIntoView({behavior:"smooth",block:"start"});
@@ -1312,60 +1364,52 @@ function renderMarkers(map, items){
         setTimeout(()=>card.classList.remove("highlight"),1500);
       }
     });
-
-    markers.push(marker);
+    markers.push(m);
   });
-
   if(markers.length){
     const g=new L.featureGroup(markers);
-    map.fitBounds(g.getBounds().pad(0.25));
+    mapSearch.fitBounds(g.getBounds().pad(0.3));
   }
 }
 
-/* 🔹 Posodobi zemljevid po iskanju (prikaže samo znotraj radija) */
-const _origSearch=doSearch;
-window.doSearch=async function(page=0,byGeo=false){
-  await _origSearch(page,byGeo);
-
-  const results=$("#results");
-  if(!results) return;
-  const radiusKm=Number($("#radius")?.value||30);
+/* nadgradi doSearch */
+const _doSearch = doSearch;
+window.doSearch = async function(p=0,b=false){
+  await _doSearch(p,b);
+  const results=$("#results"); if(!results) return;
   let center=null;
-
-  if(GEO){
-    const [gl,go]=GEO.split(',').map(Number);
-    center={lat:gl,lon:go};
-  }
-
-  const cards=[...results.querySelectorAll(".spot")];
-  const visible=[];
-  cards.forEach(c=>{
-    const lat=parseFloat(c.dataset.lat||c.dataset.venueLat||0);
-    const lon=parseFloat(c.dataset.lon||c.dataset.venueLon||0);
-    if(Number.isFinite(lat)&&Number.isFinite(lon)){
-      const id=c.id.replace(/^ev-/,"");
-      const name=c.querySelector("b")?.innerText||"Dogodek";
-      const addr=c.querySelector(".muted")?.innerText||"";
-      const venue={lat,lon,address:addr};
-      if(center){
-        const d=distKm(center,venue);
-        if(d<=radiusKm) visible.push({id,name,venue});
-      } else visible.push({id,name,venue});
-    }
+  if(GEO){const [gl,go]=GEO.split(',').map(Number);center={lat:gl,lon:go};}
+  const rad=Number($("#radius")?.value||30);
+  const all=[...results.querySelectorAll(".spot")].map(x=>{
+    const lat=parseFloat(x.dataset.lat||x.dataset.venueLat||0);
+    const lon=parseFloat(x.dataset.lon||x.dataset.venueLon||0);
+    return {name:x.querySelector("b")?.innerText||"Dogodek",venue:{lat,lon,address:""}};
   });
-
-  renderMarkers(mapSearch,visible);
+  showMarkers(all,center,rad);
 };
 
-/* 🔹 Inicializacija zemljevida */
-document.addEventListener("DOMContentLoaded",()=>{
-  if(!window.mapSearch){
-    window.mapSearch=L.map("mapSearch",{zoomSnap:0.25,zoomControl:true})
-      .setView([46.05,14.51],7);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      { attribution:"© OpenStreetMap contributors" }).addTo(mapSearch);
+/* 🔹 Obrazec – predogled slike + zeleno sporočilo */
+$("#image")?.addEventListener("change",e=>{
+  const f=e.target.files[0];
+  if(f){
+    const img=$("#imgPreview");
+    img.src=URL.createObjectURL(f);
+    img.onload=()=>URL.revokeObjectURL(img.src);
+    img.style.display="block";
+    $("#fileName").textContent=f.name;
   }
 });
+const _oldSubmit=$("#btnSubmitEvent");
+if(_oldSubmit){
+  _oldSubmit.addEventListener("click",()=>{
+    const msg=$("#orgMsg");
+    if(msg.textContent.includes("✅")){
+      msg.style.color="var(--ok)";
+      msg.textContent="✅ Dogodek uspešno oddan. Potrditveni e-mail je poslan.";
+      setTimeout(()=>msg.textContent="",6000);
+    }
+  });
+}
 </script>
 </body>
             </html>

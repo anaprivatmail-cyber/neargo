@@ -1274,56 +1274,69 @@ function detectCategory(e){
 })();
 </script>
   <script>
-/* === NearGo POPRAVKI – Zemljevid, Izpostavljeni, Kupon, Oddaja === */
+/* === NearGo POPRAVKI 2025 (končna verzija) === */
 
-/* --- 1. Zemljevid rezultatov --- */
+/* ====== 1. Zemljevid rezultatov (popravljen) ====== */
 function setMarkersOn(map, items){
   const markers=[];
   items.forEach(e=>{
-    const lat=e?.venue?.lat, lon=e?.venue?.lon;
-    if(Number.isFinite(+lat)&&Number.isFinite(+lon)){
-      const id=e.id?`ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}`:
-        `ev-${(e.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')}-${(e.start||'').replace(/[^0-9]/g,'')}`.slice(0,64);
-      const m=L.marker([+lat,+lon]).addTo(map);
-      m.bindPopup(`<a href="#${id}"><b>${e.name||'Dogodek'}</b></a>`);
-      m.on("click",()=>{
-        const c=document.getElementById(id);
-        if(c){c.scrollIntoView({behavior:"smooth",block:"start"});
-          c.classList.add("highlight");
-          setTimeout(()=>c.classList.remove("highlight"),1500);}
-      });
-      markers.push(m);
-    }
+    const id=e.id?`ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}`:
+      `ev-${(e.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')}-${(e.start||'').replace(/[^0-9]/g,'')}`.slice(0,64);
+
+    // popravek koordinat
+    const lat=Number(e?.venue?.lat ?? e.latitude ?? e.lat);
+    const lon=Number(e?.venue?.lon ?? e.longitude ?? e.lng);
+    if(!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+
+    const m=L.marker([lat, lon]).addTo(map);
+    const addr=e?.venue?.address || "";
+    m.bindPopup(`<b>${e.name || "Dogodek"}</b><br>${addr}`);
+    m.on("click",()=>{
+      const card=document.getElementById(id);
+      if(card){
+        card.scrollIntoView({behavior:"smooth",block:"start"});
+        card.classList.add("highlight");
+        setTimeout(()=>card.classList.remove("highlight"),1500);
+      }
+    });
+    markers.push(m);
   });
   if(markers.length){
-    const g=new L.featureGroup(markers);
-    map.fitBounds(g.getBounds().pad(0.2));
+    const group=new L.featureGroup(markers);
+    map.fitBounds(group.getBounds().pad(0.2));
   }
   return markers;
 }
 
-/* --- 2. Izpostavljeni dogodki (isti izgled kot iskani, tekoče vrtenje) --- */
+/* ====== 2. Izpostavljeni dogodki (tekoč karusel + enak izgled) ====== */
 async function loadFeatured(){
-  const now=Date.now(); let internal=[],external=[];
+  const now=Date.now();
+  let internal=[],external=[];
   try{internal=await fetch(`/api/provider-list?featured=1&limit=200`).then(r=>r.json()).then(d=>d?.results||[]);}catch{}
   try{external=await fetch(`/api/search?size=200&page=0`).then(r=>r.json()).then(d=>d?.results||[]);}catch{}
+
+  // izloči pretečene in podvojene
   const seen=new Set();
   let items=[...internal,...external].filter(e=>{
     const t=new Date(e.end||e.start).getTime();
     return Number.isFinite(t)&&t>=now;
   }).filter(e=>{
     const k=((e.name||"").toLowerCase()+"|"+(e.start||"")+"|"+(e.venue?.address||""));
-    if(seen.has(k))return false; seen.add(k); return true;
+    if(seen.has(k)) return false; seen.add(k); return true;
   });
+
+  // sort po bližini in vrsti (najprej tvoji)
   const intSet=new Set(internal.map(e=>e.id));
   if(GEO){
     const [gl,go]=GEO.split(',').map(Number);
     items=items.map(e=>{
-      const lat=+e?.venue?.lat,lon=+e?.venue?.lon;
-      const d=(Number.isFinite(lat)&&Number.isFinite(lon))?Math.hypot(gl-lat,go-lon):9999;
-      return{e,prio:intSet.has(e.id)?0:1,dist:d};
+      const lat=+e?.venue?.lat, lon=+e?.venue?.lon;
+      const dist=(Number.isFinite(lat)&&Number.isFinite(lon))
+        ? Math.hypot(gl-lat, go-lon) : 9999;
+      return {e,prio:intSet.has(e.id)?0:1,dist};
     }).sort((a,b)=>a.prio-b.prio||a.dist-b.dist).map(x=>x.e);
   }
+
   items=items.slice(0,Math.max(10,items.length));
   const box=document.getElementById("carousel");
   box.innerHTML="";
@@ -1332,26 +1345,49 @@ async function loadFeatured(){
     card.style.flex="0 0 85%";
     box.appendChild(card);
   });
-  let paused=false,dir=1;
-  const step=()=>{
+
+  // tekoče, neskončno vrtenje
+  let paused=false;
+  let scrollPos=0;
+  const loop=()=>{
     if(paused)return;
-    if(box.scrollLeft+box.clientWidth>=box.scrollWidth-5)dir=-1;
-    else if(box.scrollLeft<=0)dir=1;
-    box.scrollBy({left:dir*box.clientWidth*0.3,behavior:"smooth"});
+    scrollPos+=1;
+    if(scrollPos>=box.scrollWidth) scrollPos=0;
+    box.scrollTo({left:scrollPos,behavior:"smooth"});
   };
-  setInterval(step,3000);
+  setInterval(loop,60);
   box.addEventListener("mouseenter",()=>paused=true);
   box.addEventListener("mouseleave",()=>paused=false);
   box.addEventListener("click",()=>{paused=true;setTimeout(()=>paused=false,2000);});
 }
 
-/* --- 3. Kupon (en sam, pravilno preklapljanje) --- */
+/* ====== 3. Iskalnik po mestih (večjezično prepoznavanje) ====== */
+const CITY_ALIASES={
+  "ljubljana":["ljubljana","laibach","lubiana"],
+  "maribor":["maribor","marburg","marpurg"],
+  "celje":["celje","cilli","zellach"],
+  "graz":["graz","gradec"],
+  "vienna":["vienna","wien","dunaj"],
+  "trieste":["trieste","trst","triest"],
+  "venice":["venice","venezia","benetke"],
+  "zagreb":["zagreb","zágráb"],
+  "klagenfurt":["klagenfurt","celovec"]
+};
+function normalizeCity(input){
+  const txt=input.toLowerCase().trim();
+  for(const [key,arr] of Object.entries(CITY_ALIASES)){
+    if(arr.some(a=>txt.includes(a))) return key;
+  }
+  return txt;
+}
+
+/* ====== 4. Kupon (en sam, pravilno preklapljanje) ====== */
 (function(){
   const offer=$("#offerType"),priceWrap=$("#priceWrap"),ticketBlock=$("#ticketPricesBlock"),
         couponCfg=$("#couponCfg"),couponKind=$("#couponKind"),
         lblPercent=$("#lblPercent"),lblValue=$("#lblValue"),lblFreebie=$("#lblFreebie"),
         couponMulti=$("#couponMulti");
-  if(couponMulti)couponMulti.style.display="none";
+  if(couponMulti) couponMulti.style.display="none";
   function toggleOffer(){
     const v=offer.value;
     ticketBlock.style.display=(v==="ticket")?"block":"none";
@@ -1368,7 +1404,7 @@ async function loadFeatured(){
   });
 })();
 
-/* --- 4. Predogled slike --- */
+/* ====== 5. Predogled slike ====== */
 $("#image")?.addEventListener("change",e=>{
   const f=e.target.files[0];
   if(f){
@@ -1379,12 +1415,12 @@ $("#image")?.addEventListener("change",e=>{
   }
 });
 
-/* --- 5. Validacija + pošiljanje dogodka + preverjanje e-pošte --- */
+/* ====== 6. Validacija in oddaja dogodka (z e-pošto) ====== */
 document.getElementById("btnSubmitEvent")?.addEventListener("click", async ()=>{
   const msg=document.getElementById("orgMsg");
   msg.textContent="";
-  const req=["orgName","orgFullName","orgEmail","eventName","venue","city2","country","start","end","category","desc"];
-  for(const id of req){
+  const required=["orgName","orgFullName","orgEmail","eventName","venue","city2","country","start","end","category","desc"];
+  for(const id of required){
     const el=document.getElementById(id);
     if(!el?.value.trim()){
       msg.textContent="Izpolni obvezna polja označena z *.";
@@ -1398,6 +1434,7 @@ document.getElementById("btnSubmitEvent")?.addEventListener("click", async ()=>{
     msg.style.color="var(--bad)";
     return;
   }
+
   const payload={
     organizer:$("#orgName").value.trim(),
     organizerFullName:$("#orgFullName").value.trim(),
@@ -1417,6 +1454,10 @@ document.getElementById("btnSubmitEvent")?.addEventListener("click", async ()=>{
     stock:Number($("#stock")?.value||0)||null,
     maxPerOrder:Number($("#maxPerOrder")?.value||0)||null
   };
+
+  msg.textContent="⏳ Pošiljanje dogodka ...";
+  msg.style.color="var(--muted)";
+
   try{
     $("#btnSubmitEvent").disabled=true;
     const res=await fetch("/api/provider-submit",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json());
@@ -1438,7 +1479,7 @@ document.getElementById("btnSubmitEvent")?.addEventListener("click", async ()=>{
   }
 });
 
-/* --- 6. Inicializacija zemljevida ob nalaganju --- */
+/* ====== 7. Inicializacija zemljevida ====== */
 document.addEventListener("DOMContentLoaded",()=>{
   if(!mapSearch){
     mapSearch=L.map("mapSearch").setView([46.05,14.51],7);
@@ -1447,6 +1488,6 @@ document.addEventListener("DOMContentLoaded",()=>{
   if(typeof doSearch==="function")doSearch(0,false);
   loadFeatured();
 });
-</script>
+  </script>
 </body>
             </html>

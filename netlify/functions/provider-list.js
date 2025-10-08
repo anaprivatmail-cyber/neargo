@@ -31,8 +31,9 @@ function normalizeProvider(obj){
     url: obj.url || null,
     venue: {
       address,
-      lat: Number.isFinite(Number(obj.venueLat)) ? Number(obj.venueLat) : null,
-      lon: Number.isFinite(Number(obj.venueLon)) ? Number(obj.venueLon) : null
+      // 🔧 sprememba: sprejme tudi lat/lon/latitude/longitude oblike
+      lat: parseFloat(obj.venueLat || obj.lat || obj.latitude) || null,
+      lon: parseFloat(obj.venueLon || obj.lon || obj.longitude) || null
     }
   };
 }

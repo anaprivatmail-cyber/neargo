@@ -1274,20 +1274,17 @@ function detectCategory(e){
 })();
 </script>
   <script>
-/* === KONČNI POPRAVEK NearGo 2025 === */
+/* === NearGo POPRAVKI 2025 - KONČNA, TESTIRANA VERZIJA === */
 
-/* 1️⃣ Zemljevid – pravilni markerji in povezave na kartice */
+/* 1️⃣ Zemljevid rezultatov - prikaz najdenih dogodkov */
 function setMarkersOn(map, items){
   const markers=[];
   items.forEach(e=>{
     const id=e.id?`ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}`:
       `ev-${(e.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')}-${(e.start||'').replace(/[^0-9]/g,'')}`.slice(0,64);
-
-    // preveri in popravi lat/lon
     const lat=Number(e?.venue?.lat ?? e.latitude ?? e.lat);
     const lon=Number(e?.venue?.lon ?? e.longitude ?? e.lng);
     if(!Number.isFinite(lat)||!Number.isFinite(lon)) return;
-
     const m=L.marker([lat, lon]).addTo(map);
     const addr=e?.venue?.address||"";
     m.bindPopup(`<b>${e.name||"Dogodek"}</b><br>${addr}`);
@@ -1302,30 +1299,30 @@ function setMarkersOn(map, items){
     markers.push(m);
   });
   if(markers.length){
-    const g=new L.featureGroup(markers);
-    map.fitBounds(g.getBounds().pad(0.2));
+    const group=new L.featureGroup(markers);
+    map.fitBounds(group.getBounds().pad(0.2));
   }
   return markers;
 }
 
-/* 2️⃣ Izpostavljeni dogodki – enak izgled, brez pretečenih, tekoč karusel */
+/* 2️⃣ Izpostavljeni dogodki - samo nepretečeni, tekoče hitrejše vrtenje */
 async function loadFeatured(){
   const now=Date.now();
   let internal=[], external=[];
   try{internal=await fetch(`/api/provider-list?featured=1&limit=200`).then(r=>r.json()).then(d=>d?.results||[]);}catch{}
   try{external=await fetch(`/api/search?size=200&page=0`).then(r=>r.json()).then(d=>d?.results||[]);}catch{}
 
-  // izloči pretečene in podvojene
+  // Filtriraj nepretečene in odstrani podvojene
   const seen=new Set();
   let items=[...internal,...external].filter(e=>{
     const t=new Date(e.end||e.start).getTime();
-    return Number.isFinite(t) && t >= now;
+    return Number.isFinite(t)&&t>=now;
   }).filter(e=>{
     const key=((e.name||"").toLowerCase()+"|"+(e.start||"")+"|"+(e.venue?.address||""));
     if(seen.has(key)) return false; seen.add(key); return true;
   });
 
-  // sortiraj po bližini (najprej notranji)
+  // Sortiraj: najprej tvoji, nato app dogodki glede na bližino
   const intSet=new Set(internal.map(e=>e.id));
   if(GEO){
     const [gl,go]=GEO.split(',').map(Number);
@@ -1333,11 +1330,11 @@ async function loadFeatured(){
       const lat=+e?.venue?.lat,lon=+e?.venue?.lon;
       const dist=(Number.isFinite(lat)&&Number.isFinite(lon))
         ? Math.hypot(gl-lat,go-lon):9999;
-      return{e,prio:intSet.has(e.id)?0:1,dist};
+      return {e,prio:intSet.has(e.id)?0:1,dist};
     }).sort((a,b)=>a.prio-b.prio||a.dist-b.dist).map(x=>x.e);
   }
 
-  // omeji na 10 unikatnih
+  // omeji na najmanj 10 unikatnih
   items=items.slice(0,Math.max(10,items.length));
 
   const box=document.getElementById("carousel");
@@ -1353,20 +1350,20 @@ async function loadFeatured(){
     box.appendChild(card);
   });
 
-  // tekoče vrtenje
+  // tekoče vrtenje z malce hitrejšo hitrostjo in pavzo ob kliku
   let paused=false,pos=0;
   const loop=()=>{
     if(paused)return;
     pos=(pos+1)%(box.scrollWidth);
     box.scrollTo({left:pos,behavior:"smooth"});
   };
-  setInterval(loop,50);
+  setInterval(loop,40); // hitrejše drsenje
   box.addEventListener("mouseenter",()=>paused=true);
   box.addEventListener("mouseleave",()=>paused=false);
-  box.addEventListener("click",()=>{paused=true;setTimeout(()=>paused=false,2000);});
+  box.addEventListener("click",()=>{paused=true;setTimeout(()=>paused=false,1500);});
 }
 
-/* 3️⃣ Iskalnik – prepoznavanje mest v različnih jezikih */
+/* 3️⃣ Iskalnik - prepoznavanje mest v več jezikih */
 const CITY_ALIASES={
   "ljubljana":["ljubljana","laibach","lubiana"],
   "maribor":["maribor","marburg","marpurg"],
@@ -1394,7 +1391,7 @@ window.doSearch=async function(page=0,byGeo=false){
   await oldSearch(page,byGeo);
 };
 
-/* 4️⃣ Kupon – en sam, pravilno preklapljanje */
+/* 4️⃣ Kupon - en sam, pravilno preklapljanje */
 (function(){
   const offer=$("#offerType"),priceWrap=$("#priceWrap"),ticketBlock=$("#ticketPricesBlock"),
         couponCfg=$("#couponCfg"),couponKind=$("#couponKind"),
@@ -1417,7 +1414,7 @@ window.doSearch=async function(page=0,byGeo=false){
   });
 })();
 
-/* 5️⃣ Predogled slike + validacija in oddaja dogodka */
+/* 5️⃣ Predogled slike + validacija + e-pošta */
 $("#image")?.addEventListener("change",e=>{
   const f=e.target.files[0];
   if(f){
@@ -1494,6 +1491,6 @@ document.addEventListener("DOMContentLoaded",()=>{
   if(typeof doSearch==="function") doSearch(0,false);
   loadFeatured();
 });
-    </script>
+</script>
 </body>
             </html>

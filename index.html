@@ -1274,9 +1274,9 @@ function detectCategory(e){
 })();
 </script>
   <script>
-/* === NearGo POPRAVLJENO: Zemljevid + Izpostavljeni + Kupon === */
+/* === NearGo POPRAVKI – Zemljevid, Izpostavljeni, Kupon === */
 
-/* 1️⃣ Zemljevid - prikaže markerje in poveže s karticami */
+/* 1️⃣ Zemljevid rezultatov – markerji in povezava do kartic */
 function setMarkersOn(map, items){
   const markers=[];
   items.forEach(e=>{
@@ -1304,35 +1304,66 @@ function setMarkersOn(map, items){
   return markers;
 }
 
-/* 2️⃣ Izpostavljeni dogodki - isti izgled kot iskani, brez pretečenih */
+/* 2️⃣ Izpostavljeni dogodki – isti izgled kartic, brez pretečenih, tekoč karusel */
 async function loadFeatured(){
-  const now=Date.now();
+  const now = Date.now();
   let internal=[], external=[];
-  try{internal=await fetch(`/api/provider-list?featured=1&limit=200`).then(r=>r.json()).then(d=>d?.results||[]);}catch{}
-  try{external=await fetch(`/api/search?size=200&page=0`).then(r=>r.json()).then(d=>d?.results||[]);}catch{}
-  const items=[...internal,...external].filter(e=>{
+  try{ internal = await fetch(`/api/provider-list?featured=1&limit=200`).then(r=>r.json()).then(d=>d?.results||[]);}catch{}
+  try{ external = await fetch(`/api/search?size=200&page=0`).then(r=>r.json()).then(d=>d?.results||[]);}catch{}
+  
+  // filtriraj pretečene
+  const seen=new Set();
+  let items=[...internal,...external].filter(e=>{
     const end=new Date(e.end||e.start).getTime();
     return Number.isFinite(end)&&end>=now;
-  });
-  const seen=new Set();
-  const unique=items.filter(e=>{
+  }).filter(e=>{
     const k=((e.name||"").toLowerCase()+"|"+(e.start||"")+"|"+(e.venue?.address||""));
     if(seen.has(k)) return false; seen.add(k); return true;
   });
+
+  // sortiraj po bližini – najprej tvoji (internal)
+  const intSet = new Set(internal.map(e=>e.id));
+  if(GEO){
+    const [gl,go]=GEO.split(',').map(Number);
+    items = items.map(e=>{
+      const lat=+e?.venue?.lat, lon=+e?.venue?.lon;
+      const dist=(Number.isFinite(lat)&&Number.isFinite(lon)) 
+        ? Math.hypot(gl-lat, go-lon)
+        : 9999;
+      return {e, prio:intSet.has(e.id)?0:1, dist};
+    }).sort((a,b)=>a.prio-b.prio || a.dist-b.dist).map(x=>x.e);
+  }
+
+  // vzemi vsaj 10 najbližjih
+  items = items.slice(0, Math.max(10, items.length));
+
   const box=document.getElementById("carousel");
   box.innerHTML="";
-  if(!unique.length){
-    box.innerHTML=`<div class="card" style="color:var(--muted)">Trenutno ni izpostavljenih dogodkov.</div>`;
-    return;
-  }
-  unique.slice(0,20).forEach(e=>{
+  items.forEach(e=>{
     const card=renderSpotCard(e);
     card.style.flex="0 0 85%";
     box.appendChild(card);
   });
+
+  // tekoče vrtenje brez preskoka
+  let paused=false;
+  let scrollDir=1;
+  const scrollStep=()=>{
+    if(paused) return;
+    if(box.scrollLeft + box.clientWidth >= box.scrollWidth - 5) scrollDir=-1;
+    else if(box.scrollLeft<=0) scrollDir=1;
+    box.scrollBy({left:scrollDir*box.clientWidth*0.3,behavior:"smooth"});
+  };
+  const timer=setInterval(scrollStep,3000);
+  box.addEventListener("mouseenter",()=>paused=true);
+  box.addEventListener("mouseleave",()=>{paused=false;});
+  box.addEventListener("click",()=>{
+    paused=true;
+    setTimeout(()=>paused=false,2000);
+  });
 }
 
-/* 3️⃣ Kupon - samo en kupon, brez več možnosti */
+/* 3️⃣ Kupon – samo en, pravilno preklapljanje polj */
 (function(){
   const offer=document.getElementById("offerType");
   const priceWrap=document.getElementById("priceWrap");
@@ -1343,7 +1374,7 @@ async function loadFeatured(){
   const lblValue=document.getElementById("lblValue");
   const lblFreebie=document.getElementById("lblFreebie");
   const couponMulti=document.getElementById("couponMulti");
-  if(couponMulti) couponMulti.style.display="none"; // odstrani dodatne kupone
+  if(couponMulti) couponMulti.style.display="none";
 
   function toggleOffer(){
     const v=offer.value;
@@ -1354,7 +1385,6 @@ async function loadFeatured(){
   offer?.addEventListener("change",toggleOffer);
   toggleOffer();
 
-  // preklapljanje vrste kupona (% / € / opis)
   couponKind?.addEventListener("change",()=>{
     const v=couponKind.value;
     lblPercent.style.display=(v==="PERCENT")?"block":"none";
@@ -1374,7 +1404,7 @@ document.getElementById("image")?.addEventListener("change",e=>{
   }
 });
 
-/* 5️⃣ Validacija + daljše sporočilo */
+/* 5️⃣ Validacija in sporočilo */
 document.getElementById("btnSubmitEvent")?.addEventListener("click",async()=>{
   const msg=document.getElementById("orgMsg");
   msg.textContent="";
@@ -1397,6 +1427,16 @@ document.getElementById("btnSubmitEvent")?.addEventListener("click",async()=>{
   msg.style.color="var(--ok)";
   setTimeout(()=>{msg.textContent="";},6000);
 });
-</script>
+
+/* 6️⃣ Prikaži markerje ob iskanju */
+document.addEventListener("DOMContentLoaded",()=>{
+  if(!mapSearch){
+    mapSearch=L.map("mapSearch").setView([46.05,14.51],7);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OSM"}).addTo(mapSearch);
+  }
+  if(typeof doSearch==="function") doSearch(0,false);
+  loadFeatured();
+});
+    </script>
 </body>
             </html>

@@ -1274,49 +1274,71 @@ function detectCategory(e){
 })();
 </script>
   <script>
-/* --- POPRAVKI 2025 (ANA+) --- */
+/* === NearGo - Posodobitve ANA+ oktober 2025 === */
 
-/* 1️⃣  Zemljevid prikaže dogodke in poveže markerje z njihovimi karticami */
-function setMarkersOn(map,items){
+/* 1️⃣ Zemljevid rezultatov: markerji + povezave do kartic */
+function setMarkersOn(map, items){
   const ms=[];
   items.forEach(e=>{
-    const lat=e.venue?.lat,lon=e.venue?.lon;
+    const lat=e?.venue?.lat, lon=e?.venue?.lon;
     if(Number.isFinite(+lat)&&Number.isFinite(+lon)){
+      const id = e.id ? `ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}` :
+        `ev-${(e.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')}-${(e.start||'').replace(/[^0-9]/g,'')}`.slice(0,64);
       const m=L.marker([+lat,+lon]).addTo(map);
-      const id=(e.id?`ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}`:`ev-${(e.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')}-${(e.start||'').replace(/[^0-9]/g,'')}`.slice(0,64));
-      m.bindPopup(`<a href="#${id}"><b>${(e.name||"Dogodek")}</b></a>`);
+      m.bindPopup(`<a href="#${id}"><b>${e.name||'Dogodek'}</b></a>`);
       m.on("click",()=>{
-        const el=document.getElementById(id);
-        if(el){
-          el.scrollIntoView({behavior:"smooth",block:"start"});
-          el.classList.add("highlight");
-          setTimeout(()=>el.classList.remove("highlight"),1500);
+        const card=document.getElementById(id);
+        if(card){
+          card.scrollIntoView({behavior:"smooth",block:"start"});
+          card.classList.add("highlight");
+          setTimeout(()=>card.classList.remove("highlight"),1500);
         }
       });
       ms.push(m);
     }
   });
+  if(ms.length){
+    const g=new L.featureGroup(ms);
+    map.fitBounds(g.getBounds().pad(0.2));
+  }
   return ms;
 }
 
-/* 2️⃣  Izpostavljeni dogodki brez pretečenih */
+/* 2️⃣ Izpostavljeni dogodki – izgled kartic ohranjen, odstranjeni pretečeni */
 async function loadFeatured(){
   const now=Date.now();
-  let internal=[],external=[];
+  let internal=[], external=[];
   try{internal=await fetch(`/api/provider-list?featured=1&limit=200`).then(r=>r.json()).then(d=>d?.results||[]);}catch{}
   try{external=await fetch(`/api/search?size=200&page=0`).then(r=>r.json()).then(d=>d?.results||[]);}catch{}
-  const items=[...internal,...external].filter(e=>{const t=Date.parse(e.end||e.start);return !Number.isNaN(t)&&t>=now;});
-  const box=document.getElementById("carousel");box.innerHTML="";
-  if(!items.length){box.innerHTML='<div class="card" style="color:var(--muted)">Trenutno ni izpostavljenih dogodkov.</div>';return;}
+  const items=[...internal,...external].filter(e=>{
+    const end=new Date(e.end||e.start).getTime();
+    return Number.isFinite(end)&&end>=now;
+  });
+  const box=document.getElementById("carousel"); box.innerHTML="";
+  if(!items.length){
+    box.innerHTML=`<div class="card" style="color:var(--muted)">Trenutno ni izpostavljenih dogodkov.</div>`;
+    return;
+  }
   items.slice(0,20).forEach(e=>{
-    const card=document.createElement("div");card.className="spot";
     const img=(e.images&&e.images[0])||"https://picsum.photos/600/400";
-    card.innerHTML=`<img src="${img}" alt=""><div class="meta"><b>${e.name||"Dogodek"}</b></div>`;
+    const addr=e.venue?.address||"";
+    const id = e.id ? `ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}` :
+      `ev-${(e.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')}-${(e.start||'').replace(/[^0-9]/g,'')}`.slice(0,64);
+    const card=document.createElement("div");
+    card.className="spot"; card.id=id;
+    card.innerHTML=`
+      <img src="${img}" alt="">
+      <div class="meta">
+        <b>${e.name||'Dogodek'}</b>
+        <div style="color:var(--muted);font-size:13px">${addr}</div>
+        <div style="color:var(--muted);font-size:13px">${new Date(e.start).toLocaleString('sl-SI')}</div>
+        ${e.description?`<div style="margin-top:4px;color:var(--muted);font-size:13px">${e.description}</div>`:""}
+      </div>`;
     box.appendChild(card);
   });
 }
 
-/* 3️⃣  Predogled izbrane fotografije v obrazcu */
+/* 3️⃣ Predogled slike pri izboru */
 document.getElementById("image")?.addEventListener("change",e=>{
   const f=e.target.files[0];
   if(f){
@@ -1327,7 +1349,7 @@ document.getElementById("image")?.addEventListener("change",e=>{
   }
 });
 
-/* 4️⃣  Validacija obrazca (obvezna polja + slika) + 5️⃣ daljše zeleno sporočilo */
+/* 4️⃣ Validacija obrazca + opozorila + 5️⃣ zelena vrstica 6s */
 document.getElementById("btnSubmitEvent")?.addEventListener("click",async()=>{
   const msg=document.getElementById("orgMsg");
   msg.textContent="";
@@ -1340,8 +1362,8 @@ document.getElementById("btnSubmitEvent")?.addEventListener("click",async()=>{
       el.focus();return;
     }
   }
-  const image=document.getElementById("image");
-  if(!image.files.length){
+  const img=document.getElementById("image");
+  if(!img.files.length){
     msg.textContent="Dodaj fotografijo dogodka.";
     msg.style.color="var(--bad)";
     return;
@@ -1351,16 +1373,21 @@ document.getElementById("btnSubmitEvent")?.addEventListener("click",async()=>{
   setTimeout(()=>{msg.textContent="";},6000);
 });
 
-/* 6️⃣  Več kuponov in cen vstopnic */
+/* 6️⃣ Kuponi in vstopnice - dinamično delovanje */
 (function(){
   const offer=document.getElementById("offerType");
   const priceWrap=document.getElementById("priceWrap");
   const ticketBlock=document.getElementById("ticketPricesBlock");
-  const ticketStepList=document.getElementById("ticketStepList");
+  const ticketList=document.getElementById("ticketStepList");
   const btnAddTicket=document.getElementById("btnAddTicketPrice");
   const couponCfg=document.getElementById("couponCfg");
   const couponMulti=document.getElementById("couponMulti");
   const couponList=document.getElementById("couponList");
+  const couponKind=document.getElementById("couponKind");
+  const lblPercent=document.getElementById("lblPercent");
+  const lblValue=document.getElementById("lblValue");
+  const lblFreebie=document.getElementById("lblFreebie");
+
   function toggleOffer(){
     const v=offer.value;
     ticketBlock.style.display=(v==="ticket")?"block":"none";
@@ -1370,28 +1397,54 @@ document.getElementById("btnSubmitEvent")?.addEventListener("click",async()=>{
   }
   offer?.addEventListener("change",toggleOffer);
   toggleOffer();
+
+  // Menjava tipa kupona (% / € / opis)
+  couponKind?.addEventListener("change",()=>{
+    const v=couponKind.value;
+    lblPercent.style.display=(v==="PERCENT")?"block":"none";
+    lblValue.style.display=(v==="VALUE")?"block":"none";
+    lblFreebie.style.display=(v==="FREEBIE")?"block":"none";
+  });
+
+  // Dodajanje več vstopnic
   btnAddTicket?.addEventListener("click",()=>{
     const row=document.createElement("div");
     row.className="row row--2";
-    row.innerHTML=`<input class="tp-label" placeholder="Naziv vstopnice"><div class="euro"><input class="tp-price" type="number" min="0" step="0.01" placeholder="Cena"><span>€</span></div><button class="btn mini link" type="button" data-remove="ticket">Odstrani</button>`;
-    ticketStepList.appendChild(row);
+    row.innerHTML=`
+      <input class="tp-label" placeholder="Naziv vstopnice (npr. Otrok, Družinska)">
+      <div class="euro"><input class="tp-price" type="number" min="0" step="0.01" placeholder="Cena"><span>€</span></div>
+      <button class="btn mini link" type="button" data-remove="ticket">Odstrani</button>`;
+    ticketList.appendChild(row);
   });
+
+  // Dodajanje več kuponov
   document.getElementById("btnAddCoupon")?.addEventListener("click",()=>{
     const r=document.createElement("div");
     r.className="row always-two";
-    r.innerHTML=`<label>Vrsta<select class="c-kind"><option value="PERCENT">% popusta</option><option value="VALUE">Vrednost (€)</option><option value="FREEBIE">Konkretno</option></select></label><input class="c-value" placeholder="Vrednost" type="number" step="0.01"><button class="btn mini link" type="button" data-remove="coupon">Odstrani</button>`;
+    r.innerHTML=`
+      <label>Vrsta
+        <select class="c-kind">
+          <option value="PERCENT">% popusta</option>
+          <option value="VALUE">Vrednost (€)</option>
+          <option value="FREEBIE">Konkretno</option>
+        </select>
+      </label>
+      <input class="c-value" placeholder="Vrednost" type="number" step="0.01">
+      <button class="btn mini link" type="button" data-remove="coupon">Odstrani</button>`;
     r.querySelector(".c-kind").addEventListener("change",ev=>{
       const k=ev.target.value,v=r.querySelector(".c-value");
       if(k==="FREEBIE"){v.type="text";v.placeholder="Opis (npr. 2 za 1)";}
-      else{v.type="number";v.placeholder="Vrednost (€)";}
+      else{v.type="number";v.placeholder=k==="VALUE"?"Vrednost (€)":"% popusta";}
     });
     couponList.appendChild(r);
   });
+
+  // Gumb Odstrani
   document.addEventListener("click",e=>{
     const b=e.target.closest("button[data-remove]");
     if(b)b.parentElement.remove();
   });
 })();
-</script>
+           </script>
 </body>
             </html>

@@ -1274,142 +1274,98 @@ function detectCategory(e){
 })();
 </script>
   <script>
-/* === NearGo 2025 – samodejni izračun koordinat ob oddaji dogodka === */
+/* === NearGo 2025 — KONČNA VERZIJA ZEMLJEVIDA Z MARKERJI === */
 
-/* Funkcija, ki pridobi lat/lon iz naslova */
-async function geocodeAddress(address){
-  try{
-    const url=`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(address)}`;
-    const res=await fetch(url,{headers:{"Accept-Language":"sl"}});
-    const data=await res.json();
-    if(data && data[0]){
-      return {
-        lat:parseFloat(data[0].lat)||null,
-        lon:parseFloat(data[0].lon)||null
-      };
-    }
-  }catch(e){console.warn("Geocoding failed",e);}
-  return {lat:null,lon:null};
+/* 🔹 Pretvori koordinate v kilometre (Haversine) */
+function distKm(a,b){
+  const R=6371, toRad=d=>d*Math.PI/180;
+  const dLat=toRad(b.lat-a.lat), dLon=toRad(b.lon-a.lon);
+  const x=Math.sin(dLat/2)**2+Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
 }
 
-/* Nadomesti ali dopolni obstoječo logiko za oddajo dogodka */
-const _oldSubmit=document.getElementById("btnSubmitEvent");
-if(_oldSubmit){
-  _oldSubmit.addEventListener("click",async(ev)=>{
-    const msg=$("#orgMsg");
-    msg.textContent="";
-    const must=["#orgName","#orgFullName","#orgEmail","#eventName","#venue","#city2","#country","#start","#end","#category","#desc","#stock"];
-    for(const sel of must){
-      const node=$(sel);
-      const val=(node?.value||"").toString().trim();
-      if(!val){
-        msg.textContent="Izpolni obvezna polja označena z *.";
-        msg.style.color="var(--bad)";
-        node?.focus();
-        return;
+/* 🔹 Ustvari markerje z naslovom in povezavo */
+function renderMarkers(map, items){
+  if(!map) return;
+  map.eachLayer(l=>{ if(l instanceof L.Marker) map.removeLayer(l); });
+  const markers=[];
+  items.forEach(e=>{
+    const lat=Number(e?.venue?.lat ?? e?.venueLat);
+    const lon=Number(e?.venue?.lon ?? e?.venueLon);
+    if(!Number.isFinite(lat)||!Number.isFinite(lon)) return;
+
+    const id=e.id?`ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}`:`ev-${(e.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')}`;
+    const name=e.name||"Dogodek";
+    const addr=e.venue?.address||"";
+
+    const marker=L.marker([lat,lon]).addTo(map);
+    marker.bindPopup(
+      `<b>${name}</b><br>${addr}<br>
+       <a href="#${id}" style="color:#0077cc;text-decoration:underline">Odpri kartico</a>`
+    );
+
+    marker.on("click",()=>{
+      const card=document.getElementById(id);
+      if(card){
+        card.scrollIntoView({behavior:"smooth",block:"start"});
+        card.classList.add("highlight");
+        setTimeout(()=>card.classList.remove("highlight"),1500);
       }
-    }
+    });
 
-    const start=new Date($("#start").value),
-          end=new Date($("#end").value);
-    if(!(end>start)){
-      msg.textContent="Konec mora biti po začetku.";
-      msg.style.color="var(--bad)";
-      $("#end").focus();return;
-    }
+    markers.push(marker);
+  });
 
-    const offerVal=$("#offerType")?.value||"none";
-    let ticketPrices=[],basePrice=null;
-    if(offerVal==="ticket"){
-      basePrice=$("#price").value!==""?Number($("#price").value):null;
-      [...document.querySelectorAll("#ticketStepList .row")].forEach(r=>{
-        const label=r.querySelector(".tp-label")?.value.trim();
-        const price=Number(r.querySelector(".tp-price")?.value||NaN);
-        if(label&&Number.isFinite(price))ticketPrices.push({label,price});
-      });
-    }
+  if(markers.length){
+    const g=new L.featureGroup(markers);
+    map.fitBounds(g.getBounds().pad(0.25));
+  }
+}
 
-    let coupons=null;
-    if(offerVal==="coupon"){
-      coupons=[];
-      const k=$("#couponKind")?.value||"PERCENT";
-      if(k==="PERCENT"&&Number($("#couponPercent")?.value||0)>0)
-        coupons.push({type:"PERCENT",value:Number($("#couponPercent").value)});
-      if(k==="VALUE"&&Number($("#couponValue")?.value||0)>0)
-        coupons.push({type:"VALUE",value:Number($("#couponValue").value)});
-      if(k==="FREEBIE"&&($("#couponFreebie")?.value||"").trim())
-        coupons.push({type:"FREEBIE",value:$("#couponFreebie").value.trim()});
-    }
+/* 🔹 Posodobi zemljevid po iskanju (prikaže samo znotraj radija) */
+const _origSearch=doSearch;
+window.doSearch=async function(page=0,byGeo=false){
+  await _origSearch(page,byGeo);
 
-    const f=$("#image")?.files?.[0]||null;
-    let IMAGE_URL=null;
-    if(f){
-      try{
-        const up=new FormData(); up.append("file",f);
-        const ur=await fetch("/api/provider-upload",{method:"POST",body:up}).then(x=>x.json()).catch(()=>null);
-        if(ur && ur.ok && (ur.url||ur.imagePublicUrl)) IMAGE_URL=(ur.url||ur.imagePublicUrl);
-      }catch{}
-    }
+  const results=$("#results");
+  if(!results) return;
+  const radiusKm=Number($("#radius")?.value||30);
+  let center=null;
 
-    /* 🔹 Samodejni izračun koordinat iz naslova */
-    const fullAddress=[
-      $("#venue").value.trim(),
-      $("#city2").value.trim(),
-      $("#country").value.trim()
-    ].filter(Boolean).join(", ");
-    const coords=await geocodeAddress(fullAddress);
+  if(GEO){
+    const [gl,go]=GEO.split(',').map(Number);
+    center={lat:gl,lon:go};
+  }
 
-    /* 🔹 Sestavi payload z dodanimi koordinatami */
-    const payload={
-      organizer:$("#orgName").value.trim(),
-      organizerFullName:$("#orgFullName").value.trim(),
-      organizerEmail:$("#orgEmail").value.trim(),
-      eventName:$("#eventName").value.trim(),
-      venue:$("#venue").value.trim(),
-      city:$("#city2").value.trim(),
-      country:$("#country").value,
-      start:$("#start").value,
-      end:$("#end").value,
-      url:$("#url").value.trim()||null,
-      category:$("#category").value,
-      description:$("#desc").value.trim(),
-      offerType:offerVal,
-      featured:$("#featured").checked,
-      price:basePrice,
-      ticketPrices,
-      coupons,
-      stock:Number($("#stock")?.value||0)||null,
-      maxPerOrder:Number($("#maxPerOrder")?.value||0)||null,
-      imagePublicUrl:IMAGE_URL||null,
-      /* ⬇️ NOVO: koordinate */
-      venueLat:coords.lat,
-      venueLon:coords.lon
-    };
-
-    try{
-      $("#btnSubmitEvent").disabled=true;
-      const res=await fetch("/api/provider-submit",{
-        method:"POST",
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(payload)
-      }).then(x=>x.json());
-      if(res && res.ok){
-        msg.textContent="✅ Dogodek uspešno oddan. Koordinate dodane samodejno.";
-        msg.style.color="var(--ok)";
-        setTimeout(()=>msg.textContent="",6000);
-      }else{
-        msg.textContent=(res && res.error)?res.error:"Oddaja ni uspela.";
-        msg.style.color="var(--bad)";
-      }
-    }catch(err){
-      console.error(err);
-      msg.textContent="Napaka pri oddaji dogodka.";
-      msg.style.color="var(--bad)";
-    }finally{
-      $("#btnSubmitEvent").disabled=false;
+  const cards=[...results.querySelectorAll(".spot")];
+  const visible=[];
+  cards.forEach(c=>{
+    const lat=parseFloat(c.dataset.lat||c.dataset.venueLat||0);
+    const lon=parseFloat(c.dataset.lon||c.dataset.venueLon||0);
+    if(Number.isFinite(lat)&&Number.isFinite(lon)){
+      const id=c.id.replace(/^ev-/,"");
+      const name=c.querySelector("b")?.innerText||"Dogodek";
+      const addr=c.querySelector(".muted")?.innerText||"";
+      const venue={lat,lon,address:addr};
+      if(center){
+        const d=distKm(center,venue);
+        if(d<=radiusKm) visible.push({id,name,venue});
+      } else visible.push({id,name,venue});
     }
   });
-}
-  </script>
+
+  renderMarkers(mapSearch,visible);
+};
+
+/* 🔹 Inicializacija zemljevida */
+document.addEventListener("DOMContentLoaded",()=>{
+  if(!window.mapSearch){
+    window.mapSearch=L.map("mapSearch",{zoomSnap:0.25,zoomControl:true})
+      .setView([46.05,14.51],7);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      { attribution:"© OpenStreetMap contributors" }).addTo(mapSearch);
+  }
+});
+</script>
 </body>
             </html>

@@ -1274,42 +1274,36 @@ function detectCategory(e){
 })();
 </script>
  <script>
-/* === NearGo 2025 — stabilna integracija vseh popravkov === */
+/* === NearGo 2025 — celovita stabilna verzija === */
 
-/* 1️⃣ — Samodejni izračun koordinat ob oddaji dogodka */
+/* ✅ 1. Samodejni izračun koordinat iz naslova */
 async function fetchLatLon(address, city) {
   try {
     const q = [address, city].filter(Boolean).join(', ');
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { headers: { "Accept-Language": "sl" } });
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`);
     const data = await res.json();
-    if (data && data[0]) {
-      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-    }
-  } catch (e) {
-    console.warn("Geolokacija ni uspela:", e);
-  }
+    if (data && data[0]) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+  } catch {}
   return { lat: null, lon: null };
 }
 
-/* 2️⃣ — Kuponi: pravilna polja in preverjanje */
+/* ✅ 2. Kuponi — pravilna vidnost in preverjanje */
 document.addEventListener("DOMContentLoaded", () => {
   const kindSel = document.getElementById("couponKind");
   const lblPercent = document.getElementById("lblPercent");
   const lblValue = document.getElementById("lblValue");
   const lblFreebie = document.getElementById("lblFreebie");
 
-  function setCouponKindUI() {
-    const k = kindSel.value;
-    lblPercent.style.display = (k === "PERCENT") ? "block" : "none";
-    lblValue.style.display = (k === "VALUE") ? "block" : "none";
-    lblFreebie.style.display = (k === "FREEBIE") ? "block" : "none";
+  function toggleKind() {
+    lblPercent.style.display = (kindSel.value === "PERCENT") ? "block" : "none";
+    lblValue.style.display = (kindSel.value === "VALUE") ? "block" : "none";
+    lblFreebie.style.display = (kindSel.value === "FREEBIE") ? "block" : "none";
   }
-  kindSel?.addEventListener("change", setCouponKindUI, { passive: true });
-  setCouponKindUI();
+  kindSel?.addEventListener("change", toggleKind);
+  toggleKind();
 });
 
-/* 3️⃣ — Predogled slike */
+/* ✅ 3. Predogled slike */
 document.getElementById("image")?.addEventListener("change", e => {
   const f = e.target.files[0];
   if (!f) return;
@@ -1320,81 +1314,66 @@ document.getElementById("image")?.addEventListener("change", e => {
   document.getElementById("fileName").textContent = f.name;
 });
 
-/* 4️⃣ — Oddaja dogodka */
+/* ✅ 4. Oddaja dogodka */
 document.getElementById("btnSubmitEvent")?.addEventListener("click", async ev => {
   ev.preventDefault();
   const msg = document.getElementById("orgMsg");
+  msg.textContent = "⏳ Pošiljam...";
   msg.style.color = "var(--muted)";
-  msg.textContent = "⏳ Pošiljam podatke...";
+  const orgName = $("#orgName")?.value.trim();
+  const eventName = $("#eventName")?.value.trim();
+  const venue = $("#venue")?.value.trim();
+  const city = $("#city2")?.value.trim();
+  const start = $("#start")?.value;
+  const end = $("#end")?.value;
 
-  const org = {
-    orgName: $("#orgName")?.value.trim(),
-    fullName: $("#orgFullName")?.value.trim(),
-    email: $("#orgEmail")?.value.trim(),
-    eventName: $("#eventName")?.value.trim(),
-    venue: $("#venue")?.value.trim(),
-    city: $("#city2")?.value.trim(),
-    country: $("#country")?.value,
-    start: $("#start")?.value,
-    end: $("#end")?.value,
-    desc: $("#desc")?.value.trim(),
-    category: $("#category")?.value,
-    offerType: $("#offerType")?.value,
-    featured: $("#featured")?.checked
-  };
-
-  if (!org.orgName || !org.eventName || !org.venue || !org.city || !org.start || !org.end || !org.category) {
-    msg.style.color = "var(--bad)";
+  if (!orgName || !eventName || !venue || !city || !start) {
     msg.textContent = "❌ Izpolni vsa obvezna polja z *.";
+    msg.style.color = "var(--bad)";
     return;
   }
 
-  // Samodejni izračun lat/lon
-  const coords = await fetchLatLon(org.venue, org.city);
+  const coords = await fetchLatLon(venue, city);
+  const offerType = $("#offerType")?.value || "none";
 
   const payload = {
-    organizer: org.orgName,
-    organizerFullName: org.fullName,
-    organizerEmail: org.email,
-    eventName: org.eventName,
-    venue: org.venue,
-    city: org.city,
-    country: org.country,
-    start: org.start,
-    end: org.end,
-    description: org.desc,
-    category: org.category,
-    offerType: org.offerType,
-    featured: org.featured,
-    imagePublicUrl: null,
+    organizer: orgName,
+    eventName,
+    venue,
+    city,
+    country: $("#country")?.value,
+    start,
+    end,
+    description: $("#desc")?.value.trim(),
+    category: $("#category")?.value,
+    offerType,
+    featured: $("#featured")?.checked,
     venueLat: coords.lat,
-    venueLon: coords.lon
+    venueLon: coords.lon,
+    imagePublicUrl: null
   };
 
-  // Kupon
-  if (org.offerType === "coupon") {
-    const kind = $("#couponKind").value;
+  if (offerType === "coupon") {
+    const kind = $("#couponKind")?.value;
     if (kind === "PERCENT") payload.couponPercentOff = Number($("#couponPercent")?.value || 0);
     if (kind === "VALUE") payload.couponValueEur = Number($("#couponValue")?.value || 20);
     if (kind === "FREEBIE") payload.couponFreebieLabel = $("#couponFreebie")?.value || "";
   }
 
-  // Slika
   const f = $("#image")?.files?.[0];
   if (f) {
+    const up = new FormData();
+    up.append("file", f);
     try {
-      const up = new FormData();
-      up.append("file", f);
-      const ur = await fetch("/api/provider-upload", { method: "POST", body: up }).then(x => x.json());
-      if (ur && ur.ok && (ur.url || ur.imagePublicUrl)) payload.imagePublicUrl = ur.url || ur.imagePublicUrl;
+      const ur = await fetch("/api/provider-upload", { method: "POST", body: up }).then(r => r.json());
+      if (ur.ok) payload.imagePublicUrl = ur.url || ur.imagePublicUrl;
     } catch {
-      msg.style.color = "var(--bad)";
       msg.textContent = "❌ Napaka pri nalaganju slike.";
+      msg.style.color = "var(--bad)";
       return;
     }
   }
 
-  // Pošlji dogodek
   try {
     const res = await fetch("/api/provider-submit", {
       method: "POST",
@@ -1402,91 +1381,90 @@ document.getElementById("btnSubmitEvent")?.addEventListener("click", async ev =>
       body: JSON.stringify(payload)
     }).then(r => r.json());
 
-    if (res && res.ok) {
-      msg.style.color = "var(--ok)";
+    if (res.ok) {
       msg.textContent = "✅ Dogodek uspešno oddan. Potrditveni e-mail je poslan.";
-      setTimeout(() => { msg.textContent = ""; }, 6000);
+      msg.style.color = "var(--ok)";
+      setTimeout(() => msg.textContent = "", 6000);
     } else {
-      msg.style.color = "var(--bad)";
       msg.textContent = "❌ Oddaja ni uspela. " + (res.error || "");
+      msg.style.color = "var(--bad)";
     }
   } catch {
-    msg.style.color = "var(--bad)";
     msg.textContent = "❌ Napaka pri povezavi s strežnikom.";
+    msg.style.color = "var(--bad)";
   }
 });
 
-/* 5️⃣ — Filtriraj pretečene dogodke (v iskanju in izpostavljenih) */
-function isEventActive(e) {
+/* ✅ 5. Izpostavljeni — brez pretečenih */
+const _origLoadFeatured = window.loadFeatured;
+window.loadFeatured = async function() {
   const now = Date.now();
-  const end = e.end ? Date.parse(e.end) : (e.start ? Date.parse(e.start) + 2 * 3600 * 1000 : 0);
-  return Number.isFinite(end) && end >= now;
-}
+  let internal = [], external = [];
+  try { internal = await fetch(`/api/provider-list?featured=1&limit=200`).then(r => r.json()).then(d => d.results || []); } catch {}
+  try { external = await fetch(`/api/search?size=200&page=0`).then(r => r.json()).then(d => d.results || []); } catch {}
+  const seen = new Set();
+  const all = [...internal, ...external].filter(e => {
+    const end = e.end ? Date.parse(e.end) : (e.start ? Date.parse(e.start) + 2 * 3600 * 1000 : 0);
+    return Number.isFinite(end) && end >= now;
+  }).filter(e => {
+    const key = (e.name || "") + "|" + (e.start || "");
+    if (seen.has(key)) return false; seen.add(key); return true;
+  });
 
-/* 6️⃣ — Markerji in zemljevid (samo spodnji) */
+  const box = $("#carousel"); box.innerHTML = "";
+  if (!all.length) {
+    box.innerHTML = `<div class="card" style="color:var(--muted)">Ni izpostavljenih dogodkov.</div>`;
+    return;
+  }
+
+  all.slice(0, 20).forEach(e => {
+    const card = renderSpotCard(e);
+    card.style.flex = "0 0 85%";
+    box.appendChild(card);
+  });
+};
+
+/* ✅ 6. Markerji in filtriranje po lokaciji */
 function haversineKm(a, b) {
   const R = 6371, toRad = d => d * Math.PI / 180;
   const dLat = toRad(b.lat - a.lat), dLon = toRad(b.lon - a.lon);
   const x = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(x));
 }
-function renderMarkers(map, items, center, radius) {
-  if (!map) return;
-  map.eachLayer(l => { if (l instanceof L.Marker) map.removeLayer(l); });
-  const markers = [];
-  items.forEach(e => {
-    const lat = parseFloat(e.venue?.lat ?? e.venueLat);
-    const lon = parseFloat(e.venue?.lon ?? e.venueLon);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-    if (center && radius) {
-      const d = haversineKm(center, { lat, lon });
-      if (d > radius) return;
-    }
-    const id = e.id ? `ev-${e.id}` : `ev-${(e.name || '').replace(/\W/g, '')}`;
-    const m = L.marker([lat, lon]).addTo(map);
-    m.bindPopup(`<b>${e.name || "Dogodek"}</b><br>${e.venue?.address || ""}<br><a href="#${id}" style="color:#0077cc">Odpri kartico</a>`);
-    m.on("click", () => {
-      const card = document.getElementById(id);
-      if (card) {
-        card.scrollIntoView({ behavior: "smooth", block: "start" });
-        card.classList.add("highlight");
-        setTimeout(() => card.classList.remove("highlight"), 1500);
+
+const _origDoSearch = window.doSearch;
+window.doSearch = async function(page = 0, byGeo = false) {
+  await _origDoSearch(page, byGeo);
+  const results = document.querySelectorAll("#results .spot");
+  if (!results.length) return;
+  const rad = Number($("#radius")?.value || 30);
+  if (!window.GEO) return;
+  const [gl, go] = GEO.split(',').map(Number);
+  const center = { lat: gl, lon: go };
+
+  const filtered = [...results].filter(card => {
+    const lat = parseFloat(card.dataset.lat || 0);
+    const lon = parseFloat(card.dataset.lon || 0);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+    const d = haversineKm(center, { lat, lon });
+    return d <= rad;
+  });
+
+  if (window.mapSearch && filtered.length) {
+    mapSearch.eachLayer(l => { if (l instanceof L.Marker) mapSearch.removeLayer(l); });
+    filtered.forEach(c => {
+      const lat = parseFloat(c.dataset.lat);
+      const lon = parseFloat(c.dataset.lon);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        const title = c.querySelector("b")?.innerText || "Dogodek";
+        const id = c.id;
+        const addr = c.querySelector(".muted")?.innerText || "";
+        const m = L.marker([lat, lon]).addTo(mapSearch);
+        m.bindPopup(`<b>${title}</b><br>${addr}<br><a href="#${id}" style="color:#0077cc">Odpri kartico</a>`);
       }
     });
-    markers.push(m);
-  });
-  if (markers.length) {
-    const g = new L.featureGroup(markers);
-    map.fitBounds(g.getBounds().pad(0.25));
-  }
-}
-
-/* 7️⃣ — Izboljšano iskanje po radiju */
-const _oldDoSearch = window.doSearch;
-window.doSearch = async function(page = 0, byGeo = false) {
-  await _oldDoSearch(page, byGeo);
-  try {
-    const results = document.querySelectorAll("#results .card");
-    if (!results.length) return;
-    const rad = Number($("#radius")?.value || 30);
-    let center = null;
-    if (window.GEO) {
-      const [gl, go] = GEO.split(',').map(Number);
-      center = { lat: gl, lon: go };
-    }
-    const filtered = [...results].filter(card => {
-      const lat = parseFloat(card.dataset.lat || card.dataset.venueLat || 0);
-      const lon = parseFloat(card.dataset.lon || card.dataset.venueLon || 0);
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
-      if (!center) return true;
-      const d = haversineKm(center, { lat, lon });
-      return d <= rad;
-    });
-    if (filtered.length && window.mapSearch) renderMarkers(mapSearch, filtered.map(c => c._event || {}), center, rad);
-  } catch (e) {
-    console.warn("Filtriranje po radiju ni uspelo:", e);
   }
 };
- </script> 
+</script>
 </body>
             </html>

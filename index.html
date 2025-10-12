@@ -1274,199 +1274,148 @@ function detectCategory(e){
 })();
 </script>
  <script>
-/* === NearGo 2025 — KONČNA STABILNA VERZIJA === */
+/* === NEARGO 2025 — KONČNA PRODUKCIJSKA REŠITEV === */
 
-/* 🧭 1️⃣ Izračun koordinat iz naslova + mesta */
+/* ====== 1️⃣ UTIL ====== */
+const $ = s => document.querySelector(s);
+const qs = o => new URLSearchParams(o).toString();
+function haversineKm(a,b){const R=6371,toRad=d=>d*Math.PI/180;
+ const dLat=toRad(b.lat-a.lat),dLon=toRad(b.lon-a.lon);
+ const x=Math.sin(dLat/2)**2+Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dLon/2)**2;
+ return 2*R*Math.asin(Math.sqrt(x));}
+
+/* ====== 2️⃣ GEO KOORDINATE ====== */
 async function fetchLatLon(address, city) {
   try {
     const q = [address, city].filter(Boolean).join(', ');
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { headers: { "Accept-Language": "sl" } });
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`, 
+      { headers: { "Accept-Language": "sl" } });
     const data = await res.json();
-    if (data && data[0]) {
-      return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-    }
-  } catch (e) {
-    console.warn("Geolokacija ni uspela:", e);
-  }
+    if (data && data[0]) return { lat: +data[0].lat, lon: +data[0].lon };
+  } catch (e) { console.warn("Geokodiranje ni uspelo:", e); }
   return { lat: null, lon: null };
 }
 
-/* 🎟️ 2️⃣ Kuponi – pravilno preklapljanje polj */
-document.addEventListener("DOMContentLoaded", () => {
-  const kindSel = document.getElementById("couponKind");
-  const lblP = document.getElementById("lblPercent");
-  const lblV = document.getElementById("lblValue");
-  const lblF = document.getElementById("lblFreebie");
-  function upd() {
-    const v = kindSel.value;
-    lblP.style.display = v === "PERCENT" ? "block" : "none";
-    lblV.style.display = v === "VALUE" ? "block" : "none";
-    lblF.style.display = v === "FREEBIE" ? "block" : "none";
-  }
-  kindSel?.addEventListener("change", upd);
-  upd();
+/* ====== 3️⃣ KUPONI ====== */
+document.addEventListener("DOMContentLoaded",()=>{
+ const kindSel=$("#couponKind"),lblP=$("#lblPercent"),lblV=$("#lblValue"),lblF=$("#lblFreebie");
+ function upd(){const v=kindSel.value;
+  lblP.style.display=v==="PERCENT"?"block":"none";
+  lblV.style.display=v==="VALUE"?"block":"none";
+  lblF.style.display=v==="FREEBIE"?"block":"none";}
+ kindSel?.addEventListener("change",upd); upd();
 });
 
-/* 🖼️ 3️⃣ Predogled slike */
-document.getElementById("image")?.addEventListener("change", e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const img = document.getElementById("imgPreview");
-  img.src = URL.createObjectURL(f);
-  img.onload = () => URL.revokeObjectURL(img.src);
-  img.style.display = "block";
-  document.getElementById("fileName").textContent = f.name;
+/* ====== 4️⃣ PREDOGLED SLIKE ====== */
+$("#image")?.addEventListener("change",e=>{
+ const f=e.target.files[0]; if(!f)return;
+ const img=$("#imgPreview");
+ img.src=URL.createObjectURL(f); img.onload=()=>URL.revokeObjectURL(img.src);
+ img.style.display="block"; $("#fileName").textContent=f.name;
 });
 
-/* 📨 4️⃣ Oddaja dogodka (z validacijo + koordinatami + obvestilom) */
-document.getElementById("btnSubmitEvent")?.addEventListener("click", async ev => {
-  ev.preventDefault();
-  const msg = document.getElementById("orgMsg");
-  msg.textContent = "⏳ Pošiljam...";
-  msg.style.color = "var(--muted)";
+/* ====== 5️⃣ ODDJA DOGODKA ====== */
+$("#btnSubmitEvent")?.addEventListener("click", async e=>{
+ e.preventDefault();
+ const msg=$("#orgMsg"); msg.textContent="⏳ Pošiljam..."; msg.style.color="var(--muted)";
+ const must=["#orgName","#orgFullName","#orgEmail","#eventName","#venue","#city2","#country","#start","#end","#category","#desc"];
+ for(const s of must){const el=$(s);if(!el?.value.trim()){msg.textContent="❌ Izpolni obvezna polja z *.";msg.style.color="var(--bad)";el.focus();return;}}
+ const venue=$("#venue").value.trim(), city=$("#city2").value.trim();
+ const coords=await fetchLatLon(venue,city);
+ const payload={
+  organizer:$("#orgName").value.trim(),
+  organizerFullName:$("#orgFullName").value.trim(),
+  organizerEmail:$("#orgEmail").value.trim(),
+  eventName:$("#eventName").value.trim(),
+  venue, city, country:$("#country").value,
+  start:$("#start").value,end:$("#end").value,
+  description:$("#desc").value.trim(),
+  category:$("#category").value,
+  offerType:$("#offerType").value,
+  featured:$("#featured").checked,
+  stock:+($("#stock").value||0),
+  venueLat:coords.lat, venueLon:coords.lon,
+  imagePublicUrl:null
+ };
 
-  const must = [
-    "#orgName", "#orgFullName", "#orgEmail", "#eventName", "#venue",
-    "#city2", "#country", "#start", "#end", "#category", "#desc"
-  ];
-  for (const sel of must) {
-    const el = document.querySelector(sel);
-    if (!el?.value.trim()) {
-      msg.textContent = "❌ Izpolni vsa obvezna polja z *.";
-      msg.style.color = "var(--bad)";
-      el?.focus();
-      return;
-    }
-  }
+ // kupon – preveri samo če izbran
+ if(payload.offerType==="coupon"){
+  const kind=$("#couponKind").value;
+  if(kind==="PERCENT") payload.couponPercentOff=+($("#couponPercent").value||0);
+  if(kind==="VALUE") payload.couponValueEur=+($("#couponValue").value||0);
+  if(kind==="FREEBIE") payload.couponFreebieLabel=$("#couponFreebie").value||"";
+ }
 
-  const venue = document.getElementById("venue").value.trim();
-  const city = document.getElementById("city2").value.trim();
-  const coords = await fetchLatLon(venue, city);
+ // naloži sliko
+ const f=$("#image")?.files?.[0];
+ if(f){
+  const up=new FormData(); up.append("file",f);
+  try{const ur=await fetch("/api/provider-upload",{method:"POST",body:up}).then(x=>x.json());
+  if(ur.ok)payload.imagePublicUrl=ur.url||ur.imagePublicUrl;}catch{
+   msg.textContent="⚠️ Napaka pri nalaganju slike.";msg.style.color="var(--bad)";return;}
+ }
 
-  const payload = {
-    organizer: document.getElementById("orgName").value.trim(),
-    organizerFullName: document.getElementById("orgFullName").value.trim(),
-    organizerEmail: document.getElementById("orgEmail").value.trim(),
-    eventName: document.getElementById("eventName").value.trim(),
-    venue,
-    city,
-    country: document.getElementById("country").value,
-    start: document.getElementById("start").value,
-    end: document.getElementById("end").value,
-    description: document.getElementById("desc").value.trim(),
-    category: document.getElementById("category").value,
-    offerType: document.getElementById("offerType").value,
-    featured: document.getElementById("featured").checked,
-    venueLat: coords.lat,
-    venueLon: coords.lon,
-    imagePublicUrl: null
-  };
-
-  // Kupon (samo ena vrsta)
-  if (payload.offerType === "coupon") {
-    const kind = document.getElementById("couponKind").value;
-    if (kind === "PERCENT") payload.couponPercentOff = Number(document.getElementById("couponPercent").value || 0);
-    if (kind === "VALUE") payload.couponValueEur = Number(document.getElementById("couponValue").value || 20);
-    if (kind === "FREEBIE") payload.couponFreebieLabel = document.getElementById("couponFreebie").value || "";
-  }
-
-  // Nalaganje slike
-  const f = document.getElementById("image").files[0];
-  if (f) {
-    const up = new FormData();
-    up.append("file", f);
-    try {
-      const ur = await fetch("/api/provider-upload", { method: "POST", body: up }).then(r => r.json());
-      if (ur.ok) payload.imagePublicUrl = ur.url || ur.imagePublicUrl;
-    } catch {
-      msg.textContent = "⚠️ Napaka pri nalaganju slike.";
-      msg.style.color = "var(--bad)";
-      return;
-    }
-  }
-
-  // Pošlji dogodek
-  try {
-    const res = await fetch("/api/provider-submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(r => r.json());
-    if (res.ok) {
-      msg.textContent = "✅ Dogodek oddan. Potrditveni e-mail je poslan.";
-      msg.style.color = "var(--ok)";
-      setTimeout(() => msg.textContent = "", 6000);
-    } else {
-      msg.textContent = "❌ Napaka: " + (res.error || "Oddaja ni uspela.");
-      msg.style.color = "var(--bad)";
-    }
-  } catch (e) {
-    msg.textContent = "❌ Strežniška napaka.";
-    msg.style.color = "var(--bad)";
-  }
+ // pošlji dogodek
+ try{
+  const res=await fetch("/api/provider-submit",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(x=>x.json());
+  if(res.ok){msg.textContent="✅ Dogodek oddan. E-mail poslan.";msg.style.color="var(--ok)";
+   setTimeout(()=>msg.textContent="",6000);}
+  else{msg.textContent="❌ Napaka: "+(res.error||"Oddaja ni uspela.");msg.style.color="var(--bad)";}
+ }catch(err){msg.textContent="❌ Strežniška napaka.";msg.style.color="var(--bad)";}
 });
 
-/* 🗺️ 5️⃣ Zemljevid — prikaz markerjev + filtriranje po radiju */
-function haversineKm(a, b) {
-  const R = 6371, toRad = d => d * Math.PI / 180;
-  const dLat = toRad(b.lat - a.lat), dLon = toRad(b.lon - a.lon);
-  const x = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(x));
-}
-
-const _oldDoSearch = window.doSearch;
-window.doSearch = async function (page = 0, byGeo = false) {
-  await _oldDoSearch(page, byGeo);
-  if (!window.GEO || !window.mapSearch) return;
-  const [gl, go] = GEO.split(',').map(Number);
-  const center = { lat: gl, lon: go };
-  const rad = Number(document.getElementById("radius")?.value || 30);
-  mapSearch.eachLayer(l => { if (l instanceof L.Marker) mapSearch.removeLayer(l); });
-  const results = [...document.querySelectorAll("#results .spot")];
-  results.forEach(c => {
-    const lat = parseFloat(c.dataset.lat || c.dataset.venueLat || 0);
-    const lon = parseFloat(c.dataset.lon || c.dataset.venueLon || 0);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-    const d = haversineKm(center, { lat, lon });
-    if (d > rad) return;
-    const id = c.id;
-    const name = c.querySelector("b")?.innerText || "Dogodek";
-    const addr = c.querySelector(".muted")?.innerText || "";
-    const m = L.marker([lat, lon]).addTo(mapSearch);
-    m.bindPopup(`<b>${name}</b><br>${addr}<br><a href="#${id}" style="color:#0077cc">Odpri kartico</a>`);
-  });
+/* ====== 6️⃣ ZEMLJEVID – markerji + filtriranje po radiju ====== */
+const _oldDoSearch=window.doSearch;
+window.doSearch=async function(page=0,byGeo=false){
+ await _oldDoSearch(page,byGeo);
+ if(!window.GEO||!window.mapSearch)return;
+ const [gl,go]=GEO.split(',').map(Number),center={lat:gl,lon:go};
+ const rad=+($("#radius")?.value||30);
+ mapSearch.eachLayer(l=>{if(l instanceof L.Marker)mapSearch.removeLayer(l);});
+ const results=[...document.querySelectorAll("#results .spot")];
+ results.forEach(c=>{
+  const lat=+c.dataset.lat||+c.dataset.venueLat||0,lon=+c.dataset.lon||+c.dataset.venueLon||0;
+  if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
+  const d=haversineKm(center,{lat,lon}); if(d>rad)return;
+  const id=c.id,name=c.querySelector("b")?.innerText||"Dogodek",addr=c.querySelector(".muted")?.innerText||"";
+  const m=L.marker([lat,lon]).addTo(mapSearch);
+  m.bindPopup(`<b>${name}</b><br>${addr}<br><a href="#${id}" style="color:#0077cc">Odpri kartico</a>`);
+ });
 };
 
-/* ⭐ 6️⃣ Izpostavljeni dogodki — brez pretečenih */
-const _oldLoadFeatured = window.loadFeatured;
-window.loadFeatured = async function () {
-  const now = Date.now();
-  let internal = [], external = [];
-  try { internal = await fetch(`/api/provider-list?featured=1&limit=200`).then(r => r.json()).then(d => d.results || []); } catch {}
-  try { external = await fetch(`/api/search?size=200&page=0`).then(r => r.json()).then(d => d.results || []); } catch {}
-  const seen = new Set();
-  const all = [...internal, ...external].filter(e => {
-    const end = e.end ? Date.parse(e.end) : (e.start ? Date.parse(e.start) + 2 * 3600 * 1000 : 0);
-    return Number.isFinite(end) && end >= now;
-  }).filter(e => {
-    const key = (e.name || "") + "|" + (e.start || "");
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+/* ====== 7️⃣ IZPOSTAVLJENI DOGODKI – tekoče vrtenje + dopolni z app dogodki ====== */
+window.loadFeatured=async function(){
+ const now=Date.now();let internal=[],external=[];
+ try{internal=await fetch(`/api/provider-list?featured=1&limit=200`).then(r=>r.json()).then(d=>d.results||[]);}catch{}
+ try{external=await fetch(`/api/search?size=200&page=0`).then(r=>r.json()).then(d=>d.results||[]);}catch{}
+ const seen=new Set();
+ let items=[...internal,...external].filter(e=>{
+  const end=e.end?Date.parse(e.end):(e.start?Date.parse(e.start)+2*3600*1000:0);
+  return Number.isFinite(end)&&end>=now;})
+ .filter(e=>{const k=(e.name||"")+e.start;if(seen.has(k))return false;seen.add(k);return true;});
 
-  const box = document.getElementById("carousel");
-  box.innerHTML = "";
-  if (!all.length) {
-    box.innerHTML = `<div class="card" style="color:var(--muted)">Ni izpostavljenih dogodkov.</div>`;
-    return;
-  }
-  all.slice(0, 20).forEach(e => {
-    const card = renderSpotCard(e);
-    card.style.flex = "0 0 85%";
-    box.appendChild(card);
+ if(GEO){
+  const [gl,go]=GEO.split(',').map(Number);
+  items.sort((a,b)=>{
+   const da=a.venue?.lat&&a.venue?.lon?haversineKm({lat:gl,lon:go},a.venue):9999;
+   const db=b.venue?.lat&&b.venue?.lon?haversineKm({lat:gl,lon:go},b.venue):9999;
+   return da-db;
   });
+ }
+ if(items.length<10){
+  const need=10-items.length;
+  const extras=external.filter(x=>!items.find(y=>y.id===x.id)).slice(0,need);
+  items=items.concat(extras);
+ }
+ const box=$("#carousel"); box.innerHTML="";
+ if(!items.length){box.innerHTML=`<div class="card" style="color:var(--muted)">Ni izpostavljenih dogodkov.</div>`;return;}
+ items.slice(0,20).forEach(e=>{const card=renderSpotCard(e);card.style.flex="0 0 85%";box.appendChild(card);});
+ let pos=0,paused=false,speed=1.2;
+ function animate(){if(!paused){pos+=speed;if(pos>=box.scrollWidth)pos=0;box.scrollLeft=pos;}requestAnimationFrame(animate);}
+ animate();
+ box.addEventListener("mouseenter",()=>paused=true);
+ box.addEventListener("mouseleave",()=>paused=false);
+ box.addEventListener("click",()=>{paused=true;setTimeout(()=>paused=false,1500);});
 };
  </script>
 </body>

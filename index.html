@@ -1,1 +1,1487 @@
+<!doctype html>
+<html lang="sl" data-has-reviews="0">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NearGo – najdi dogodke in storitve blizu</title>
 
+  <!-- PWA -->
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0bbbd6">
+
+  <!-- Leaflet -->
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root{
+      --brand:#0bbbd6; --text:#0b1b2b; --muted:#5b6b7b; --card:#fff;
+      --chip:#fff; --chipborder:#cfe1ee; --shadow:0 10px 30px rgba(0,0,0,.08);
+      --radius:16px; --primary:#0bbbd6; --focus:#bfeef6; --gap:16px;
+      --ok:#11a67a; --bad:#d64c4c; --warning:#f39c12;
+    }
+    body.dark{--text:#e8f0f8; --muted:#b8c3cf; --card:#0f1f30; --chip:#102437; --chipborder:#19324a; --focus:#123956}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(900px 500px at -10% -10%, rgba(11,187,214,.25) 0%, rgba(11,187,214,0) 60%),
+        linear-gradient(180deg, #e9f7ff 0%, #ffffff 70%);
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; line-height:1.25;
+    }
+
+    /* HEADER */
+    header{position:sticky; top:0; z-index:30; backdrop-filter:blur(6px); background:color-mix(in srgb, var(--card) 88%, transparent); box-shadow:0 4px 16px rgba(0,0,0,.05);}
+    .nav{ max-width:1100px; margin:0 auto; padding:10px 14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; row-gap:6px; }
+    .brand{ display:flex; align-items:center; gap:12px; font-weight:900; font-size:22px; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+    .brand svg{width:30px; height:30px}
+    @keyframes slowPulse{0%{transform:scale(1);opacity:1}50%{transform:scale(1.07);opacity:.95}100%{transform:scale(1);opacity:1}}
+    .pulse{animation:slowPulse 2.8s ease-in-out infinite; transform-origin:center}
+    .top-right{margin-left:auto; display:flex; gap:10px; align-items:center}
+    .second-row{width:100%; display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+
+    .pill{border:1px solid var(--chipborder); background:var(--chip); border-radius:999px; height:34px; display:flex; align-items:center; padding:0 10px; font-weight:800; font-size:14px; color:inherit; text-decoration:none; position:relative}
+    .btn.link.active{ background:var(--primary); color:#fff; border-color:transparent }
+    .cta{background:var(--primary); color:#fff; border:none; padding:8px 14px; border-radius:999px; font-weight:800; box-shadow:var(--shadow); white-space:nowrap; height:34px; cursor:pointer; text-decoration:none}
+
+    /* LAYOUT */
+    main{max-width:1100px; margin:0 auto; padding:12px 14px 64px}
+    main > section{margin-top:14px}
+    .card{background:var(--card); box-shadow:var(--shadow); border-radius:var(--radius); padding:16px; border:1px solid var(--chipborder)}
+    .title{font-weight:900; margin-bottom:10px}
+    .muted{color:var(--muted)}
+
+    /* TABI (Dogodki/Storitve) */
+    .tabs{ display:flex; gap:8px; flex-wrap:wrap }
+    .tab{ border:1px solid var(--chipborder); background:var(--chip); color:inherit; border-radius:999px; padding:8px 14px; font-weight:900; cursor:pointer; }
+    .tab.active{ background:var(--primary); color:#fff; border-color:transparent }
+
+    /* Chips */
+    .chips{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px}
+    .chip{border:1px solid var(--chipborder); border-radius:999px; padding:10px 14px; background:var(--chip); color:var(--muted); font-weight:700; cursor:pointer}
+    .chip.active{ background:var(--primary); color:#fff; border-color:#fff; }
+
+    .btn{background:var(--primary); color:#fff; border:none; padding:12px 18px; border-radius:14px; font-weight:900; cursor:pointer; font-size:16px}
+    .btn.mini{padding:8px 12px; font-size:13px; border-radius:12px}
+    .btn.link{background:#fff; color:#000; border:1px solid var(--chipborder); text-decoration:none!important}
+    a.btn, .btn.link{ text-decoration:none!important }
+
+    label{display:flex; flex-direction:column; gap:6px; font-weight:800; font-size:13px}
+    input,select,textarea{ width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--chipborder); background:var(--card); color:var(--text); outline:none; min-height:40px; font-size:15px; }
+    textarea{min-height:120px}
+    input:focus,select:focus,textarea:focus{border-color:var(--brand); box-shadow:0 0 0 4px var(--focus)}
+    input::placeholder, textarea::placeholder{color:#93a3b3}
+    input[type="search"]{appearance:none;-webkit-appearance:none}
+
+    .range-line{display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px}
+    input[type=range]{accent-color:#7cdbe9; height:28px; width:100%}
+
+    .row{display:grid; grid-template-columns:1fr; gap:var(--gap)}
+    .row + .row{margin-top:var(--gap)}
+    @media(min-width:760px){ .row--3{grid-template-columns:repeat(3,1fr)} .row--2{grid-template-columns:repeat(2,1fr)} }
+    .always-two{ display:grid; grid-template-columns:repeat(2,1fr); gap:6px; }
+    .always-two input{ min-width:0; }
+
+    /* Kartice + karusel */
+    .carousel{display:flex; gap:10px; overflow:auto; scroll-snap-type:x mandatory; padding-bottom:6px; margin-top:6px}
+    .carousel .spot{ flex:0 0 85%; min-width:260px; scroll-snap-align:start; }
+    .spot{background:var(--card); border:1px solid var(--chipborder); border-radius:14px; overflow:hidden; margin-bottom:10px}
+    .spot img{width:100%; height:160px; object-fit:cover; display:block}
+    .spot .meta{padding:10px}
+    .spot .tag{display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:800; border:1px solid var(--chipborder); margin-right:6px; color:var(--muted)}
+
+    .panel{display:none} .panel.show{display:block}
+
+    .file-wrap{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+    input[type="file"]::file-selector-button{padding:.35rem .6rem; border-radius:10px; border:1px solid var(--chipborder); background:var(--chip); cursor:pointer}
+    .file-name{font-size:14px; color:var(--muted); white-space:normal; word-break:break-word; max-width:100%}
+    .euro{display:flex; align-items:center; gap:8px}
+
+    .buy{display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:nowrap }
+
+    footer{text-align:center; color:var(--muted); margin-top:18px; font-size:14px}
+    .value-chip{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid var(--chipborder); background:var(--chip); border-radius:999px; font-weight:800; font-size:12px; white-space:nowrap; }
+    #benefits b{ color:var(--primary) }
+
+    /* Jezik meni */
+    #lang{ display:none !important }
+    .pill.lang{ position:relative }
+    .lang-menu{
+      position:absolute; top:calc(100% + 6px); left:0;
+      background:var(--card); border:1px solid var(--chipborder); border-radius:12px; box-shadow:var(--shadow);
+      padding:6px; display:none; z-index:10000; max-height:60vh; overflow:auto; min-width:64px;
+    }
+    .lang-menu button{display:block; width:100%; text-align:left; border:none; background:transparent; padding:8px 8px; border-radius:10px; font-weight:800; cursor:pointer;}
+    .lang-menu button:hover{background:rgba(11,187,214,.08)}
+
+    /* Modal (Premium, Pick, Terms) */
+    .modal{position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; z-index:2000}
+    .modal .box{background:var(--card); width:min(920px,92vw); border-radius:16px; border:1px solid var(--chipborder); box-shadow:var(--shadow); overflow:hidden}
+    .modal .bar{display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border-bottom:1px solid var(--chipborder); font-weight:900}
+    .modal .content{padding:10px}
+    .modal .row2{display:flex; gap:10px; align-items:center; margin:8px 0}
+    .modal input[type="search"]{flex:1}
+
+    /* Premium badge */
+    .badge{display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; border:1px solid var(--chipborder); font-weight:800; font-size:12px; background:var(--chip); color:var(--muted)}
+
+    /* Checkbox */
+    label.inline, .inline label{ display:inline-flex; align-items:center; gap:8px; font-weight:800; font-size:13px; line-height:1; flex-direction:row; }
+    input[type="checkbox"]{
+      -webkit-appearance:none; appearance:none; width:16px; height:16px; margin:0; position:relative;
+      border:2px solid #a9c3d6; border-radius:4px; background:#fff; outline:none; display:inline-block; box-sizing:content-box; padding:0; min-height:0 !important;
+    }
+    input[type="checkbox"]::after{
+      content:""; position:absolute; left:3px; top:0px; width:7px; height:12px;
+      border-right:3px solid var(--primary); border-bottom:3px solid var(--primary);
+      transform:rotate(45deg); opacity:0; transition:opacity .12s;
+    }
+    input[type="checkbox"]:checked{ border-color:var(--primary) }
+    input[type="checkbox"]:checked::after{ opacity:1 }
+
+    .highlight{ outline:3px solid var(--focus); }
+    .skeleton{background:linear-gradient(90deg,rgba(0,0,0,.05) 25%, rgba(0,0,0,.08) 37%, rgba(0,0,0,.05) 63%); background-size:400% 100%; animation:shimmer 1.4s ease infinite;}
+    @keyframes shimmer {0%{background-position:100% 0} 100%{background-position:-100% 0}}
+
+    /* Minor tweaks */
+    .divider{border-top:1px solid var(--chipborder); margin:10px 0}
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="nav">
+      <div class="brand" aria-label="NearGo">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <defs><radialGradient id="g1" cx="50%" cy="50%"><stop offset="0%" stop-color="#0bbbd6"/><stop offset="100%" stop-color="#7de3f0"/></radialGradient></defs>
+          <circle cx="16" cy="16" r="13" class="ring" fill="none" stroke="url(#g1)" stroke-width="2"/>
+          <circle cx="16" cy="16" r="8" class="ring" fill="none" stroke="url(#g1)" stroke-width="2" opacity=".9"/>
+          <circle cx="16" cy="16" r="3.2" class="dot pulse"/>
+        </svg>
+        NearGo
+      </div>
+      <div class="top-right">
+        <a class="cta" id="btnPremium">Premium</a>
+        <a class="cta" id="btnOrganizersTop" href="#orgHub" rel="noopener">Za organizatorje</a>
+        <a class="pill" id="btnMine" href="/my.html" title="Moje vstopnice & kuponi">Moje</a>
+      </div>
+      <div class="second-row">
+        <div id="btnThemeToggle" class="pill" title="Preklopi temo"><span id="themeIcon">🌙</span></div>
+        <div class="pill lang" id="langWrap">
+          <span class="label"><span id="langLabel">SL</span><span class="chev">▼</span></span>
+          <select id="lang" aria-label="Jezik"></select>
+          <div class="lang-menu" id="langMenu"></div>
+        </div>
+        <div class="tabs" style="margin-left:auto">
+          <button class="tab active" id="tabEvents">Dogodki</button>
+          <button class="tab" id="tabServices">Storitve</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero card">
+      <h1>Najdi <span style="color:var(--brand)">dogodke in storitve blizu</span> — koncerti, wellness, šport, kulinarika &amp; več</h1>
+      <p>Izberi kraj/razdaljo in datum — rezerviraj termin, kupi vstopnico ali kupon, dodaj v koledar, povabi prijatelje.</p>
+      <div class="chips">
+        <button class="btn" id="btnStart">Začni iskati</button>
+      </div>
+    </section>
+
+    <!-- Izpostavljeno -->
+    <section class="card" id="featuredCard">
+      <div class="title">Izpostavljeno v tvoji bližini <span class="badge" id="premiumBadge" style="display:none">PREMIUM</span></div>
+      <div class="carousel" id="carousel"></div>
+    </section>
+
+    <!-- Iskanje: DOGODKI -->
+    <section class="card panel show" id="searchPanel">
+      <div class="title">Iskanje – dogodki</div>
+
+      <div class="inline" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <button class="btn link" id="btnPickOnMap">Izberi lokacijo na zemljevidu</button>
+        <button class="btn link" id="btnUseLocation"><span class="txt">Uporabi mojo trenutno lokacijo</span></button>
+      </div>
+
+      <label>Oddaljenost od trenutne lokacije
+        <div class="range-line">
+          <input id="radius" type="range" min="5" max="400" step="5" value="30">
+          <span id="radiusLbl">30 km</span>
+        </div>
+      </label>
+
+      <div class="row row--1">
+        <label>Kje <input id="city" placeholder="Mesto/kraj"></label>
+      </div>
+
+      <label id="cityRadiusWrap" style="display:none">Oddaljenost od izbranega kraja
+        <div class="range-line">
+          <input id="radiusCity" type="range" min="5" max="400" step="5" value="30">
+          <span id="radiusCityLbl">30 km</span>
+        </div>
+      </label>
+
+      <div class="inline" style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-top:6px">
+        <button class="btn mini link quickDate" data-mode="today" type="button">Danes</button>
+        <button class="btn mini link quickDate" data-mode="weekend" type="button">Ta vikend</button>
+        <button class="btn mini link quickDate" data-mode="7" type="button">7 dni</button>
+        <button class="btn mini link quickDate" data-mode="30" type="button">30 dni</button>
+      </div>
+
+      <div class="row always-two" style="margin-top:6px">
+        <label>Od <input id="dateFrom" type="date"></label>
+        <label>Do <input id="dateTo" type="date"></label>
+      </div>
+
+      <div class="row row--1" style="margin-top:6px">
+        <label>Kaj <input id="q" placeholder="npr. Metallica, street food…"></label>
+      </div>
+
+      <div class="chips" id="cats" style="margin-top:8px" role="tablist" aria-label="Kategorije">
+        <button class="chip cat active" data-cat="">Vse</button>
+        <button class="chip cat" data-cat="koncert">Koncert</button>
+        <button class="chip cat" data-cat="kultura">Kultura</button>
+        <button class="chip cat" data-cat="otroci">Otroci</button>
+        <button class="chip cat" data-cat="hrana">Hrana</button>
+        <button class="chip cat" data-cat="narava">Narava</button>
+        <button class="chip cat" data-cat="sport">Šport</button>
+        <button class="chip cat" data-cat="za-podjetja">Za podjetja</button>
+        <!-- dodatni predlogi za dogodke -->
+        <button class="chip cat" data-cat="party">Party/Nočno</button>
+        <button class="chip cat" data-cat="afterwork">After‑work</button>
+      </div>
+
+      <div style="margin-top:6px">
+        <label class="inline" style="gap:8px; align-items:center">
+          <input type="checkbox" id="freeOnly">
+          <span>Samo brezplačni</span>
+        </label>
+      </div>
+
+      <div class="inline" style="margin-top:6px">
+        <button class="btn link" id="btnClear">Počisti filtre</button>
+      </div>
+
+      <div class="inline" style="margin-top:8px">
+        <button class="btn link" id="btnToggleResultsMap">Pokaži zemljevid rezultatov</button>
+      </div>
+      <div id="mapSearchWrap" style="margin-top:8px; display:none; position:relative">
+        <div id="mapSearch" style="height:320px; border-radius:12px; border:1px solid var(--chipborder)"></div>
+      </div>
+
+      <div id="results" style="margin-top:8px"></div>
+      <div id="pagination" style="display:flex; gap:8px; margin-top:8px"></div>
+    </section>
+
+    <!-- Iskanje: STORITVE -->
+    <section class="card panel" id="srvPanel">
+      <div class="title">Iskanje – storitve</div>
+
+      <div class="inline" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <button class="btn link" id="srvPickOnMap">Izberi lokacijo na zemljevidu</button>
+        <button class="btn link" id="srvUseLocation">Uporabi mojo trenutno lokacijo</button>
+      </div>
+
+      <label>Oddaljenost
+        <div class="range-line">
+          <input id="srvRadius" type="range" min="5" max="400" step="5" value="20">
+          <span id="srvRadiusLbl">20 km</span>
+        </div>
+      </label>
+
+      <div class="row row--1">
+        <label>Kje <input id="srvCity" placeholder="Mesto/kraj"></label>
+      </div>
+
+      <div class="row row--1" style="margin-top:6px">
+        <label>Kaj <input id="srvQ" placeholder="npr. frizer, masaža, vulkanizer…"></label>
+      </div>
+
+      <div class="chips" id="srvCats" style="margin-top:8px" role="tablist" aria-label="Kategorije storitev">
+        <button class="chip srv-cat active" data-cat="">Vse</button>
+        <button class="chip srv-cat" data-cat="lepota">Lepota &amp; zdravje</button>
+        <button class="chip srv-cat" data-cat="sport-stor">Šport &amp; rekreacija</button>
+        <button class="chip srv-cat" data-cat="dom">Dom &amp; vzdrževanje</button>
+        <button class="chip srv-cat" data-cat="auto">Avto‑moto</button>
+        <button class="chip srv-cat" data-cat="izobrazevanje">Izobraževanje</button>
+        <button class="chip srv-cat" data-cat="gastro">Gastro doživetja</button>
+      </div>
+
+      <div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <label class="inline"><input type="checkbox" id="srvOnlyCoupons"> <span>Samo s kuponom</span></label>
+        <label class="inline"><input type="checkbox" id="srvOnlySlots"> <span>Samo s prostimi termini</span></label>
+      </div>
+
+      <div class="inline" style="margin-top:6px">
+        <button class="btn link" id="srvClear">Počisti filtre</button>
+      </div>
+
+      <div class="inline" style="margin-top:8px">
+        <button class="btn link" id="srvToggleResultsMap">Pokaži zemljevid rezultatov</button>
+      </div>
+      <div id="srvMapWrap" style="margin-top:8px; display:none; position:relative">
+        <div id="srvMap" style="height:320px; border-radius:12px; border:1px solid var(--chipborder)"></div>
+      </div>
+
+      <div id="srvResults" style="margin-top:8px"></div>
+      <div id="srvPagination" style="display:flex; gap:8px; margin-top:8px"></div>
+    </section>
+
+    <!-- MAP (zgorej) -->
+    <section class="card panel" id="mapPanel">
+      <div class="title" style="display:flex; align-items:center; justify-content:space-between">
+        <span>Zemljevid</span>
+        <button class="btn mini link" id="btnCloseMap">Zapri zemljevid</button>
+      </div>
+      <div id="map" style="height:360px"></div>
+      <div id="mapDetail" style="margin-top:10px"></div>
+    </section>
+
+    <!-- ORGANIZATORSKI HUB -->
+    <section class="card panel" id="orgHub" style="display:none">
+      <div class="title">Za organizatorje</div>
+      <div class="inline" style="display:flex; gap:10px; flex-wrap:wrap">
+        <button class="btn" id="hubPublish">Objavi</button>
+        <a class="btn link" id="hubScan" href="/scan.html">Skeniraj QR</a>
+        <a class="btn link" id="hubStats" href="/org-stats.html">Analitika</a>
+      </div>
+    </section>
+
+    <!-- Obrazec: DOGODEK ali STORITEV -->
+    <section class="card panel" id="orgPanel" style="display:none">
+      <div class="title">Objavi <span id="postKindLbl">dogodek</span></div>
+      <div class="chips" style="margin-top:0">
+        <button class="chip active" id="kindEvent">Dogodek</button>
+        <button class="chip" id="kindService">Storitev</button>
+      </div>
+
+      <p class="muted" style="margin-top:6px">Objava je brezplačna. Za plačljive ponudbe veljajo pogoji.</p>
+
+      <!-- Skupna osnovna polja -->
+      <div class="row row--3">
+        <input id="orgName" placeholder="Ime organizatorja *" required>
+        <input id="orgFullName" placeholder="Ime in priimek (kontaktna oseba) *" required>
+        <input id="orgEmail" type="email" placeholder="E-pošta za potrditev *" required>
+      </div>
+      <div class="row row--3">
+        <input id="eventName" placeholder="Naslov *" required>
+        <input id="venue" placeholder="Lokacija (ime prizorišča) *" required>
+        <input id="city2" placeholder="Mesto/kraj *" required>
+      </div>
+      <div class="row row--3">
+        <select id="country" required>
+          <option value="">Država (izberi) *</option>
+          <option value="SI">Slovenija (SI)</option><option value="AT">Avstrija (AT)</option>
+          <option value="HR">Hrvaška (HR)</option><option value="IT">Italija (IT)</option>
+          <option value="HU">Madžarska (HU)</option><option value="DE">Nemčija (DE)</option>
+          <option value="FR">Francija (FR)</option><option value="GB">Združeno kraljestvo (GB)</option>
+          <option value="US">ZDA (US)</option>
+        </select>
+        <label>Začetek * <input id="start" type="datetime-local" required></label>
+        <label>Končanje * <input id="end" type="datetime-local" required></label>
+      </div>
+
+      <div class="row row--2">
+        <input id="url" placeholder="Povezava za več info / nakup (če obstaja)">
+        <select id="category" required>
+          <option value="">Kategorija (izberi) *</option>
+          <!-- Dogodki -->
+          <optgroup label="Dogodki">
+            <option value="koncert">Koncert</option><option value="kultura">Kultura</option>
+            <option value="otroci">Otroci</option><option value="hrana">Hrana</option>
+            <option value="narava">Narava</option><option value="sport">Šport</option>
+            <option value="party">Party/Nočno</option><option value="afterwork">After‑work</option>
+            <option value="za-podjetja">Za podjetja</option>
+          </optgroup>
+          <!-- Storitve -->
+          <optgroup label="Storitve">
+            <option value="lepota">Lepota & zdravje</option>
+            <option value="sport-stor">Šport & rekreacija</option>
+            <option value="dom">Dom & vzdrževanje</option>
+            <option value="auto">Avto‑moto</option>
+            <option value="izobrazevanje">Izobraževanje</option>
+            <option value="gastro">Gastro doživetja</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- TIP PONUDBE -->
+      <div class="row row--2">
+        <label>Tip ponudbe
+          <select id="offerType">
+            <option value="none" selected>Brez plačila</option>
+            <option value="ticket">Vstopnice – prodaja prek NearGo</option>
+            <option value="coupon">Kupon – unovčljiv prek NearGo</option>
+            <option value="reservation">Rezervacija termina</option>
+            <option value="price-list">Plačljivo po ceniku (zunanji cenik)</option>
+          </select>
+        </label>
+        <div class="euro" id="priceWrap">
+          <input id="price" type="number" min="0" step="0.01" placeholder="Cena (ena cena)">
+          <span>€</span>
+        </div>
+      </div>
+
+      <!-- VSTOPNICE: več stopenj -->
+      <div class="row" id="ticketPricesBlock" style="display:none">
+        <div class="title" style="margin:0">Cenik vstopnic</div>
+        <div id="ticketStepList" class="row" style="margin-top:6px"></div>
+        <button class="btn mini link" id="btnAddTicketPrice" type="button" style="margin-top:6px">+ Dodaj ceno</button>
+      </div>
+
+      <!-- KUPON (primarni) -->
+      <div class="row" id="couponCfg" style="display:none">
+        <div class="row row--2" style="margin-top:-8px">
+          <label>Tip kupona
+            <select id="couponKind">
+              <option value="PERCENT" selected>% popusta</option>
+              <option value="VALUE">Vrednost v €</option>
+              <option value="FREEBIE">Konkretno (npr. 2 za 1 / gratis)</option>
+            </select>
+          </label>
+          <div></div>
+        </div>
+        <div class="row row--3">
+          <label id="lblPercent">% popusta
+            <input id="couponPercent" type="number" min="1" max="100" step="1" placeholder="npr. 20">
+          </label>
+          <label id="lblValue" style="display:none">Vrednost (€)
+            <input id="couponValue" type="number" min="0.1" step="0.01" placeholder="npr. 5.00">
+          </label>
+          <label id="lblFreebie" style="display:none">Konkretno (opis)
+            <input id="couponFreebie" placeholder="npr. 2 za 1, gratis kosilo …">
+          </label>
+        </div>
+      </div>
+
+      <!-- VEČ KUPONOV -->
+      <div class="row" id="couponMulti" style="display:none">
+        <div class="title" style="margin:0">Več kuponov</div>
+        <div id="couponList" class="row" style="margin-top:6px"></div>
+        <button class="btn mini link" id="btnAddCoupon" type="button">+ Dodaj kupon</button>
+      </div>
+
+      <!-- TERMINI (samo za storitve ali rezervacijske dogodke) -->
+      <div class="row" id="slotsBlock" style="display:none">
+        <div class="title" style="margin:0">Razpoložljivi termini</div>
+        <div id="slotList" class="row" style="margin-top:6px"></div>
+        <button class="btn mini link" id="btnAddSlot" type="button">+ Dodaj termin</button>
+        <div class="muted" style="font-size:12px">Za ponavljajoče termine dodaj več vnosov. Ob rezervaciji se kvota zniža.</div>
+      </div>
+
+      <div class="row row--2">
+        <input id="stock" type="number" min="0" step="1" placeholder="Zaloga (št. kosov)">
+        <input id="maxPerOrder" type="number" min="1" step="1" placeholder="Max na naročilo">
+      </div>
+
+      <div class="row">
+        <div class="file-wrap">
+          <input id="image" type="file" accept="image/*">
+          <span id="fileName" class="file-name">Fotografija ni izbrana</span>
+          <img id="imgPreview" alt="" style="display:none;width:56px;height:56px;border-radius:8px;border:1px solid var(--chipborder);object-fit:cover">
+        </div>
+      </div>
+
+      <div class="inline" style="margin-top:6px">
+        <label class="inline" style="gap:8px; align-items:center">
+          <input type="checkbox" id="featured">
+          <span>Izpostavi (7 dni) – <b>brezplačno</b></span>
+        </label>
+      </div>
+
+      <div class="row" style="margin-top:8px">
+        <textarea id="desc" placeholder="Opis * (maks. 800 znakov)" maxlength="800" required></textarea>
+        <div class="muted" id="descCount" style="font-size:12px; text-align:right">0 / 800</div>
+      </div>
+
+      <!-- Cenik link (po ceniku) -->
+      <div class="row row--2" id="priceListBlock" style="display:none">
+        <input id="priceListUrl" placeholder="Povezava na cenik (URL)">
+        <input id="priceRange" placeholder="Cenovni razpon (npr. 30–50 €)">
+      </div>
+
+      <div class="inline" style="margin-top:6px">
+        <label class="inline" style="gap:8px; align-items:center">
+          <input type="checkbox" id="agreeFees">
+          <span>Strinjam se s <a href="#provider-terms" id="showProviderTerms">Pogoji za plačljive ponudbe</a>.</span>
+        </label>
+      </div>
+
+      <div style="margin-top:10px">
+        <button class="btn" id="btnSubmitEvent">Objavi</button>
+        <span id="orgMsg" class="muted" style="margin-left:10px"></span>
+      </div>
+    </section>
+
+    <!-- Zakaj NearGo -->
+    <section class="card" id="benefits">
+      <div class="title">Zakaj NearGo?</div>
+      <ul style="margin:8px 0 0 18px; color:var(--muted); line-height:1.6">
+        <li><b>Vse na enem mestu</b> – dogodki, storitve, kuponi in rezervacije.</li>
+        <li><b>Premium</b> – zgodnja obvestila, ekskluzivni kuponi, točke za ocene.</li>
+        <li><b>Hiter pregled po bližini</b> – filtri + zemljevid, izberite radij.</li>
+        <li><b>Koledar terminov</b> – preprosta rezervacija in QR potrjevanje.</li>
+        <li><b>Dodaj v koledar</b> z enim klikom in <b>povabi prijatelje</b>.</li>
+      </ul>
+    </section>
+
+    <!-- Pogoji -->
+    <section class="card panel" id="providerTermsPanel" style="display:none">
+      <div class="title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Pogoji za plačljive ponudbe</span>
+        <button class="btn mini link" id="closeProviderTerms">Zapri</button>
+      </div>
+      <div class="muted" style="font-size:14px; line-height:1.55">
+        <p><b>1.</b> Organizator jamči za točnost cen, razpoložljivost in zakonitost; NearGo je posrednik za izdajo vstopnic/kuponov in upravljanje rezervacij.</p>
+        <p><b>2.</b> Plačila se obdelajo prek pogodbenega procesorja; račun in QR-koda sta poslana na e-pošto kupca.</p>
+        <p><b>3.</b> Vračila, spremembe in odpovedi ureja organizator po zakonodaji; stroški procesiranja se ne vračajo, razen če zakon določa drugače.</p>
+        <p><b>4.</b> Kupon lahko stane 2 € (izdaja) ali je vključen v Premium; njegova vrednost se unovči pri organizatorju in ni zamenljiva za denar.</p>
+        <p><b>5.</b> NearGo si pridržuje pravico do začasne skritosti ali odstranitve ob sumu zlorabe.</p>
+        <p><b>6.</b> Kontakt: <a href="mailto:info@getneargo.com">info@getneargo.com</a>.</p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="legal">
+      © NearGo • <a href="/terms.html#terms">Pogoji uporabe</a> • <a href="/terms.html#privacy">Zasebnost</a> •
+      <a href="mailto:info@getneargo.com">info@getneargo.com</a>
+      <div id="legalModal" class="card panel" style="display:none; margin-top:12px"></div>
+    </footer>
+  </main>
+
+  <!-- Map picker modal -->
+  <div class="modal" id="pickModal" role="dialog" aria-modal="true" aria-label="Izberi lokacijo">
+    <div class="box">
+      <div class="bar">
+        <span>Izberi lokacijo za iskanje</span>
+        <button class="btn mini link" id="pickClose">Zapri</button>
+      </div>
+      <div class="content">
+        <div class="row2">
+          <input id="pickSearch" type="search" placeholder="npr. Celje, Ljubljana, Vienna …">
+          <button class="btn mini link" id="pickUseGPS">📍 Moja lokacija</button>
+        </div>
+        <div id="pickMap" style="height:360px; border:1px solid var(--chipborder); border-radius:12px"></div>
+        <div class="row2">
+          <button class="btn mini link" id="pickMinus">−</button>
+          <div class="muted" id="pickRadiusLbl" style="flex:1;text-align:center">Polmer: — km</div>
+          <button class="btn mini link" id="pickPlus">+</button>
+          <button class="btn" id="pickApply">Uporabi</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Premium modal -->
+  <div class="modal" id="premiumModal" role="dialog" aria-modal="true" aria-label="Premium">
+    <div class="box">
+      <div class="bar">
+        <span>NearGo Premium</span>
+        <button class="btn mini link" id="premiumClose">Zapri</button>
+      </div>
+      <div class="content">
+        <div class="row row--2">
+          <div class="card">
+            <div class="title" style="margin:0 0 6px 0">Zakaj Premium?</div>
+            <ul class="muted" style="margin:0 0 6px 18px; line-height:1.6">
+              <li>Prednostna obvestila o novih dogodkih in storitvah.</li>
+              <li>Ekskluzivni kuponi (nekateri brezplačni, samo za člane).</li>
+              <li>AI predlogi po tvojem okusu in lokaciji.</li>
+              <li>Točke za ocene in udeležbe.</li>
+            </ul>
+            <div class="divider"></div>
+            <div><b>Cena:</b> <span id="premiumPriceLbl">4,99 € / mesec</span></div>
+          </div>
+          <div class="card">
+            <div class="title" style="margin:0 0 6px 0">Aktiviraj</div>
+            <p id="premiumState" class="muted" style="margin-top:0">Preverjanje stanja…</p>
+            <button class="btn" id="btnGoPremium">Skleni Premium</button>
+            <button class="btn link" id="btnCancelPremium" style="margin-top:6px; display:none">Upravljaj/prekliči</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+  "use strict";
+  /* ========= UTIL ========= */
+  const $=s=>document.querySelector(s);
+  const $$=s=>document.querySelectorAll(s);
+  const el=(t,c)=>{const x=document.createElement(t); if(c) x.className=c; return x;};
+  const qs=o=>new URLSearchParams(o).toString();
+  const euro=v=>Number.isFinite(+v)?new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR'}).format(+v):'';
+  const debounce=(fn,ms=350)=>{let t; return(...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);} };
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const CFRAG=()=>document.createDocumentFragment();
+  const PREMIUM_PRICE_EUR=4.99;
+
+  /* Abortable fetch */
+  const fetcher=(()=>{
+    const map=new Map();
+    return async (key, url, opts={})=>{
+      if(map.has(key)){ try{ map.get(key).abort(); }catch{} }
+      const ac=new AbortController(); map.set(key, ac);
+      const r=await fetch(url,{...opts, signal: ac.signal});
+      map.delete(key);
+      return r;
+    };
+  })();
+
+  /* LRU cache za rezultate */
+  const LRU=(max=10)=>{
+    const m=new Map();
+    return {
+      get(k){ if(!m.has(k)) return null; const v=m.get(k); m.delete(k); m.set(k,v); return v; },
+      set(k,v){ if(m.has(k)) m.delete(k); m.set(k,v); if(m.size>max){ const f=m.keys().next().value; m.delete(f); } }
+    };
+  };
+  const cacheEvents=LRU(12), cacheServices=LRU(12);
+
+  /* Date helpers */
+  function parseDateAny(v){
+    if(!v) return NaN; if(v instanceof Date) return +v;
+    const t=Date.parse(v); if(!Number.isNaN(t)) return t;
+    const s=String(v).trim();
+    const m=s.match(/^(\d{1,2})[.\-/ ](\d{1,2})[.\-/ ](\d{2,4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if(m){ let [,d,mo,y,h='00',mi='00',se='00']=m; if(y.length===2)y='20'+y; return +new Date(+y,+mo-1,+d,+h,+mi,+se); }
+    return NaN;
+  }
+  function formatDateRange(start,end){
+    if(!start) return ""; const s=new Date(start); if(Number.isNaN(+s)) return "";
+    const D=new Intl.DateTimeFormat("sl-SI",{day:"2-digit",month:"2-digit",year:"numeric"});
+    const T=new Intl.DateTimeFormat("sl-SI",{hour:"2-digit",minute:"2-digit"});
+    if(end){ const e=new Date(end); if(!Number.isNaN(+e)) return (s.toDateString()==e.toDateString())?`${D.format(s)} ${T.format(s)}–${T.format(e)}`:`${D.format(s)} ${T.format(s)} — ${D.format(e)} ${T.format(e)}`; }
+    return `${D.format(s)} ${T.format(s)}`;
+  }
+
+  /* GEO */
+  let GEO=null;
+  function setGeo(lat,lon){ GEO=`${(+lat).toFixed(5)},${(+lon).toFixed(5)}`; }
+
+  /* Toast */
+  (function(){
+    const t=el('div'); t.style.cssText="position:fixed;bottom:12px;left:12px;right:12px;z-index:3000;display:none;padding:12px;border-radius:12px;border:1px solid var(--chipborder);background:var(--card);box-shadow:var(--shadow)";
+    t.id="toast"; document.body.appendChild(t);
+    window._toast=(msg,ok=true)=>{ t.textContent=msg; t.style.display='block'; t.style.borderColor=ok?'#cfeee2':'#f2c2c2'; t.style.background=ok?'#f6fffb':'#fff6f6'; setTimeout(()=>t.style.display='none',4000); };
+  })();
+
+  /* Theme */
+  (function(){
+    const btn=$("#btnThemeToggle"), icon=btn?.querySelector('#themeIcon');
+    function apply(mode){ document.body.classList.toggle('dark', mode==='dark'); try{localStorage.setItem('theme',mode);}catch{}; if(icon) icon.textContent=mode==='dark'?'☀️':'🌙'; }
+    apply(localStorage.getItem('theme')||'light');
+    btn?.addEventListener('click',()=>apply(document.body.classList.contains('dark')?'light':'dark'),{passive:true});
+  })();
+
+  /* i18n – 18 jezikov (resursi v /assets/i18n/{lang}.json; fallback na sl) */
+  (function(){
+    const wrap=$("#langWrap"), menu=$("#langMenu"), hidden=$("#lang"), label=$("#langLabel");
+    const SUP=[["sl","SL"],["en","EN"],["de","DE"],["hr","HR"],["it","IT"],["hu","HU"],["fr","FR"],["es","ES"],["pt","PT"],["nl","NL"],["pl","PL"],["cs","CS"],["sk","SK"],["ro","RO"],["bg","BG"],["sr","SR"],["bs","BS"],["uk","UK"]];
+    if(menu && !menu.children.length) menu.innerHTML=SUP.map(([v,t])=>`<button type="button" data-val="${v}">${t}</button>`).join("");
+    if(hidden && !hidden.children.length) hidden.innerHTML=SUP.map(([v,t],i)=>`<option value="${v}" ${i===0?'selected':''}>${t}</option>`).join("");
+    const pref=(localStorage.getItem('lang') || (navigator.language||"sl")).slice(0,2).toLowerCase();
+    const init=(SUP.find(([v])=>v===pref)||SUP[0])[0];
+    try{ hidden.value=init; label.textContent=init.toUpperCase(); }catch{}
+    let open=false; const setOpen=s=>{ open=(s!==undefined)?s:!open; if(menu) menu.style.display=open?"block":"none"; };
+    wrap?.addEventListener("click",e=>{ if(!e.target.closest(".lang-menu")){ e.stopPropagation(); setOpen(); } }, {passive:true});
+    document.addEventListener("click",e=>{ if(!wrap?.contains(e.target)) setOpen(false); }, {passive:true});
+    async function loadDict(lang){
+      try{
+        const r=await fetch(`/assets/i18n/${lang}.json`,{headers:{"Accept":"application/json"}});
+        if(r.ok){ const dict=await r.json(); window.__i18n=dict; document.documentElement.lang=lang; localStorage.setItem('lang',lang); }
+      }catch{}
+    }
+    loadDict(init);
+    menu?.addEventListener("click",e=>{
+      const b=e.target.closest("button[data-val]"); if(!b) return;
+      hidden.value=b.dataset.val; label.textContent=b.textContent; loadDict(b.dataset.val); setOpen(false);
+    });
+  })();
+
+  /* Premium modal */
+  (function(){
+    const modal=$("#premiumModal");
+    $("#btnPremium")?.addEventListener("click",()=>{ modal.style.display='flex'; updatePremiumState(); },{passive:true});
+    $("#premiumClose")?.addEventListener("click",()=>{ modal.style.display='none'; },{passive:true});
+    $("#btnGoPremium")?.addEventListener("click", async ()=>{
+      try{
+        const payload={ type:"premium", mode:"subscription", plan:"premium-monthly", amount:PREMIUM_PRICE_EUR, currency:"eur",
+          successUrl:`${location.origin}/#success`, cancelUrl:`${location.origin}/#cancel` };
+        const r=await fetch("/api/checkout",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(x=>x.json());
+        if(r && r.ok && r.url) location.href=r.url; else _toast("Nakupa ni bilo mogoče odpreti.", false);
+      }catch{ _toast("Napaka pri nakupu Premium.", false); }
+    },{passive:false});
+    $("#btnCancelPremium")?.addEventListener("click",()=>{ location.href="/my.html#premium"; },{passive:true});
+  })();
+
+  /* User state */
+  const state={ premium:false, user:null };
+  async function fetchMe(){
+    try{
+      const me=await fetch("/api/my").then(r=>r.json()).catch(()=>null);
+      if(me && me.ok){ state.user=me.user||null; state.premium=!!me.premium; }
+    }catch{}
+  }
+  async function updatePremiumState(){
+    const p=$("#premiumState"), btn=$("#btnGoPremium"), mbtn=$("#btnCancelPremium"), badge=$("#premiumBadge");
+    await fetchMe();
+    if(state.premium){ p.textContent="Premium je aktiven."; btn.style.display="none"; mbtn.style.display="inline-block"; badge.style.display="inline-flex"; }
+    else { p.textContent="Premium še ni aktiven."; btn.style.display="inline-block"; mbtn.style.display="none"; badge.style.display="none"; }
+  }
+
+  /* Tabs (Dogodki / Storitve) */
+  (function(){
+    const evTab=$("#tabEvents"), svTab=$("#tabServices");
+    const evPan=$("#searchPanel"), svPan=$("#srvPanel");
+    const show=(which)=>{
+      if(which==='events'){ evTab.classList.add('active'); svTab.classList.remove('active'); evPan.classList.add('show'); evPan.style.display='block'; svPan.classList.remove('show'); svPan.style.display='none'; }
+      else { svTab.classList.add('active'); evTab.classList.remove('active'); svPan.classList.add('show'); svPan.style.display='block'; evPan.classList.remove('show'); evPan.style.display='none'; }
+      const h=(document.querySelector('header')?.getBoundingClientRect().height)||64;
+      const el=(which==='events'?evPan:svPan); const y=el.getBoundingClientRect().top + window.pageYOffset - (h+10);
+      window.scrollTo({top:y, behavior:"smooth"});
+    };
+    evTab?.addEventListener('click',()=>show('events'),{passive:true});
+    svTab?.addEventListener('click',()=>show('services'),{passive:true});
+  })();
+
+  /* DOM Loaded */
+  document.addEventListener('DOMContentLoaded', ()=>{
+    navigator.geolocation.getCurrentPosition(
+      p=>{ setGeo(p.coords.latitude,p.coords.longitude); loadFeatured(); refreshTopMap(); loadAllForTopMap(); updatePremiumState(); },
+      ()=>{ loadFeatured(); refreshTopMap(); loadAllForTopMap(); updatePremiumState(); },
+      { enableHighAccuracy:true, timeout:8000, maximumAge:0 }
+    );
+  });
+
+  /* ======== RENDERING ======== */
+  const isExternalAPI=e=>((e?.url||"").toLowerCase().includes("ticketmaster")||(e?.url||"").toLowerCase().includes("eventbrite"));
+  const hashId = e => e.id ? `ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}`
+    : `ev-${(e.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')}-${(e.start||'').replace(/[^0-9]/g,'')}`.slice(0,64);
+
+  function renderBuyRow(e, img){
+    if(isExternalAPI(e)){ return e.url ? `<div class="buy"><button class="btn mini" onclick="window.open('${e.url}','_blank','noopener')">Kupi vstopnico</button></div>` : ``; }
+    const isCoupon=e.offerType==="coupon";
+    const isTicket=e.offerType==="ticket";
+    const isReserv=e.offerType==="reservation";
+    const hasTiers=Array.isArray(e.ticketPrices)&&e.ticketPrices.length>0;
+
+    if (isCoupon){
+      const label = (()=>{ const p=e.couponPercentOff; if(typeof p==="number"&&p>0) return `-${p}%`; const v=e.couponValueEur; if(typeof v==="number"&&v>0) return euro(v); return (e.couponFreebieLabel||"Kupon").toString(); })();
+      return `<div class="buy">
+        <span class="value-chip">${label}</span>
+        <button class="btn mini" data-act="buy" data-kind="coupon"
+          data-name="${encodeURIComponent(e.name||'Dogodek')}"
+          data-benefit="${encodeURIComponent(label)}"
+          data-price="0" data-price-eur="0"
+          data-img="${img}" data-eid="${e.id||''}">
+          Prevzemi kupon
+        </button>
+      </div>`;
+    }
+    if (isTicket && hasTiers){
+      return e.ticketPrices.map(t=>{
+        const label=(t.label||'Vstopnica').toString().slice(0,40);
+        const price=Number(t.price||0);
+        return `<div class="buy">
+          <span class="value-chip">${euro(price)}</span>
+          <button class="btn mini" data-act="buy" data-kind="ticket"
+            data-name="${encodeURIComponent(`${e.name||'Dogodek'} – ${label}`)}"
+            data-price="${price}" data-price-eur="${price}"
+            data-img="${img}" data-eid="${e.id||''}">
+            Kupi vstopnico – ${label}
+          </button>
+        </div>`;
+      }).join("");
+    }
+    if (isTicket && Number(e.price)>0){
+      const p=Number(e.price||0);
+      return `<div class="buy"><span class="value-chip">${euro(p)}</span>
+        <button class="btn mini" data-act="buy" data-kind="ticket"
+          data-name="${encodeURIComponent(e.name||'Dogodek')}"
+          data-price="${p}" data-price-eur="${p}"
+          data-img="${img}" data-eid="${e.id||''}">
+          Kupi vstopnico
+        </button></div>`;
+    }
+    if (isReserv){
+      const next=Array.isArray(e.slots)? e.slots.find(s=>Date.parse(s.start)>Date.now() && (s.capacity||1)>(s.taken||0)) : null;
+      const btn = next ? `<button class="btn mini" data-act="reserve" data-eid="${e.id||''}" data-name="${encodeURIComponent(e.name||'Storitev')}">Rezerviraj</button>` : `<span class="muted" style="font-size:13px"><b>Ni prostih terminov</b></span>`;
+      return `<div class="buy">${btn}</div>`;
+    }
+    if(e.offerType==="none"){
+      return `<div class="muted" style="font-size:13px"><b>Brez vstopnine</b></div>`;
+    }
+    if(e.offerType==="price-list"){
+      const r=[e.priceRange?`<span class="value-chip">${e.priceRange}</span>`:'', e.priceListUrl?`<a class="btn mini link" href="${e.priceListUrl}" target="_blank" rel="noopener">Cenik</a>`:''].filter(Boolean).join(' ');
+      return `<div class="buy">${r||'<span class="muted" style="font-size:13px">Po ceniku</span>'}</div>`;
+    }
+    return "";
+  }
+
+  function renderSpotCard(e){
+    const img=(e.images&&e.images[0])||"https://picsum.photos/600/400";
+    const addr=(e.venue?.address||"");
+    const gmHref=(e.venue?.lat && e.venue?.lon)?`https://www.google.com/maps?q=${e.venue.lat},${e.venue.lon}`:(addr?`https://www.google.com/maps?q=${encodeURIComponent(addr)}`:"");
+    const id=hashId(e);
+    const isSvc=e.kind==="service";
+
+    const card=el("div","spot"); card.id=id;
+    card.innerHTML = `
+      <img src="${img}" alt="" loading="lazy">
+      <div class="meta">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <b>${e.name||"Ponudba"}</b>
+          ${ isSvc? `<span class="tag">Storitev</span>` : ``}
+          ${ e.featured? `<span class="tag">Izpostavljeno</span>` : ``}
+        </div>
+        <div style="color:var(--muted);font-size:13px">
+          ${ gmHref ? `<a href="${gmHref}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">📍 ${addr||'Google Maps'}</a>` : addr }
+        </div>
+        <div style="color:var(--muted);font-size:13px">${formatDateRange(e.start, e.end)}</div>
+        <div class="actions" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+          ${ e.url && !isExternalAPI(e) ? `<a class="btn mini link" href="${e.url}" target="_blank" rel="noopener">Povezava</a>` : ``}
+          <button class="btn mini link" data-act="share" data-title="${encodeURIComponent(e.name||'Ponudba')}" data-url="${encodeURIComponent(e.url||location.href)}">Povabi še nekoga</button>
+          <button class="btn mini link" data-act="ics" data-title="${encodeURIComponent(e.name||'Ponudba')}" data-start="${e.start||""}" data-end="${e.end||""}" data-loc="${encodeURIComponent(addr)}">Dodaj v koledar</button>
+        </div>
+        ${ renderBuyRow(e, img) }
+        ${ e.description?`<div class="more-text" style="display:block; margin-top:6px; color:var(--muted)">${e.description}</div>`:''}
+      </div>`;
+    return card;
+  }
+
+  /* Map helpers */
+  function clearMarkers(arr){ try{arr.forEach(m=>m.remove());}catch{} }
+  function setMarkersOn(map, items){
+    const ms=[];
+    items.forEach(e=>{
+      const lat=e.venue?.lat, lon=e.venue?.lon;
+      if(Number.isFinite(+lat) && Number.isFinite(+lon)){
+        const m=L.marker([+lat,+lon]).addTo(map);
+        const id=hashId(e);
+        m.bindPopup(`<a href="#${id}"><b>${(e.name||"Ponudba")}</b></a>`);
+        m.on('click',()=>{
+          const el=document.getElementById(id);
+          if(el){ el.scrollIntoView({behavior:"smooth",block:"start"}); el.classList.add("highlight"); setTimeout(()=>el.classList.remove("highlight"),1500); }
+          else if(e.url){ window.open(e.url,'_blank','noopener'); }
+        });
+        ms.push(m);
+      }
+    });
+    return ms;
+  }
+
+  /* ======== FEATURED ======== */
+  let autoScrollTimer=null, featuredPaused=false;
+  function startAutoScroll(){
+    const box=$("#carousel"); if(!box) return; clearInterval(autoScrollTimer);
+    autoScrollTimer=setInterval(()=>{ if(featuredPaused) return; const nearEnd=box.scrollLeft >= (box.scrollWidth - box.clientWidth - 4); if(nearEnd){ box.scrollTo({left:0,behavior:"smooth"}); return; } box.scrollBy({left: box.clientWidth*0.95, behavior:"smooth"}); }, 3500);
+  }
+  $("#carousel")?.addEventListener("click",()=>{ featuredPaused=true; setTimeout(()=>featuredPaused=false,1500); },{passive:true});
+
+  async function loadFeatured(){
+    const now=Date.now(); let internal=[], external=[];
+    try{ internal=await fetch(`/api/provider-list?${qs({featured:1, limit:200})}`).then(r=>r.json()).then(d=>d?.results||[]).catch(()=>[]);}catch{}
+    try{ external=await fetch(`/api/search?${qs({size:200,page:0})}`).then(r=>r.json()).then(d=>d?.results||[]).catch(()=>[]);}catch{}
+    const seen=new Set();
+    let items=[...internal,...external].filter(e=>{ const k=((e.name||"").toLowerCase()+"|"+(e.start||"")+"|"+(e.venue?.address||"")); if(seen.has(k)) return false; seen.add(k); return true; })
+      .filter(e=>{ const t=Date.parse(e.end||e.start||""); return Number.isFinite(t)?t>=now:true; });
+
+    // prefer near GEO & provider items
+    if(GEO){
+      const [gl,go]=GEO.split(',').map(Number);
+      const intSet = new Set((internal||[]).map(e=>hashId(e)));
+      const hav=(aLat,aLon,bLat,bLon)=>{const R=6371,toRad=d=>d*Math.PI/180;const dLat=toRad(bLat-aLat),dLon=toRad(bLon-aLon);const x=Math.sin(dLat/2)**2+Math.cos(toRad(aLat))*Math.cos(toRad(bLat))*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(x));};
+      items = items.map(e=>{
+        const lat=+e?.venue?.lat, lon=+e?.venue?.lon;
+        const dist = (Number.isFinite(lat)&&Number.isFinite(lon)) ? hav(gl,go,lat,lon) : 1e9;
+        return {e, prio: intSet.has(hashId(e))?0:1, dist};
+      }).sort((a,b)=> a.prio-b.prio || a.dist-b.dist).map(x=>x.e);
+    }
+
+    const box=$("#carousel"); box.innerHTML='';
+    if(!items.length){ box.innerHTML=`<div class="card" style="color:var(--muted)">Trenutno ni izpostavljenih ponudb.</div>`; return; }
+    items.slice(0,20).forEach(e=>{ const card=renderSpotCard(e); card.style.flex="0 0 85%"; box.appendChild(card); });
+    startAutoScroll();
+  }
+
+  /* ======== DOGODKI – ISKANJE ======== */
+  let mapSearch=null, markersSearch=[];
+  let currentPage=0, quickMode="";
+
+  const CITY_ALIASES={ "dunaj":"wien","vienna":"wien","wien":"wien","trst":"trieste","trieste":"trieste","benetke":"venice","venezia":"venice","venice":"venice","rim":"roma","rome":"roma","roma":"roma","praga":"praha","prague":"praha","praha":"praha","munchen":"münchen","muenchen":"münchen","munich":"münchen","münchen":"münchen" };
+
+  function updRange(input,label){ if(input&&label) label.textContent=`${input.value} km`; }
+  ["radius","radiusCity","srvRadius"].forEach(id=>{
+    const n=$("#"+id), l=$("#"+id+"Lbl"); if(n){ ["input","change","pointerup","touchend"].forEach(ev=>n.addEventListener(ev,()=>updRange(n,l),{passive:true})); updRange(n,l); }
+  });
+
+  const liveSearch=debounce(()=>doSearch(0,false),350);
+  $("#q")?.addEventListener("input", liveSearch);
+  $("#city")?.addEventListener("input", ()=>{ $("#cityRadiusWrap").style.display = $("#city").value.trim()? 'block':'none'; liveSearch(); });
+  $("#btnUseLocation")?.addEventListener("click",()=>navigator.geolocation.getCurrentPosition(
+    p=>{ setGeo(p.coords.latitude,p.coords.longitude); doSearch(0,true); },
+    ()=>_toast?.("Lokacije ni bilo mogoče pridobiti.",false)
+  ));
+  $("#btnPickOnMap")?.addEventListener("click", ()=> openPick());
+  $("#freeOnly")?.addEventListener("change",()=>doSearch(0,false));
+
+  document.querySelectorAll(".quickDate").forEach(b=> b.addEventListener("click",()=>{ 
+    quickMode=b.dataset.mode||""; 
+    document.querySelectorAll(".quickDate").forEach(x=>x.classList.toggle("active", x===b));
+    doSearch(0,false); 
+  }));
+  document.querySelectorAll(".cat").forEach(btn=>{
+    btn.addEventListener("click",()=>{ document.querySelectorAll(".cat").forEach(b=>b.classList.remove("active")); btn.classList.add("active"); doSearch(0,false); });
+  });
+  $("#btnClear")?.addEventListener("click", ()=>{
+    const reset=30;
+    $("#q").value=""; $("#city").value=""; $("#radius").value=reset; $("#radiusLbl").textContent=`${reset} km`;
+    $("#radiusCity").value=reset; $("#radiusCityLbl").textContent=`${reset} km`; $("#cityRadiusWrap").style.display="none";
+    $("#freeOnly").checked=false; quickMode=""; $("#dateFrom").value=""; $("#dateTo").value="";
+    document.querySelectorAll(".cat").forEach((b,i)=>b.classList.toggle("active", i===0));
+    GEO=null; doSearch(0,false);
+  });
+
+  $("#btnToggleResultsMap")?.addEventListener("click",()=>{
+    const wrap=$("#mapSearchWrap"); const show=wrap.style.display==="none"; wrap.style.display=show?"block":"none";
+    $("#btnToggleResultsMap").classList.toggle("active", show);
+    $("#btnToggleResultsMap").textContent= show ? "Skrij zemljevid rezultatov" : "Pokaži zemljevid rezultatov";
+    if(show && !mapSearch){ mapSearch = L.map("mapSearch").setView([46.05,14.51],6); L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OSM"}).addTo(mapSearch); }
+  });
+
+  async function doSearch(page=0, byGeo=false){
+    const qVal=$("#q")?.value.trim()||"", rawCity=$("#city")?.value.trim()||"";
+    const cityVal = CITY_ALIASES[rawCity.toLowerCase()] || rawCity;
+    const radUser=Number($("#radius")?.value||30);
+    const radCity=Number($("#radiusCity")?.value||30);
+    const catVal=document.querySelector(".cat.active")?.dataset.cat ?? "";
+    const freeOnly=$("#freeOnly")?.checked;
+
+    let fromTs=null, toTs=null;
+    if(quickMode){
+      const now=new Date(); let from=new Date(now), to=new Date(now);
+      if(quickMode==="weekend"){ const d=now.getDay(); const ds=(6-(d||7)); from.setDate(now.getDate()+ds); to=new Date(from); to.setDate(from.getDate()+1); }
+      else if(quickMode==="7"){ to.setDate(now.getDate()+7); }
+      else if(quickMode==="30"){ to.setDate(now.getDate()+30); }
+      fromTs=from.setHours(0,0,0,0); toTs=to.setHours(23,59,59,999);
+    } else {
+      const df=$("#dateFrom")?.value||"", dt=$("#dateTo")?.value||"";
+      if(df) fromTs=new Date(df).setHours(0,0,0,0);
+      if(dt) toTs=new Date(dt).setHours(23,59,59,999);
+    }
+
+    const key=JSON.stringify({qVal, cityVal, rad:(cityVal?radCity:radUser), catVal, fromTs, toTs, freeOnly, page, byGeo, GEO});
+    const cached=cacheEvents.get(key); if(cached){ renderResults(cached.items, cached.page, cached.pages, "#results", "#pagination", true); return; }
+
+    const params={ q:qVal, radiuskm:(cityVal?radCity:radUser), page, size:80 };
+    if (byGeo && GEO) params.latlon=GEO; else if (cityVal) params.city=cityVal; else if (GEO) params.latlon=GEO;
+
+    let external=[], internal=[];
+    try{ internal=await (await fetcher('ev-internal', `/api/provider-list?${qs(params)}`)).json().then(d=>d?.results||[]);}catch{}
+    try{ external=await (await fetcher('ev-external', `/api/search?${qs(params)}`)).json().then(d=>d?.results||[]);}catch{}
+
+    let items=[...(internal||[]), ...(external||[])];
+    const seen=new Set();
+    items=items.filter(e=>{ const k=`${(e.name||'').toLowerCase()}|${e.start||''}|${e.venue?.address||''}`; if(seen.has(k)) return false; seen.add(k); return true; });
+
+    const now=Date.now();
+    items=items.filter(e=>{ const t=Date.parse(e.end||e.start||""); return Number.isFinite(t)&&t>=now; });
+
+    if(fromTs || toTs){
+      items=items.filter(e=>{
+        const t=parseDateAny(e.start || e.end);
+        if(!Number.isFinite(t)) return false;
+        if(fromTs && t<fromTs) return false;
+        if(toTs && t>toTs) return false;
+        return true;
+      });
+    }
+    if(catVal) items=items.filter(e=>(e.category||"").toLowerCase()===catVal.toLowerCase());
+    if(freeOnly){
+      items=items.filter(e=>{
+        if(isExternalAPI(e)) return false;
+        const tiersFree=(Array.isArray(e.ticketPrices)&&e.ticketPrices.length>0)? e.ticketPrices.every(tp=>Number(tp.price||0)===0) : true;
+        const baseFree=(e.offerType==="none") || Number(e.price||0)===0;
+        return baseFree && tiersFree;
+      });
+    }
+
+    const PAGE_SIZE = 12;
+    const total = items.length;
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const safePage = clamp(page, 0, pages-1);
+    const slice = items.slice(safePage*PAGE_SIZE, safePage*PAGE_SIZE + PAGE_SIZE);
+
+    cacheEvents.set(key,{items, page:safePage, pages});
+    renderResults(slice, safePage, pages, "#results", "#pagination");
+    if(mapSearch){ clearMarkers(markersSearch); markersSearch=setMarkersOn(mapSearch, slice); }
+  }
+
+  function renderResults(slice, page, pages, hostSel, pagerSel, instant=false){
+    const box=$(hostSel); if(!box) return; box.innerHTML="";
+    if(!slice.length){ box.innerHTML=`<div class="card" style="color:var(--muted)">Ni rezultatov. Poskusi druge filtre.</div>`; return; }
+    // chunked render
+    const CHUNK=4; let i=0;
+    function step(){
+      const frag=CFRAG();
+      for(let c=0;c<CHUNK && i<slice.length;c++,i++){
+        const e=slice[i]; frag.appendChild(renderSpotCard(e));
+      }
+      box.appendChild(frag);
+      if(i<slice.length){ if('requestIdleCallback' in window) requestIdleCallback(step); else setTimeout(step,16); }
+    }
+    step();
+
+    const p=$(pagerSel); p.innerHTML="";
+    const prev=el("button","btn link"); prev.textContent="Nazaj"; prev.disabled=page<=0; prev.onclick=()=>doSearch(page-1,false);
+    const next=el("button","btn link"); next.textContent="Naprej"; next.disabled=page>=pages-1; next.onclick=()=>doSearch(page+1,false);
+    p.append(prev,next);
+  }
+
+  /* ======== STORITVE – ISKANJE ======== */
+  let srvMap=null, srvMarkers=[];
+  const srvLive=debounce(()=>doSrvSearch(0,false),300);
+  $("#srvQ")?.addEventListener("input", srvLive);
+  $("#srvCity")?.addEventListener("input", srvLive);
+  $("#srvUseLocation")?.addEventListener("click",()=>navigator.geolocation.getCurrentPosition(
+    p=>{ setGeo(p.coords.latitude,p.coords.longitude); doSrvSearch(0,true); },
+    ()=>_toast?.("Lokacije ni bilo mogoče pridobiti.",false)
+  ));
+  $("#srvPickOnMap")?.addEventListener("click", ()=> openPick(true));
+  $$("#srvCats .srv-cat").forEach(b=>b.addEventListener("click",()=>{ $$("#srvCats .srv-cat").forEach(x=>x.classList.remove("active")); b.classList.add("active"); doSrvSearch(0,false); }, {passive:true}));
+  $("#srvOnlyCoupons")?.addEventListener("change",()=>doSrvSearch(0,false));
+  $("#srvOnlySlots")?.addEventListener("change",()=>doSrvSearch(0,false));
+  $("#srvClear")?.addEventListener("click", ()=>{ $("#srvQ").value=""; $("#srvCity").value=""; $("#srvRadius").value=20; $("#srvRadiusLbl").textContent="20 km"; $("#srvOnlyCoupons").checked=false; $("#srvOnlySlots").checked=false; $$("#srvCats .srv-cat").forEach((b,i)=>b.classList.toggle("active", i===0)); GEO=null; doSrvSearch(0,false); });
+  $("#srvToggleResultsMap")?.addEventListener("click",()=>{
+    const wrap=$("#srvMapWrap"); const show=wrap.style.display==="none"; wrap.style.display=show?"block":"none";
+    $("#srvToggleResultsMap").classList.toggle("active", show);
+    $("#srvToggleResultsMap").textContent= show ? "Skrij zemljevid rezultatov" : "Pokaži zemljevid rezultatov";
+    if(show && !srvMap){ srvMap=L.map("srvMap").setView([46.05,14.51],6); L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OSM"}).addTo(srvMap); }
+  });
+
+  async function doSrvSearch(page=0, byGeo=false){
+    const q=$("#srvQ").value.trim()||"", city=$("#srvCity").value.trim()||"";
+    const cat=($("#srvCats .srv-cat.active")?.dataset?.cat)||"";
+    const onlyCoupons=$("#srvOnlyCoupons").checked, onlySlots=$("#srvOnlySlots").checked;
+    const rad=Number($("#srvRadius").value||20);
+
+    const key=JSON.stringify({q,city,cat,onlyCoupons,onlySlots,rad,page,byGeo,GEO});
+    const cached=cacheServices.get(key); if(cached){ renderResults(cached.slice, cached.page, cached.pages, "#srvResults", "#srvPagination", true); return; }
+
+    const params={ q, radiuskm:rad, page, size:80, kind:"service" };
+    if (byGeo && GEO) params.latlon=GEO; else if (city) params.city=city; else if (GEO) params.latlon=GEO;
+
+    let svc=[];
+    try{
+      // poskusi /api/provider-list z kind=service (združljivost)
+      const r=await (await fetcher('svc-internal', `/api/provider-list?${qs(params)}`)).json();
+      svc=(r?.results||[]).filter(x=> (x.kind==="service") || (x.category && ["lepota","sport-stor","dom","auto","izobrazevanje","gastro"].includes(String(x.category).toLowerCase())));
+    }catch{}
+    // fallback: če backend še ne loči po kind, vzemi vse provider rezultate in jih filtriraj po storitvenih kategorijah
+    // (že narejeno z zgornjim filterjem)
+
+    // filtriraj po kuponih / prostih terminih
+    if(onlyCoupons) svc=svc.filter(x=>x.offerType==="coupon");
+    if(onlySlots)   svc=svc.filter(x=>Array.isArray(x.slots) && x.slots.some(s=>Date.parse(s.start)>Date.now() && (s.capacity||1)>(s.taken||0)));
+
+    // skrij pretečene/razprodane storitve pri prikazu
+    const now=Date.now();
+    svc=svc.filter(x=>{
+      if(Array.isArray(x.slots) && x.slots.length){
+        return x.slots.some(s=>Date.parse(s.start)>now && (s.capacity||1)>(s.taken||0));
+      }
+      // če ni slotov in je določeno end/start, uporabi enako logiko kot pri dogodkih
+      const t=Date.parse(x.end||x.start||""); return Number.isFinite(t)? t>=now : true;
+    });
+
+    if(cat) svc=svc.filter(x=>(x.category||"").toLowerCase()===cat.toLowerCase());
+
+    const PAGE_SIZE = 12;
+    const total = svc.length;
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const safePage = clamp(page, 0, pages-1);
+    const slice = svc.slice(safePage*PAGE_SIZE, safePage*PAGE_SIZE + PAGE_SIZE);
+
+    cacheServices.set(key,{slice,page:safePage,pages});
+    renderResults(slice, safePage, pages, "#srvResults", "#srvPagination");
+    if(srvMap){ clearMarkers(srvMarkers); srvMarkers=setMarkersOn(srvMap, slice); }
+  }
+
+  /* ======== DELEGIRANJE GUMBOV ======== */
+  document.addEventListener('click', async (ev) => {
+    const btn=ev.target.closest('[data-act]'); if(!btn) return;
+    const act=btn.dataset.act;
+
+    if (act === 'share') {
+      const title=decodeURIComponent(btn.dataset.title||"Ponudba");
+      const url=decodeURIComponent(btn.dataset.url||location.href);
+      try{
+        if(navigator.share){ await navigator.share({title,url}); }
+        else { await navigator.clipboard.writeText(url); _toast?.("Povezava skopirana 👍",true); }
+      }catch{}
+      return;
+    }
+    if (act === 'ics') {
+      const title=decodeURIComponent(btn.dataset.title||"Ponudba");
+      const start=btn.dataset.start||"", end=btn.dataset.end||"", loc=decodeURIComponent(btn.dataset.loc||"");
+      addToCalendar({title, start, end, loc}); return;
+    }
+    if (act === 'buy') {
+      btn.disabled=true;
+      try{
+        const kind=btn.dataset.kind||"ticket"; 
+        let payload;
+        if(kind==="coupon"){
+          payload={ type:"coupon", metadata:{type:"coupon",title:decodeURIComponent(btn.dataset.name||"Ponudba")}, successUrl:`${location.origin}/#success`, cancelUrl:`${location.origin}/#cancel` };
+        }else{
+          const price=Number(btn.dataset.price||0);
+          payload={ lineItems:[{ name:decodeURIComponent(btn.dataset.name||"Ponudba"), description:kind, amount:price, currency:"eur", quantity:1 }],
+                    metadata:{}, successUrl:`${location.origin}/#success`, cancelUrl:`${location.origin}/#cancel` };
+        }
+        const r=await fetch("/api/checkout",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(x=>x.json()).catch(()=>({}));
+        if(r && r.ok && r.url){ location.href=r.url; } else { _toast("Plačilnega okna ni bilo mogoče odpreti.",false); }
+      }catch{ _toast("Napaka pri plačilu.", false); } 
+      finally{ btn.disabled=false; }
+      return;
+    }
+    if (act === 'reserve') {
+      // MVP: rezervacija se odpre na povezavi ponudbe ali v /my (odvisno od backend implementacije).
+      _toast("Rezervacija bo dokončana v tvojem profilu (Moje).", true);
+      location.href="/my.html#bookings";
+      return;
+    }
+  }, {passive:true});
+
+  /* ======== PICKER MODAL ======== */
+  let pickMap, pickMarker, pickCircle, pickRadiusKm=30, pickForServices=false;
+  function openPick(forServices=false){
+    pickForServices=!!forServices;
+    const modal=$("#pickModal"); modal.style.display="flex";
+    setTimeout(()=>{
+      if(!pickMap){
+        pickMap=L.map("pickMap").setView([46.05,14.51],7);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OSM"}).addTo(pickMap);
+        pickMarker=L.marker([46.05,14.51],{draggable:true}).addTo(pickMap);
+        pickCircle=L.circle([46.05,14.51],{radius:pickRadiusKm*1000,color:"#0bbbd6"}).addTo(pickMap);
+        pickMarker.on("move",e=>{ pickCircle.setLatLng(e.latlng); });
+      }
+      try{ pickMap.invalidateSize(); }catch{}
+    },20);
+    updatePickLbl();
+  }
+  function closePick(){ const modal=$("#pickModal"); if(modal) modal.style.display="none"; }
+  function updatePickLbl(){ const lbl=$("#pickRadiusLbl"); if(lbl) lbl.textContent=`Polmer: ${pickRadiusKm} km`; }
+  $("#pickClose")?.addEventListener("click", closePick, {passive:true});
+  $("#pickMinus")?.addEventListener("click",()=>{ pickRadiusKm=Math.max(1,pickRadiusKm-5); try{ pickCircle.setRadius(pickRadiusKm*1000);}catch{} updatePickLbl(); });
+  $("#pickPlus")?.addEventListener("click",()=>{ pickRadiusKm=Math.min(400,pickRadiusKm+5); try{ pickCircle.setRadius(pickRadiusKm*1000);}catch{} updatePickLbl(); });
+  $("#pickUseGPS")?.addEventListener("click",()=>navigator.geolocation.getCurrentPosition(p=>{
+    const lat=p.coords.latitude, lon=p.coords.longitude;
+    try{ pickMap.setView([lat,lon],11); pickMarker.setLatLng([lat,lon]); pickCircle.setLatLng([lat,lon]); }catch{}
+  }));
+  $("#pickApply")?.addEventListener("click",()=>{
+    if(!pickMarker){ closePick(); return; }
+    const {lat,lng}=pickMarker.getLatLng();
+    setGeo(lat,lng);
+    if(pickForServices){ $("#srvRadius").value=pickRadiusKm; $("#srvRadiusLbl").textContent=`${pickRadiusKm} km`; doSrvSearch(0,true); }
+    else { $("#radius").value=pickRadiusKm; $("#radiusLbl").textContent=`${pickRadiusKm} km`; doSearch(0,true); }
+    closePick();
+  });
+
+  /* ======== ZGORNJI MAP ======== */
+  let topMap=null, topMarkers=[];
+  function refreshTopMap(){
+    const node=$("#map"); if(!node) return;
+    if(!topMap){
+      topMap=L.map("map").setView([46.05,14.51],6);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OSM"}).addTo(topMap);
+    }
+  }
+  async function loadAllForTopMap(){
+    if(!topMap) return;
+    clearMarkers(topMarkers);
+    try{
+      const [intRes, extRes]=await Promise.all([
+        fetch(`/api/provider-list?${qs({size:500,page:0})}`).then(r=>r.json()).catch(()=>({})),
+        fetch(`/api/search?${qs({size:500,page:0})}`).then(r=>r.json()).catch(()=>({}))
+      ]);
+      const now=Date.now();
+      const all=[...(intRes?.results||[]), ...(extRes?.results||[])].filter(e=>{
+        const t=new Date(e.end||e.start).getTime();
+        return Number.isFinite(t) && t>=now;
+      });
+      topMarkers=setMarkersOn(topMap, all);
+      if(topMarkers.length){
+        const g=new L.featureGroup(topMarkers);
+        topMap.fitBounds(g.getBounds().pad(0.2));
+      }
+    }catch{}
+  }
+  $("#btnCloseMap")?.addEventListener("click",()=>{ $("#mapPanel").style.display="none"; $("#searchPanel").classList.add("show"); },{passive:true});
+
+  /* ======== ORGANIZER FORM – logika ======== */
+  (function(){
+    const offer=$("#offerType");
+    const priceWrap=$("#priceWrap");
+    const ticketBlock=$("#ticketPricesBlock");
+    const ticketStepList=$("#ticketStepList");
+    const btnAddTicket=$("#btnAddTicketPrice");
+    const couponCfg=$("#couponCfg");
+    const couponMulti=$("#couponMulti");
+    const couponList=$("#couponList");
+    const slotsBlock=$("#slotsBlock");
+    const slotList=$("#slotList");
+    const priceListBlock=$("#priceListBlock");
+    const orgMsg=$("#orgMsg");
+    let KIND="event"; // 'event' | 'service'
+
+    function setKind(kind){
+      KIND=kind; $("#postKindLbl").textContent = kind==='service'?'storitev':'dogodek';
+      // pri storitvah običajno termini + rezervacije
+      if(kind==='service'){ $("#start").parentElement.querySelector('label')?.classList?.remove('required'); slotsBlock.style.display='block'; }
+      else { slotsBlock.style.display='none'; }
+    }
+    $("#kindEvent")?.addEventListener("click",()=>{ $("#kindEvent").classList.add('active'); $("#kindService").classList.remove('active'); setKind('event'); },{passive:true});
+    $("#kindService")?.addEventListener("click",()=>{ $("#kindService").classList.add('active'); $("#kindEvent").classList.remove('active'); setKind('service'); },{passive:true});
+
+    function toggleOffer(){
+      const v=offer.value;
+      ticketBlock.style.display = (v==="ticket") ? "block":"none";
+      priceWrap.style.display  = (v==="ticket") ? "flex":"none";
+      couponCfg.style.display  = (v==="coupon") ? "block":"none";
+      couponMulti.style.display= (v==="coupon") ? "block":"none";
+      slotsBlock.style.display = (v==="reservation"||KIND==="service") ? "block":"none";
+      priceListBlock.style.display = (v==="price-list") ? "grid":"none";
+    }
+    offer?.addEventListener("change", toggleOffer, {passive:true});
+    toggleOffer();
+
+    btnAddTicket?.addEventListener("click",()=>{
+      const row=document.createElement("div");
+      row.className="row row--2";
+      row.innerHTML=`
+        <input class="tp-label" placeholder="Naziv vstopnice (npr. Otrok, Družinska)">
+        <div class="euro"><input class="tp-price" type="number" min="0" step="0.01" placeholder="Cena"><span>€</span></div>
+        <button class="btn mini link" type="button" data-remove="ticket">Odstrani</button>
+      `;
+      ticketStepList.appendChild(row);
+    });
+
+    function addSlotRow(valStart="", valEnd="", cap=1){
+      const r=document.createElement("div");
+      r.className="row always-two";
+      r.innerHTML=`
+        <label>Datum & ura <input class="slot-start" type="datetime-local" value="${valStart}"></label>
+        <div class="always-two" style="grid-template-columns:1fr auto">
+          <label>Končanje <input class="slot-end" type="datetime-local" value="${valEnd}"></label>
+          <label>Kvota (mesta) <input class="slot-cap" type="number" min="1" step="1" value="${cap}"></label>
+        </div>
+        <button class="btn mini link" type="button" data-remove="slot">Odstrani</button>
+      `;
+      slotList.appendChild(r);
+    }
+    $("#btnAddSlot")?.addEventListener("click",()=>addSlotRow(),{passive:true});
+
+    function addCouponRow(kind="PERCENT", val=""){
+      const r=document.createElement("div");
+      r.className="row always-two";
+      r.innerHTML=`
+        <label>Vrsta
+          <select class="c-kind">
+            <option value="PERCENT"${kind==="PERCENT"?" selected":""}>% popusta</option>
+            <option value="VALUE"${kind==="VALUE"?" selected":""}>Vrednost (€)</option>
+            <option value="FREEBIE"${kind==="FREEBIE"?" selected":""}>Konkretno</option>
+          </select>
+        </label>
+        <input class="c-value" placeholder="${kind==="FREEBIE"?"Opis (npr. 2 za 1)":"Vrednost"}" ${kind!=="FREEBIE"?'type="number" step="0.01"':''} value="${val}">
+        <button class="btn mini link" type="button" data-remove="coupon">Odstrani</button>
+      `;
+      r.querySelector(".c-kind").addEventListener("change",(ev)=>{
+        const k=ev.target.value; const v=r.querySelector(".c-value");
+        if(k==="FREEBIE"){ v.type="text"; v.step=""; v.placeholder="Opis (npr. 2 za 1)"; v.value=""; }
+        else { v.type="number"; v.step="0.01"; v.placeholder="Vrednost"; v.value=""; }
+      },{passive:true});
+      couponList.appendChild(r);
+    }
+    $("#btnAddCoupon")?.addEventListener("click",()=>addCouponRow(),{passive:true});
+    document.addEventListener("click",(e)=>{
+      const b=e.target.closest("button[data-remove]"); if(!b) return; b.parentElement?.remove();
+    },{passive:true});
+
+    // slika predogled
+    $("#image")?.addEventListener("change",e=>{
+      const f=e.target.files[0]; if(!f)return;
+      const img=$("#imgPreview"); const r=new FileReader();
+      r.onload=x=>{img.src=x.target.result;img.style.display="block";$("#fileName").textContent=f.name;};
+      r.readAsDataURL(f);
+    });
+
+    // števec znakov
+    const d=$("#desc"), c=$("#descCount"); if(d&&c){ const upd=()=>{ c.textContent=`${d.value.length} / ${d.getAttribute('maxlength')||800}`; }; d.addEventListener('input',upd,{passive:true}); upd(); }
+
+    // pogoji
+    $("#showProviderTerms")?.addEventListener("click",(e)=>{ e.preventDefault(); $("#providerTermsPanel").style.display='block'; }, {passive:false});
+    $("#closeProviderTerms")?.addEventListener("click",()=>{ $("#providerTermsPanel").style.display='none'; },{passive:true});
+
+    // submit
+    $("#btnSubmitEvent")?.addEventListener("click", async ()=>{
+      orgMsg.textContent="";
+      const must = [ "#orgName","#orgFullName","#orgEmail","#eventName","#venue","#city2","#country","#category","#desc" ];
+      for(const sel of must){
+        const node=$(sel);
+        const val=(node?.value||"").toString().trim();
+        if(!val){ orgMsg.textContent="Izpolni obvezna polja *."; orgMsg.style.color="var(--bad)"; node?.focus(); return; }
+      }
+      // če je dogodek: zahtevaj start/end
+      if(KIND==='event'){
+        const s=$("#start").value, e=$("#end").value;
+        if(!s || !e || !(new Date(e)>new Date(s))){ orgMsg.textContent="Za dogodek določi pravilen začetek/konec."; orgMsg.style.color="var(--bad)"; $("#end").focus(); return; }
+      }
+
+      const offerVal=$("#offerType").value;
+      let ticketPrices=[], basePrice=null, coupons=null, slots=null;
+
+      if(offerVal==="ticket"){
+        basePrice = $("#price").value!=="" ? Number($("#price").value) : null;
+        [...document.querySelectorAll("#ticketStepList .row")].forEach(r=>{
+          const label=r.querySelector(".tp-label")?.value.trim();
+          const price=Number(r.querySelector(".tp-price")?.value||NaN);
+          if(label && Number.isFinite(price)) ticketPrices.push({label, price});
+        });
+        if(basePrice==null && ticketPrices.length===0){
+          orgMsg.textContent="Dodaj ceno (ena cena) ali vsaj eno postavko v ceniku."; orgMsg.style.color="var(--bad)"; return;
+        }
+      }
+
+      if(offerVal==="coupon"){
+        coupons=[];
+        const k=$("#couponKind")?.value||"PERCENT";
+        if(k==="PERCENT" && Number($("#couponPercent")?.value||0)>0) coupons.push({type:"PERCENT", value:Number($("#couponPercent").value), label:`-${Number($("#couponPercent").value)}%`});
+        if(k==="VALUE" && Number($("#couponValue") ?.value||0)>0) coupons.push({type:"VALUE", value:Number($("#couponValue").value), label:euro(Number($("#couponValue").value))});
+        if(k==="FREEBIE" && ($("#couponFreebie")?.value||"").trim()) coupons.push({type:"FREEBIE", value:($("#couponFreebie").value||"").trim(), label:($("#couponFreebie").value||"").trim()});
+        document.querySelectorAll("#couponList .row").forEach(r=>{
+          const kind=r.querySelector(".c-kind")?.value||"PERCENT";
+          const val =(r.querySelector(".c-value")?.value||"").trim();
+          if(kind==="PERCENT" && Number(val)>0) coupons.push({type:"PERCENT", value:Number(val), label:`-${Number(val)}%`});
+          if(kind==="VALUE" && Number(val)>0) coupons.push({type:"VALUE", value:Number(val), label:euro(Number(val))});
+          if(kind==="FREEBIE" && val)      coupons.push({type:"FREEBIE", value:val, label:val});
+        });
+        if(!coupons.length){ orgMsg.textContent="Dodaj vsaj en kupon."; orgMsg.style.color="var(--bad)"; return; }
+      }
+
+      if(offerVal==="reservation" || KIND==="service"){
+        slots=[];
+        document.querySelectorAll("#slotList .row").forEach(r=>{
+          const s=r.querySelector(".slot-start")?.value||"", e=r.querySelector(".slot-end")?.value||"", cap=Number(r.querySelector(".slot-cap")?.value||1);
+          if(s && e && new Date(e)>new Date(s) && cap>0) slots.push({start:s,end:e,capacity:cap});
+        });
+        if(!slots.length && KIND==="service"){ orgMsg.textContent="Dodaj vsaj en termin."; orgMsg.style.color="var(--bad)"; return; }
+      }
+
+      if(offerVal!=="none" && !($("#agreeFees")?.checked)){
+        orgMsg.textContent="Za plačljive ponudbe potrdi pogoje."; orgMsg.style.color="var(--bad)"; return;
+      }
+
+      // Geokodiraj naslov za lat/lon (natančnost markerjev)
+      let venueLat=null, venueLon=null;
+      try{
+        const q=[$("#venue").value.trim(), $("#city2").value.trim()].filter(Boolean).join(', ');
+        const r=await fetch(`https://nominatim.openstreetmap.org/search?${qs({q,format:"json",limit:1})}`,{headers:{"Accept-Language":"sl"}});
+        const d=await r.json(); if(d && d[0]){ venueLat=+d[0].lat; venueLon=+d[0].lon; }
+      }catch{}
+
+      // slika
+      let IMAGE_URL=null;
+      const f=$("#image")?.files?.[0]||null;
+      if(f){
+        try{
+          const up=new FormData(); up.append("file", f);
+          const ur=await fetch("/api/provider-upload",{method:"POST", body:up}).then(x=>x.json()).catch(()=>null);
+          if(ur && ur.ok && (ur.url||ur.imagePublicUrl)) IMAGE_URL=(ur.url||ur.imagePublicUrl);
+        }catch{}
+      }
+
+      const payload={
+        kind: KIND, // 'event' ali 'service'
+        organizer: $("#orgName").value.trim(),
+        organizerFullName: $("#orgFullName").value.trim(),
+        organizerEmail: $("#orgEmail").value.trim(),
+        name: $("#eventName").value.trim(),
+        venue: { name: $("#venue").value.trim(), address: $("#city2").value.trim(), city: $("#city2").value.trim(), lat: venueLat, lon: venueLon },
+        country: $("#country").value,
+        start: $("#start").value || null,
+        end: $("#end").value || null,
+        url: $("#url").value.trim()||null,
+        category: $("#category").value,
+        description: $("#desc").value.trim(),
+        offerType: $("#offerType").value,
+        featured: $("#featured").checked,
+        price: basePrice,
+        ticketPrices,
+        coupons,
+        slots,
+        stock: Number($("#stock")?.value||0)||null,
+        maxPerOrder: Number($("#maxPerOrder")?.value||0)||null,
+        priceListUrl: $("#priceListUrl").value.trim()||null,
+        priceRange: $("#priceRange").value.trim()||null,
+        imagePublicUrl: IMAGE_URL||null
+      };
+
+      try{
+        $("#btnSubmitEvent").disabled=true;
+        const res=await fetch("/api/provider-submit",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(x=>x.json());
+        if(res && res.ok){
+          orgMsg.textContent="✅ Uspešno oddano. Potrditveni e‑mail je poslan."; orgMsg.style.color="var(--ok)";
+          setTimeout(()=>{ orgMsg.textContent=""; }, 3500);
+        }else{
+          orgMsg.textContent=(res && res.error) ? res.error : "Oddaja ni uspela."; orgMsg.style.color="var(--bad)";
+        }
+      }catch{
+        orgMsg.textContent="Napaka pri oddaji."; orgMsg.style.color="var(--bad)";
+      }finally{
+        $("#btnSubmitEvent").disabled=false;
+      }
+    }, {passive:false});
+  })();
+
+  /* ====== Add-to-calendar ====== */
+  function addToCalendar({title,start,end,loc}){
+    const s = new Date(start||Date.now()).toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
+    const e = end ? new Date(end).toISOString().replace(/[-:]/g,"").split(".")[0]+"Z" : "";
+    const url=`data:text/calendar;charset=utf8,BEGIN:VCALENDAR%0AVERSION:2.0%0ABEGIN:VEVENT%0ASUMMARY:${encodeURIComponent(title)}%0ALOCATION:${encodeURIComponent(loc||"")}%0ADTSTART:${s}%0A${ end?`DTEND:${e}%0A`:``}END:VEVENT%0AEND:VCALENDAR`;
+    const a=document.createElement('a'); a.href=url; a.download=(title||"event")+".ics"; document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  /* ====== COOKIE banner ====== */
+  (function(){ const b=document.createElement('div'); b.id="cookieBanner"; b.className="card"; b.style.cssText="position:fixed;bottom:12px;left:12px;right:12px;z-index:1001;display:none;padding:12px;border-radius:12px;border:1px solid var(--chipborder);background:var(--card);box-shadow:var(--shadow)";
+    b.innerHTML=`<p style="margin:0 0 6px 0;font-size:14px;line-height:1.4">Ta aplikacija uporablja le nujne piškotke (seja, jezik, tema). Aplikacija uporablja <b>lokacijo</b> (GPS) in po potrebi <b>kamero</b> (QR skeniranje) – obe le z vašo privolitvijo.</p><button class="btn mini" id="cookieAccept">Razumem</button>`;
+    document.body.appendChild(b); if(!localStorage.getItem("cookieAccepted")) b.style.display="block"; $("#cookieAccept")?.addEventListener("click",()=>{ localStorage.setItem("cookieAccepted","1"); b.style.display="none"; }); })();
+
+  /* ====== Service Worker ====== */
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); });
+  }
+
+  /* ====== NAV gumbi ====== */
+  $("#btnStart")?.addEventListener("click",()=>{ document.querySelector('#searchPanel').scrollIntoView({behavior:'smooth'}); },{passive:true});
+  document.getElementById("btnOrganizersTop")?.addEventListener("click",(e)=>{ e.preventDefault(); $("#orgHub").style.display='block'; $("#orgPanel").style.display='none'; },{passive:false});
+  document.getElementById("hubPublish")?.addEventListener("click",()=>{ $("#orgHub").style.display='none'; $("#orgPanel").style.display='block'; },{passive:true});
+
+  /* ====== INIT searches ====== */
+  doSearch(0,false);
+  doSrvSearch(0,false);
+
+  </script>
+</body>
+                                                                                                    </html>

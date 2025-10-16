@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NearGo</title>
+  <!-- Material Icons za ikone v navigaciji -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  <!-- Leaflet CSS in JS za zemljevid -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+  <!-- Stripe JS za plačila -->
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    /* Osnovni reset/box-sizing po potrebi */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+    }
+    /* Razdelki (sekcije/pogledi) */
+    .section { display: none; padding: 1rem; }
+    .section.active { display: block; }
+    /* Gumbi za filtriranje kategorij */
+    .filter-btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      background: #eee;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .filter-btn.active {
+      background: #ccc;
+      font-weight: bold;
+    }
+    /* Zemljevid velikost */
+    #map { width: 100%; height: 35vh; margin: 0.5rem 0; }
+    /* Kartice seznama */
+    .listing-card {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      background: #fff;
+      position: relative;
+    }
+    .listing-card h3 { margin: 0 0 0.2rem; font-size: 1.1rem; }
+    .listing-card p { margin: 0.2rem 0; font-size: 0.9rem; }
+    .listing-card .more-btn {
+      background: none;
+      color: blue;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 0.9rem;
+    }
+    .listing-card .full-desc {
+      display: none;
+      margin-top: 0.5rem;
+    }
+    .listing-card .close-btn {
+      display: inline-block;
+      margin-top: 0.5rem;
+      cursor: pointer;
+      color: blue;
+      text-decoration: underline;
+      font-size: 0.9rem;
+    }
+    .highlight { background: yellow; }
+    /* Spodnja navigacija */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #fff;
+      border-top: 1px solid #ccc;
+      display: flex;
+      justify-content: space-around;
+      text-align: center;
+      font-size: 0.8rem;
+    }
+    .bottom-nav .nav-item {
+      flex: 1;
+      padding: 0.5rem 0;
+      border: none;
+      background: none;
+      cursor: pointer;
+    }
+    .bottom-nav .nav-item .material-icons {
+      display: block;
+      font-size: 1.5rem;
+      line-height: 1.5rem;
+    }
+    .bottom-nav .nav-item.active {
+      background: #eee;
+    }
+    /* Stil obrazca */
+    form { max-width: 500px; margin: auto; }
+    .field { margin-bottom: 0.5rem; }
+    .field label { display: block; margin-bottom: 0.2rem; font-weight: bold; font-size: 0.9rem; }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      padding: 0.4rem;
+      font: inherit;
+      box-sizing: border-box;
+    }
+    /* Inline radio gumbi za razpoložljivost */
+    .availability-options label { font-weight: normal; margin-right: 1rem; }
+  </style>
+</head>
+<body>
+  <!-- Domača sekcija: zemljevid in seznam -->
+  <div id="homeSection" class="section active" data-section="home">
+    <!-- Filtriranje po kategoriji -->
+    <div>
+      <button id="filterEventsBtn" class="filter-btn active" data-i18n="events">Dogodki</button>
+      <button id="filterServicesBtn" class="filter-btn" data-i18n="services">Storitve</button>
+    </div>
+    <!-- Zemljevid rezultatov -->
+    <div id="map"></div>
+    <!-- Seznam kartic rezultatov -->
+    <div id="listings"></div>
+  </div>
+
+  <!-- Sekcija za dodajanje novega dogodka/storitve -->
+  <div id="addSection" class="section" data-section="add">
+    <h2 data-i18n="add_new">Dodaj nov dogodek/storitev</h2>
+    <form id="addForm">
+      <!-- Izbira tipa (Dogodek/Storitev) -->
+      <div class="field">
+        <label for="listingType" data-i18n="choose_type">Izberite tip:</label>
+        <select id="listingType" name="type">
+          <option value="event" data-i18n="type_event">Dogodek</option>
+          <option value="service" data-i18n="type_service">Storitev</option>
+        </select>
+      </div>
+      <!-- Izbira kategorije (dinamično glede na tip) -->
+      <div class="field">
+        <label for="listingCategory" data-i18n="category">Kategorija:</label>
+        <select id="listingCategory" name="category">
+          <option value="" disabled selected data-i18n="choose_category">Izberite kategorijo</option>
+        </select>
+      </div>
+      <!-- Naziv -->
+      <div class="field">
+        <label for="listingTitle" data-i18n="title">Naslov:</label>
+        <input type="text" id="listingTitle" name="title" required />
+      </div>
+      <!-- Opis -->
+      <div class="field">
+        <label for="listingDescription" data-i18n="description">Opis:</label>
+        <textarea id="listingDescription" name="description" rows="3" required></textarea>
+      </div>
+      <!-- Lokacija -->
+      <div class="field">
+        <label for="listingLocation" data-i18n="location">Lokacija (naslov):</label>
+        <input type="text" id="listingLocation" name="location" required />
+      </div>
+      <!-- Razpoložljivost (neomejeno ali termini) -->
+      <div class="field availability-options">
+        <label data-i18n="availability">Razpoložljivost:</label>
+        <label><input type="radio" name="availability" value="unlimited" checked /> <span data-i18n="avail_unlimited">Neomejeno / pokličite za rezervacijo</span></label>
+        <label><input type="radio" name="availability" value="scheduled" /> <span data-i18n="avail_scheduled">Določeni termini</span></label>
+      </div>
+      <!-- Polja za termine (prikažejo se, če so izbrani določeni termini) -->
+      <div id="scheduleFields" style="display:none; margin-bottom: 0.5rem;">
+        <button type="button" id="addSlotBtn" data-i18n="add_slot">Dodaj termin</button>
+        <div id="slotsContainer"></div>
+      </div>
+      <!-- Gumb za oddajo -->
+      <button type="submit" data-i18n="submit">Dodaj</button>
+    </form>
+  </div>
+
+  <!-- Sekcija Premium -->
+  <div id="premiumSection" class="section" data-section="premium">
+    <h2 data-i18n="premium_title">Premium naročnina</h2>
+    <p data-i18n="premium_desc">Postanite Premium član za 5 € na mesec in pridobite brezplačne kupone ter hitrejša obvestila o novih ponudbah.</p>
+    <button id="subscribeBtn" data-i18n="subscribe_button">Naroči se</button>
+    <p data-i18n="stripe_note">* Plačila in naročnine upravlja Stripe varno in zanesljivo.</p>
+  </div>
+
+  <!-- Sekcija Moj profil (točke, jezik) -->
+  <div id="profileSection" class="section" data-section="profile">
+    <h2 data-i18n="my_profile">Moj profil</h2>
+    <p><span data-i18n="my_points">Moje točke</span>: <span id="pointsCount">0</span></p>
+    <p data-i18n="points_info">Točke si prislužite z ocenami dogodkov in storitev. Zbrane točke lahko unovčite za kupone ali druge nagrade.</p>
+    <!-- Izbirnik jezika -->
+    <div style="margin-top:1rem;">
+      <label for="langSelect" data-i18n="choose_lang">Jezik:</label>
+      <select id="langSelect">
+        <option value="sl">Slovensko</option>
+        <option value="en">English</option>
+        <!-- Tu lahko dodate ostalih 16 jezikov -->
+      </select>
+    </div>
+  </div>
+
+  <!-- Spodnja navigacijska vrstica -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-target="homeSection"><span class="material-icons">home</span><span data-i18n="nav_home">Domov</span></button>
+    <button class="nav-item" data-target="addSection"><span class="material-icons">add_circle_outline</span><span data-i18n="nav_add">Dodaj</span></button>
+    <button class="nav-item" data-target="premiumSection"><span class="material-icons">star</span><span data-i18n="nav_premium">Premium</span></button>
+    <button class="nav-item" data-target="profileSection"><span class="material-icons">person</span><span data-i18n="nav_profile">Moje</span></button>
+  </nav>
+
+  <!-- Glavni skript aplikacije -->
+  <script>
+    // Shranjevanje podatkov (globalno za enostavnost v tej demo)
+    let eventsData = null;
+    let servicesData = null;
+    let activeCategory = 'event'; // privzeto prikažemo dogodke
+
+    // Primer kategorij (ločenih po tipu; lahko se pridobi iz API ali konfiguracije)
+    const eventCategories = ["Koncert", "Delavnica", "Festival"];
+    const serviceCategories = ["Restavracija", "Fitnes", "Trgovina"];
+
+    // Inicializacija interaktivnega zemljevida (Leaflet)
+    const map = L.map('map').setView([46.0569, 14.5058], 8);  // center na Slovenijo
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+    const markerGroup = L.layerGroup().addTo(map);
+
+    // Poskus centriranja na uporabnikovo lokacijo (če dovoljenja dopuščajo)
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+      });
+    }
+
+    // Funkcija za upodabljanje seznama in markerjev glede na kategorijo
+    function renderListings(category) {
+      const listingsEl = document.getElementById('listings');
+      listingsEl.innerHTML = '';           // počisti prejšnji seznam
+      markerGroup.clearLayers();           // odstrani stare markerje z zemljevida
+      const dataList = (category === 'event') ? eventsData : servicesData;
+      if (!dataList) return;
+      dataList.forEach((item, index) => {
+        // Ustvari element kartice
+        const card = document.createElement('div');
+        card.className = 'listing-card';
+        card.id = (category === 'event' ? 'event-card-' : 'service-card-') + index;
+        // Naziv
+        const title = document.createElement('h3');
+        title.textContent = item.title;
+        card.appendChild(title);
+        // Kategorija
+        const cat = document.createElement('p');
+        cat.textContent = item.category;
+        card.appendChild(cat);
+        // Kratek opis
+        const shortDesc = document.createElement('p');
+        shortDesc.textContent = item.description;
+        card.appendChild(shortDesc);
+        // Gumb "Več"
+        const moreBtn = document.createElement('button');
+        moreBtn.className = 'more-btn';
+        moreBtn.textContent = translations[currentLang]['more'] || 'Več';
+        card.appendChild(moreBtn);
+        // Polno besedilo (skrito na začetku)
+        const fullDesc = document.createElement('div');
+        fullDesc.className = 'full-desc';
+        const fullDescText = document.createElement('p');
+        fullDescText.textContent = item.description;
+        fullDesc.appendChild(fullDescText);
+        const closeBtn = document.createElement('span');
+        closeBtn.className = 'close-btn';
+        closeBtn.textContent = translations[currentLang]['close'] || 'Zapri';
+        fullDesc.appendChild(closeBtn);
+        card.appendChild(fullDesc);
+        // Razpoložljivost (če velja in če niso vsi termini zasedeni)
+        if (item.availability === 'unlimited') {
+          const avail = document.createElement('p');
+          avail.textContent = translations[currentLang]['avail_unlimited'] || 'Neomejeno / pokličite za rezervacijo';
+          card.appendChild(avail);
+        } else if (item.schedule && item.schedule.length > 0) {
+          // prikažemo samo prvi naslednji termin (za demo; lahko bi tudi vse)
+          const nextDate = new Date(item.schedule[0]);
+          const options = { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+          const dateStr = nextDate.toLocaleDateString(currentLang, options);
+          const avail = document.createElement('p');
+          avail.textContent = (translations[currentLang]['next_slot'] || 'Naslednji termin') + ': ' + dateStr;
+          card.appendChild(avail);
+        }
+        // (Če je schedule prazen => nič ne dodamo - kartica tako ne prikazuje razpoložljivosti, kar pomeni da ni prostih terminov)
+
+        // Dogodek za gumb "Več"
+        moreBtn.addEventListener('click', () => {
+          fullDesc.style.display = 'block';
+          moreBtn.style.display = 'none';
+        });
+        // Dogodek za "Zapri"
+        closeBtn.addEventListener('click', () => {
+          fullDesc.style.display = 'none';
+          moreBtn.style.display = 'inline';
+        });
+
+        // Dodaj kartico v seznam
+        listingsEl.appendChild(card);
+
+        // Dodaj marker na zemljevid (če so na voljo koordinate)
+        if (item.latitude && item.longitude) {
+          const marker = L.marker([item.latitude, item.longitude]).addTo(markerGroup);
+          marker.on('click', () => {
+            // Scroll do kartice in označi (ozadje rumeno za kratek čas)
+            document.getElementById(card.id).scrollIntoView({ behavior: 'smooth' });
+            card.classList.add('highlight');
+            setTimeout(() => card.classList.remove('highlight'), 2000);
+          });
+          marker.bindPopup(item.title);  // opcijsko: ime v pojavnem oknu
+        }
+      });
+    }
+
+    // Funkcija za pridobivanje podatkov z API glede na kategorijo
+    function fetchListings(category) {
+      // Klic na strežnik (domnevamo, da API vrne polje objektov: {id, title, category, description, latitude, longitude, availability, schedule, ...})
+      const endpoint = (category === 'event') ? '/api/events' : '/api/services';
+      return fetch(endpoint).then(response => response.json());
+    }
+
+    // Ob kliku na "Dogodki" filter
+    document.getElementById('filterEventsBtn').addEventListener('click', () => {
+      if (activeCategory !== 'event') {
+        activeCategory = 'event';
+        document.getElementById('filterEventsBtn').classList.add('active');
+        document.getElementById('filterServicesBtn').classList.remove('active');
+        if (eventsData === null) {
+          fetchListings('event').then(data => {
+            eventsData = data;
+            renderListings('event');
+          });
+        } else {
+          renderListings('event');
+        }
+      }
+    });
+    // Ob kliku na "Storitve" filter
+    document.getElementById('filterServicesBtn').addEventListener('click', () => {
+      if (activeCategory !== 'service') {
+        activeCategory = 'service';
+        document.getElementById('filterServicesBtn').classList.add('active');
+        document.getElementById('filterEventsBtn').classList.remove('active');
+        if (servicesData === null) {
+          fetchListings('service').then(data => {
+            servicesData = data;
+            renderListings('service');
+          });
+        } else {
+          renderListings('service');
+        }
+      }
+    });
+
+    // Polnjenje kategorijskega seznama glede na tip
+    const listingTypeSelect = document.getElementById('listingType');
+    const categorySelect = document.getElementById('listingCategory');
+    function populateCategories(type) {
+      // počisti in dodaj privzeto izbirno možnost
+      categorySelect.innerHTML = '<option value="" disabled selected>' + (translations[currentLang]['choose_category'] || 'Izberite kategorijo') + '</option>';
+      const cats = (type === 'event') ? eventCategories : serviceCategories;
+      cats.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        categorySelect.appendChild(opt);
+      });
+    }
+    // Ob spremembi tipa v obrazcu
+    listingTypeSelect.addEventListener('change', () => {
+      populateCategories(listingTypeSelect.value);
+    });
+    // Inicialno napolni kategorije za privzeti tip (event)
+    populateCategories(listingTypeSelect.value);
+
+    // Prikaz/skritje polj za termine glede na izbiro razpoložljivosti
+    const availabilityRadios = document.getElementsByName('availability');
+    const scheduleFields = document.getElementById('scheduleFields');
+    availabilityRadios.forEach(radio => {
+      radio.addEventListener('change', () => {
+        if (radio.value === 'scheduled' && radio.checked) {
+          scheduleFields.style.display = 'block';
+        }
+        if (radio.value === 'unlimited' && radio.checked) {
+          scheduleFields.style.display = 'none';
+        }
+      });
+    });
+
+    // Dodaj novo polje za termin ob kliku na "Dodaj termin"
+    document.getElementById('addSlotBtn').addEventListener('click', () => {
+      const slotInput = document.createElement('input');
+      slotInput.type = 'datetime-local';
+      slotInput.name = 'slot';
+      slotInput.required = true;
+      slotInput.style.display = 'block';
+      slotInput.style.marginTop = '0.3rem';
+      document.getElementById('slotsContainer').appendChild(slotInput);
+    });
+
+    // Oddaja obrazca za dodajanje novega vnosa
+    document.getElementById('addForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const form = e.target;
+      const type = form.type.value;
+      // Zgradi objekt iz vnosov obrazca
+      const newItem = {
+        title: form.title.value,
+        category: form.category.value,
+        description: form.description.value,
+        location: form.location.value,
+        latitude: null,
+        longitude: null,  // v produkciji: geokodiranje naslova v koordinate
+        availability: form.availability.value,
+        schedule: []
+      };
+      if (newItem.availability === 'scheduled') {
+        // Zberi vse dodane termine
+        document.querySelectorAll('input[name="slot"]').forEach(input => {
+          if (input.value) newItem.schedule.push(input.value);
+        });
+      }
+      // Pošlji nove podatke na strežnik (POST) - tukaj je samo ponazoritev:
+      // fetch('/api/listings', { method:'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(newItem) })
+      //   .then(res => res.json()).then(savedItem => { ... });
+      // Za demo takoj dodamo v lokalno strukturo:
+      if (type === 'event') {
+        if (eventsData) {
+          eventsData.push(newItem);
+        } else {
+          eventsData = [newItem];
+        }
+        activeCategory = 'event';
+        document.getElementById('filterEventsBtn').classList.add('active');
+        document.getElementById('filterServicesBtn').classList.remove('active');
+        renderListings('event');
+      } else if (type === 'service') {
+        if (servicesData) {
+          servicesData.push(newItem);
+        } else {
+          servicesData = [newItem];
+        }
+        activeCategory = 'service';
+        document.getElementById('filterServicesBtn').classList.add('active');
+        document.getElementById('filterEventsBtn').classList.remove('active');
+        renderListings('service');
+      }
+      // Prikaži domačo sekcijo in počisti obrazec
+      showSection('homeSection');
+      form.reset();
+      populateCategories('event'); // ponastavi kategorije nazaj na dogodek kot privzeto
+      alert(translations[currentLang]['added_success'] || 'Uspešno dodano!');
+    });
+
+    // Funkcija za prikaz določene sekcije in posodobitev navigacije
+    function showSection(sectionId) {
+      document.querySelectorAll('.section').forEach(sec => {
+        sec.classList.remove('active');
+      });
+      document.getElementById(sectionId).classList.add('active');
+      // Posodobi aktivno stanje v navigaciji
+      document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-target') === sectionId);
+      });
+      // Če gremo na domačo stran, osveži prikaz (zaradi morebitnih posodobitev)
+      if (sectionId === 'homeSection') {
+        renderListings(activeCategory);
+      }
+    }
+    // Dogodki za navigacijske gumbe
+    document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-target');
+        showSection(target);
+      });
+    });
+
+    // Točkovni sistem: (točke bi sicer pridobili iz API ob prijavi)
+    let userPoints = 0;
+    document.getElementById('pointsCount').textContent = userPoints;
+    // (V produkciji poskrbite za posodabljanje točk ob ocenah in unovčitvah)
+
+    // Stripe integracija za naročnino (klik na "Naroči se")
+    const stripe = Stripe('pk_test_TYooMQauvdEDq54NiTphI7jx');  // Uporabite vaš publishable key
+    document.getElementById('subscribeBtn').addEventListener('click', () => {
+      stripe.redirectToCheckout({
+        lineItems: [{ price: 'price_12345', quantity: 1 }],  // Uporabite dejanski Price ID vašega produkta
+        mode: 'subscription',
+        successUrl: window.location.href + '?sub_success=true',
+        cancelUrl: window.location.href + '?sub_canceled=true'
+      }).then(result => {
+        if (result.error) {
+          alert(result.error.message);
+        }
+      });
+    });
+
+    // Večjezičnost – prevodi in menjava jezika
+    const translations = {
+      en: {
+        events: "Events",
+        services: "Services",
+        more: "More",
+        close: "Close",
+        availability: "Availability",
+        avail_unlimited: "Unlimited / call to reserve",
+        avail_scheduled: "Scheduled slots",
+        next_slot: "Next slot",
+        choose_type: "Choose type:",
+        type_event: "Event",
+        type_service: "Service",
+        category: "Category:",
+        choose_category: "Choose category",
+        title: "Title:",
+        description: "Description:",
+        location: "Location:",
+        availability_label: "Availability:",
+        add_new: "Add New Event/Service",
+        add_slot: "Add slot",
+        submit: "Submit",
+        premium_title: "Premium Subscription",
+        premium_desc: "Become a Premium member for €5/month to get free coupons and earlier updates on new offers.",
+        subscribe_button: "Subscribe",
+        stripe_note: "* Payments and subscriptions are handled securely via Stripe.",
+        my_profile: "My Profile",
+        my_points: "My Points",
+        points_info: "Earn points by reviewing events and services. You can redeem points for coupons or other rewards.",
+        choose_lang: "Language:",
+        nav_home: "Home",
+        nav_add: "Add",
+        nav_premium: "Premium",
+        nav_profile: "My",
+        added_success: "Added successfully!"
+      },
+      sl: {
+        events: "Dogodki",
+        services: "Storitve",
+        more: "Več",
+        close: "Zapri",
+        availability: "Razpoložljivost:",
+        avail_unlimited: "Neomejeno / pokličite za rezervacijo",
+        avail_scheduled: "Določeni termini",
+        next_slot: "Naslednji termin",
+        choose_type: "Izberite tip:",
+        type_event: "Dogodek",
+        type_service: "Storitev",
+        category: "Kategorija:",
+        choose_category: "Izberite kategorijo",
+        title: "Naslov:",
+        description: "Opis:",
+        location: "Lokacija:",
+        add_new: "Dodaj nov dogodek/storitev",
+        add_slot: "Dodaj termin",
+        submit: "Dodaj",
+        premium_title: "Premium naročnina",
+        premium_desc: "Postanite Premium član za 5 € na mesec in pridobite brezplačne kupone ter hitrejša obvestila o novih ponudbah.",
+        subscribe_button: "Naroči se",
+        stripe_note: "* Plačila in naročnine upravlja Stripe varno in zanesljivo.",
+        my_profile: "Moj profil",
+        my_points: "Moje točke",
+        points_info: "Točke si prislužite z ocenami dogodkov in storitev. Zbrane točke lahko unovčite za kupone ali druge nagrade.",
+        choose_lang: "Jezik:",
+        nav_home: "Domov",
+        nav_add: "Dodaj",
+        nav_premium: "Premium",
+        nav_profile: "Moje",
+        added_success: "Uspešno dodano!"
+      }
+    };
+    let currentLang = 'sl';  // privzeti jezik
+    function setLanguage(lang) {
+      if (!translations[lang]) return;
+      currentLang = lang;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang][key]) {
+          el.textContent = translations[lang][key];
+        }
+      });
+      // Ponovno upodobi seznam, da posodobimo besedilo dinamičnih elementov (Več/Zapri itd.)
+      renderListings(activeCategory);
+    }
+    document.getElementById('langSelect').addEventListener('change', e => {
+      setLanguage(e.target.value);
+    });
+
+    // Inicializacija: naloži privzete podatke in jezik
+    fetchListings('event').then(data => {
+      eventsData = data;
+      renderListings('event');
+    });
+    setLanguage('sl');
+  </script>
+</body>
+</html>

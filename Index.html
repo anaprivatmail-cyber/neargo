@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NearGo</title>
+  <!-- Vključitev CSS knjižnic (Leaflet, FullCalendar) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.5/main.min.css" />
+  <style>
+    /* Osnovni stili za celotno stran */
+    body { margin: 0; font-family: Arial, sans-serif; background: #f5f5f5; color: #333; }
+    body.dark { background: #121212; color: #e0e0e0; }
+    a { color: #0066cc; text-decoration: none; }
+    body.dark a { color: #82aaff; }
+    button { cursor: pointer; }
+    /* Navigacija in glava aplikacije */
+    header { background: #ffffff; color: #000; }
+    body.dark header { background: #222; color: #fff; }
+    .branding { text-align: center; padding: 10px; font-size: 1.2em; font-weight: bold; }
+    .branding img { vertical-align: middle; height: 30px; margin-right: 5px; }
+    .controls { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; }
+    .left-controls, .right-controls { display: flex; align-items: center; }
+    .left-controls button, .left-controls select { margin-right: 10px; }
+    .left-controls select { padding: 3px; }
+    .main-nav { display: flex; justify-content: space-around; }
+    .main-nav button { flex: 1; padding: 10px; border: none; background: #eee; font-size: 1em; }
+    .main-nav button.active { background: #ddd; font-weight: bold; }
+    body.dark .main-nav { background: #333; }
+    body.dark .main-nav button { background: #444; color: #fff; }
+    body.dark .main-nav button.active { background: #555; }
+    /* Sekcije strani */
+    .page-section { display: none; padding: 10px; }
+    /* Intro in izpostavljeni primeri */
+    .intro { font-size: 0.9em; margin-bottom: 10px; }
+    .featured-list { display: flex; overflow-x: auto; margin-bottom: 10px; }
+    .featured-item { flex: 0 0 70%; background: #ececec; padding: 10px; border-radius: 5px; margin-right: 10px; }
+    body.dark .featured-item { background: #333; color: #fff; }
+    .featured-item h3 { margin: 0 0 5px; font-size: 1em; }
+    .featured-item p { margin: 0; font-size: 0.9em; }
+    /* Vrstica filtrov iskanja */
+    .filter-bar { display: flex; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    .filter-bar input[type="text"] { flex: 1; padding: 5px; margin: 5px 5px 5px 0; }
+    .filter-bar select { padding: 5px; margin: 5px 5px 5px 0; }
+    .filter-bar button { padding: 5px 10px; margin: 5px 0; }
+    /* Rezultati iskanja */
+    .results-list .card { background: #fff; border: 1px solid #ccc; border-radius: 5px; margin: 5px 0; padding: 10px; }
+    body.dark .results-list .card { background: #2a2a2a; border: 1px solid #555; color: #e0e0e0; }
+    .card h4 { margin: 0 0 5px; font-size: 1em; }
+    .card p { margin: 0 0 5px; font-size: 0.9em; }
+    .card .more-info { display: none; margin-top: 5px; }
+    .card .more-info p { margin: 0 0 5px; }
+    .card .close-btn { display: inline-block; margin-top: 5px; cursor: pointer; color: #0066cc; }
+    body.dark .card .close-btn { color: #82aaff; }
+    .no-results { font-style: italic; margin: 10px 0; }
+    /* Obrazec za ponudnike */
+    #providerSection form { max-width: 600px; margin: 0 auto; }
+    #providerSection form label { display: block; margin: 8px 0 4px; }
+    #providerSection form input[type="text"],
+    #providerSection form input[type="number"],
+    #providerSection form textarea { width: 100%; padding: 5px; box-sizing: border-box; }
+    #providerSection form textarea { resize: vertical; height: 60px; }
+    #providerSection form input[type="file"] { margin: 5px 0; }
+    #providerSection form fieldset { border: none; padding: 0; margin: 8px 0; }
+    #providerSection form legend { font-weight: bold; margin-bottom: 5px; }
+    #providerSection form .inline-group { display: flex; gap: 10px; align-items: center; margin: 5px 0; }
+    #providerSection form .inline-group label { display: flex; align-items: center; font-weight: normal; }
+    #providerSection form .inline-group label span { margin-left: 4px; }
+    #couponSection, #datesSection { display: none; margin-top: 5px; }
+    #couponSection.active, #datesSection.active { display: block; }
+    #calendar { max-width: 600px; margin: 10px 0; }
+    #imagePreview { display: block; margin: 5px 0; max-width: 100px; max-height: 100px; }
+    #providerSection form button[type="submit"] { margin-top: 10px; padding: 8px 16px; }
+  </style>
+</head>
+<body>
+  <!-- Navigacija in glava aplikacije -->
+  <header>
+    <div class="branding">
+      <!-- Logotip in ime aplikacije -->
+      <img src="logo.png" alt="NearGo Logo" />
+      <span>NearGo</span>
+    </div>
+    <div class="controls">
+      <div class="left-controls">
+        <!-- Gumb za nočni način in izbirnik jezika -->
+        <button id="darkModeToggle" title="Night Mode">🌙</button>
+        <select id="languageSelect">
+          <option value="sl">Slovenščina</option>
+          <option value="en">English</option>
+          <option value="hr">Hrvatski</option>
+          <option value="sr">Srpski</option>
+          <option value="de">Deutsch</option>
+          <option value="it">Italiano</option>
+          <option value="fr">Français</option>
+          <option value="es">Español</option>
+          <option value="pt">Português</option>
+          <option value="pl">Polski</option>
+          <option value="ru">Русский</option>
+          <option value="zh">中文</option>
+          <option value="ja">日本語</option>
+          <option value="ko">한국어</option>
+          <option value="ar">العربية</option>
+          <option value="hu">Magyar</option>
+          <option value="cs">Čeština</option>
+          <option value="id">Bahasa Indonesia</option>
+        </select>
+      </div>
+      <div class="right-controls">
+        <!-- Gumb za preklop na pogled za ponudnike -->
+        <button id="providerButton" data-i18n="providerButton">Za ponudnike</button>
+      </div>
+    </div>
+    <nav class="main-nav">
+      <!-- Glavni navigacijski gumbi -->
+      <button id="navEvents" data-i18n="navEvents" class="active">Dogodki</button>
+      <button id="navServices" data-i18n="navServices">Storitve</button>
+      <button id="navPremium" data-i18n="navPremium">Premium</button>
+      <button id="navMy" data-i18n="navMy">Moje</button>
+    </nav>
+  </header>
+
+  <!-- Sekcija: Dogodki -->
+  <section id="eventsSection" class="page-section" style="display: block;">
+    <p class="intro" data-i18n="eventsIntro">Odkrij dogodke v tvoji bližini.</p>
+    <h3 data-i18n="featuredTitle">Izpostavljeno</h3>
+    <div class="featured-list" id="eventsFeatured"></div>
+    <!-- Filter in zemljevid za dogodke -->
+    <div class="filter-bar">
+      <input type="text" id="locationInput" placeholder="Lokacija" />
+      <button id="useLocationBtn" data-i18n="useLocation">Uporabi mojo lokacijo</button>
+      <select id="radiusSelect">
+        <option value="1">1 km</option>
+        <option value="5" selected>5 km</option>
+        <option value="10">10 km</option>
+        <option value="20">20 km</option>
+      </select>
+      <button id="searchButton" data-i18n="searchButton">Išči</button>
+    </div>
+    <div id="eventsMap" style="height: 300px;"></div>
+    <div id="noResultsEvents" class="no-results"></div>
+    <div id="eventResults" class="results-list"></div>
+  </section>
+
+  <!-- Sekcija: Storitve -->
+  <section id="servicesSection" class="page-section">
+    <p class="intro" data-i18n="servicesIntro">Raziskuj lokalne storitve in ponudbe.</p>
+    <h3 data-i18n="featuredTitle">Izpostavljeno</h3>
+    <div class="featured-list" id="servicesFeatured"></div>
+    <!-- Filter in zemljevid za storitve -->
+    <div class="filter-bar">
+      <input type="text" id="serviceLocationInput" placeholder="Lokacija" />
+      <button id="useServiceLocationBtn" data-i18n="useLocation">Uporabi mojo lokacijo</button>
+      <select id="serviceRadiusSelect">
+        <option value="1">1 km</option>
+        <option value="5" selected>5 km</option>
+        <option value="10">10 km</option>
+        <option value="20">20 km</option>
+      </select>
+      <button id="serviceSearchButton" data-i18n="searchButton">Išči</button>
+    </div>
+    <div id="servicesMap" style="height: 300px;"></div>
+    <div id="noResultsServices" class="no-results"></div>
+    <div id="serviceResults" class="results-list"></div>
+  </section>
+
+  <!-- Sekcija: Premium -->
+  <section id="premiumSection" class="page-section">
+    <p data-i18n="premiumInfo">Postani Premium član in odkleni ekskluzivne ugodnosti, ponudbe in izkušnje.</p>
+    <button id="premiumUpgradeBtn" data-i18n="premiumButton">Nadgradi na Premium</button>
+  </section>
+
+  <!-- Sekcija: Moje (Uporabniški profil/moji shranjeni) -->
+  <section id="mySection" class="page-section">
+    <p data-i18n="myInfo">Dobrodošel v svojem profilu. Tukaj bodo prikazani tvoji shranjeni dogodki in storitve.</p>
+  </section>
+
+  <!-- Sekcija: Obrazec za ponudnike (dodajanje storitve/dogodka) -->
+  <section id="providerSection" class="page-section">
+    <h2 data-i18n="formTitle">Dodaj novo storitev ali dogodek</h2>
+    <form id="providerForm">
+      <label data-i18n="nameLabel">Naziv:</label>
+      <input type="text" id="serviceName" name="serviceName" required />
+
+      <label data-i18n="descriptionLabel">Opis:</label>
+      <textarea id="serviceDescription" name="serviceDescription" required></textarea>
+
+      <label data-i18n="locationLabel">Lokacija:</label>
+      <input type="text" id="serviceAddress" name="serviceAddress" />
+
+      <label data-i18n="imageLabel">Naloži sliko:</label>
+      <input type="file" id="imageUpload" name="imageUpload" accept="image/*" />
+      <img id="imagePreview" alt="Preview" style="display:none;" />
+
+      <fieldset>
+        <legend data-i18n="scheduleLabel">Razpoložljivost:</legend>
+        <div class="inline-group">
+          <label>
+            <input type="radio" name="scheduleType" value="unlimited" checked />
+            <span data-i18n="unlimitedOption">Neomejeno</span>
+          </label>
+          <label>
+            <input type="radio" name="scheduleType" value="dates" />
+            <span data-i18n="datesOption">Določeni termini</span>
+          </label>
+        </div>
+      </fieldset>
+
+      <!-- Polja za kupon (prikažejo se pri Neomejeno) -->
+      <div id="couponSection" class="active">
+        <label data-i18n="couponCodeLabel">Koda kupona:</label>
+        <input type="text" id="couponCode" name="couponCode" />
+
+        <label data-i18n="discountTypeLabel">Vrsta popusta:</label>
+        <select id="discountType" name="discountType">
+          <option value="percent" data-i18n="percentOption">% Popust</option>
+          <option value="fixed" data-i18n="fixedOption">Fiksni popust</option>
+        </select>
+
+        <label data-i18n="discountValueLabel">Vrednost popusta:</label>
+        <input type="number" id="discountValue" name="discountValue" />
+      </div>
+
+      <!-- Koledar za izbiro terminov (prikaže se pri Določeni termini) -->
+      <div id="datesSection">
+        <div id="calendar"></div>
+      </div>
+
+      <button type="submit" data-i18n="submitButton">Objavi</button>
+    </form>
+  </section>
+
+  <!-- Vključitev JS knjižnic (Leaflet, FullCalendar, i18n) -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.5/main.min.js"></script>
+  <script>
+    // Podatki za večjezičnost (i18n) - prevodi za 18 jezikov
+    const texts = {
+      sl: {
+        navEvents: "Dogodki", navServices: "Storitve", navPremium: "Premium", navMy: "Moje",
+        providerButton: "Za ponudnike",
+        useLocation: "Uporabi mojo lokacijo", searchButton: "Išči",
+        eventsIntro: "Odkrij dogodke v tvoji bližini.", servicesIntro: "Raziskuj lokalne storitve in ponudbe.",
+        featuredTitle: "Izpostavljeno",
+        moreButton: "Več", closeButton: "Zapri",
+        noResults: "Ni najdenih rezultatov.",
+        premiumInfo: "Postani Premium član in odkleni ekskluzivne ugodnosti, ponudbe in izkušnje.",
+        premiumButton: "Nadgradi na Premium",
+        myInfo: "Dobrodošel v svojem profilu. Tukaj bodo prikazani tvoji shranjeni dogodki in storitve.",
+        formTitle: "Dodaj novo storitev ali dogodek",
+        nameLabel: "Naziv:", descriptionLabel: "Opis:", locationLabel: "Lokacija:",
+        imageLabel: "Naloži sliko:", scheduleLabel: "Razpoložljivost:",
+        unlimitedOption: "Neomejeno", datesOption: "Določeni termini",
+        couponCodeLabel: "Koda kupona:", discountTypeLabel: "Vrsta popusta:", discountValueLabel: "Vrednost popusta:",
+        percentOption: "% Popust", fixedOption: "Fiksni popust",
+        submitButton: "Objavi"
+      },
+      en: {
+        navEvents: "Events", navServices: "Services", navPremium: "Premium", navMy: "My",
+        providerButton: "For Providers",
+        useLocation: "Use my location", searchButton: "Search",
+        eventsIntro: "Discover events near you.", servicesIntro: "Explore local services and offers.",
+        featuredTitle: "Featured",
+        moreButton: "More", closeButton: "Close",
+        noResults: "No results found.",
+        premiumInfo: "Become a Premium member to unlock exclusive benefits, deals, and experiences.",
+        premiumButton: "Upgrade to Premium",
+        myInfo: "Welcome to your profile. Your saved events and services will appear here.",
+        formTitle: "Add a new service or event",
+        nameLabel: "Name:", descriptionLabel: "Description:", locationLabel: "Location:",
+        imageLabel: "Upload Image:", scheduleLabel: "Availability:",
+        unlimitedOption: "Unlimited", datesOption: "Specific dates",
+        couponCodeLabel: "Coupon Code:", discountTypeLabel: "Discount type:", discountValueLabel: "Discount value:",
+        percentOption: "% Discount", fixedOption: "Fixed Discount",
+        submitButton: "Publish"
+      },
+      hr: {
+        navEvents: "Događaji", navServices: "Usluge", navPremium: "Premium", navMy: "Moje",
+        providerButton: "Za ponudnike",
+        useLocation: "Upotrijebi moju lokaciju", searchButton: "Pretraži",
+        eventsIntro: "Otkrij događaje u svojoj blizini.", servicesIntro: "Istraži lokalne usluge i ponude.",
+        featuredTitle: "Izdvojeno",
+        moreButton: "Više", closeButton: "Zatvori",
+        noResults: "Nema pronađenih rezultata.",
+        premiumInfo: "Postani Premium član i otključaj ekskluzivne pogodnosti, ponude i iskustva.",
+        premiumButton: "Nadogradi na Premium",
+        myInfo: "Dobrodošao na svoj profil. Ovdje će se prikazati tvoji spremljeni događaji i usluge.",
+        formTitle: "Dodaj novu uslugu ili događaj",
+        nameLabel: "Naziv:", descriptionLabel: "Opis:", locationLabel: "Lokacija:",
+        imageLabel: "Učitaj sliku:", scheduleLabel: "Dostupnost:",
+        unlimitedOption: "Neograničeno", datesOption: "Određeni termini",
+        couponCodeLabel: "Kod kupona:", discountTypeLabel: "Vrsta popusta:", discountValueLabel: "Vrijednost popusta:",
+        percentOption: "% Popust", fixedOption: "Fiksni popust",
+        submitButton: "Objavi"
+      },
+      sr: {
+        navEvents: "Događaji", navServices: "Usluge", navPremium: "Premium", navMy: "Moje",
+        providerButton: "Za ponuđače",
+        useLocation: "Koristi moju lokaciju", searchButton: "Pretraga",
+        eventsIntro: "Otkrij događaje u tvojoj blizini.", servicesIntro: "Istraži lokalne usluge i ponude.",
+        featuredTitle: "Izdvojeno",
+        moreButton: "Više", closeButton: "Zatvori",
+        noResults: "Nema pronađenih rezultata.",
+        premiumInfo: "Postani Premium član i otključaj ekskluzivne pogodnosti, ponude i iskustva.",
+        premiumButton: "Nadogradi na Premium",
+        myInfo: "Dobrodošao u svoj profil. Ovde će biti prikazani tvoji sačuvani događaji i usluge.",
+        formTitle: "Dodaj novu uslugu ili događaj",
+        nameLabel: "Naziv:", descriptionLabel: "Opis:", locationLabel: "Lokacija:",
+        imageLabel: "Otpremi sliku:", scheduleLabel: "Dostupnost:",
+        unlimitedOption: "Neograničeno", datesOption: "Određeni termini",
+        couponCodeLabel: "Kod kupona:", discountTypeLabel: "Vrsta popusta:", discountValueLabel: "Vrednost popusta:",
+        percentOption: "% Popust", fixedOption: "Fiksni popust",
+        submitButton: "Objavi"
+      },
+      de: {
+        navEvents: "Veranstaltungen", navServices: "Dienstleistungen", navPremium: "Premium", navMy: "Meine",
+        providerButton: "Für Anbieter",
+        useLocation: "Standort verwenden", searchButton: "Suchen",
+        eventsIntro: "Entdecke Veranstaltungen in deiner Nähe.", servicesIntro: "Erkunde lokale Dienstleistungen und Angebote.",
+        featuredTitle: "Empfohlen",
+        moreButton: "Mehr", closeButton: "Schließen",
+        noResults: "Keine Ergebnisse gefunden.",
+        premiumInfo: "Werde Premium-Mitglied, um exklusive Vorteile, Angebote und Erlebnisse freizuschalten.",
+        premiumButton: "Upgrade auf Premium",
+        myInfo: "Willkommen in deinem Profil. Deine gespeicherten Events und Services erscheinen hier.",
+        formTitle: "Neue Dienstleistung oder Veranstaltung hinzufügen",
+        nameLabel: "Name:", descriptionLabel: "Beschreibung:", locationLabel: "Standort:",
+        imageLabel: "Bild hochladen:", scheduleLabel: "Verfügbarkeit:",
+        unlimitedOption: "Unbegrenzt", datesOption: "Bestimmte Termine",
+        couponCodeLabel: "Gutscheincode:", discountTypeLabel: "Rabattart:", discountValueLabel: "Rabattwert:",
+        percentOption: "% Rabatt", fixedOption: "Fester Rabatt",
+        submitButton: "Veröffentlichen"
+      },
+      it: {
+        navEvents: "Eventi", navServices: "Servizi", navPremium: "Premium", navMy: "Mio",
+        providerButton: "Per fornitori",
+        useLocation: "Usa mia posizione", searchButton: "Cerca",
+        eventsIntro: "Scopri gli eventi vicino a te.", servicesIntro: "Esplora servizi e offerte locali.",
+        featuredTitle: "In primo piano",
+        moreButton: "Altro", closeButton: "Chiudi",
+        noResults: "Nessun risultato trovato.",
+        premiumInfo: "Diventa membro Premium per sbloccare vantaggi, offerte ed esperienze esclusive.",
+        premiumButton: "Passa a Premium",
+        myInfo: "Benvenuto nel tuo profilo. I tuoi eventi e servizi salvati appariranno qui.",
+        formTitle: "Aggiungi un nuovo servizio o evento",
+        nameLabel: "Nome:", descriptionLabel: "Descrizione:", locationLabel: "Posizione:",
+        imageLabel: "Carica immagine:", scheduleLabel: "Disponibilità:",
+        unlimitedOption: "Illimitato", datesOption: "Date specifiche",
+        couponCodeLabel: "Codice coupon:", discountTypeLabel: "Tipo di sconto:", discountValueLabel: "Valore dello sconto:",
+        percentOption: "% Sconto", fixedOption: "Sconto fisso",
+        submitButton: "Pubblica"
+      },
+      fr: {
+        navEvents: "Événements", navServices: "Services", navPremium: "Premium", navMy: "Mes",
+        providerButton: "Pour commerçants",
+        useLocation: "Utiliser ma position", searchButton: "Rechercher",
+        eventsIntro: "Découvrez les événements près de chez vous.", servicesIntro: "Explorez les services et offres locaux.",
+        featuredTitle: "En vedette",
+        moreButton: "Plus", closeButton: "Fermer",
+        noResults: "Aucun résultat trouvé.",
+        premiumInfo: "Devenez membre Premium pour débloquer des avantages, offres et expériences exclusifs.",
+        premiumButton: "Passer en Premium",
+        myInfo: "Bienvenue sur votre profil. Vos événements et services enregistrés apparaîtront ici.",
+        formTitle: "Ajouter un nouveau service ou événement",
+        nameLabel: "Nom :", descriptionLabel: "Description :", locationLabel: "Emplacement :",
+        imageLabel: "Ajouter une image :", scheduleLabel: "Disponibilité :",
+        unlimitedOption: "Illimité", datesOption: "Dates spécifiques",
+        couponCodeLabel: "Code promo :", discountTypeLabel: "Type de réduction :", discountValueLabel: "Valeur de la réduction :",
+        percentOption: "% Réduction", fixedOption: "Réduction fixe",
+        submitButton: "Publier"
+      },
+      es: {
+        navEvents: "Eventos", navServices: "Servicios", navPremium: "Premium", navMy: "Mi",
+        providerButton: "Para negocios",
+        useLocation: "Usar mi ubicación", searchButton: "Buscar",
+        eventsIntro: "Descubre eventos cerca de ti.", servicesIntro: "Explora servicios y ofertas locales.",
+        featuredTitle: "Destacado",
+        moreButton: "Más", closeButton: "Cerrar",
+        noResults: "No se encontraron resultados.",
+        premiumInfo: "Hazte miembro Premium para desbloquear beneficios, ofertas y experiencias exclusivas.",
+        premiumButton: "Mejorar a Premium",
+        myInfo: "Bienvenido a tu perfil. Tus eventos y servicios guardados aparecerán aquí.",
+        formTitle: "Agregar un nuevo servicio o evento",
+        nameLabel: "Nombre:", descriptionLabel: "Descripción:", locationLabel: "Ubicación:",
+        imageLabel: "Cargar imagen:", scheduleLabel: "Disponibilidad:",
+        unlimitedOption: "Ilimitado", datesOption: "Fechas específicas",
+        couponCodeLabel: "Código de cupón:", discountTypeLabel: "Tipo de descuento:", discountValueLabel: "Valor del descuento:",
+        percentOption: "% Descuento", fixedOption: "Descuento fijo",
+        submitButton: "Publicar"
+      },
+      pt: {
+        navEvents: "Eventos", navServices: "Serviços", navPremium: "Premium", navMy: "Meu",
+        providerButton: "Para comerciantes",
+        useLocation: "Usar minha localização", searchButton: "Buscar",
+        eventsIntro: "Descubra eventos perto de você.", servicesIntro: "Explore serviços e ofertas locais.",
+        featuredTitle: "Em destaque",
+        moreButton: "Mais", closeButton: "Fechar",
+        noResults: "Nenhum resultado encontrado.",
+        premiumInfo: "Torne-se membro Premium para desbloquear benefícios, ofertas e experiências exclusivas.",
+        premiumButton: "Atualize para Premium",
+        myInfo: "Bem-vindo ao seu perfil. Seus eventos e serviços salvos aparecerão aqui.",
+        formTitle: "Adicionar um novo serviço ou evento",
+        nameLabel: "Nome:", descriptionLabel: "Descrição:", locationLabel: "Localização:",
+        imageLabel: "Carregar imagem:", scheduleLabel: "Disponibilidade:",
+        unlimitedOption: "Ilimitado", datesOption: "Datas específicas",
+        couponCodeLabel: "Código do cupão:", discountTypeLabel: "Tipo de desconto:", discountValueLabel: "Valor do desconto:",
+        percentOption: "% Desconto", fixedOption: "Desconto fixo",
+        submitButton: "Publicar"
+      },
+      pl: {
+        navEvents: "Wydarzenia", navServices: "Usługi", navPremium: "Premium", navMy: "Moje",
+        providerButton: "Dla dostawców",
+        useLocation: "Użyj mojej lokalizacji", searchButton: "Szukaj",
+        eventsIntro: "Odkryj wydarzenia w twojej okolicy.", servicesIntro: "Poznaj lokalne usługi i oferty.",
+        featuredTitle: "Polecane",
+        moreButton: "Więcej", closeButton: "Zamknij",
+        noResults: "Nie znaleziono wyników.",
+        premiumInfo: "Zostań członkiem Premium, aby uzyskać dostęp do ekskluzywnych korzyści, ofert i doświadczeń.",
+        premiumButton: "Uzyskaj Premium",
+        myInfo: "Witamy na profilu. Twoje zapisane wydarzenia i usługi pojawią się tutaj.",
+        formTitle: "Dodaj nową usługę lub wydarzenie",
+        nameLabel: "Nazwa:", descriptionLabel: "Opis:", locationLabel: "Lokalizacja:",
+        imageLabel: "Prześlij obraz:", scheduleLabel: "Dostępność:",
+        unlimitedOption: "Nieograniczony", datesOption: "Określone terminy",
+        couponCodeLabel: "Kod kuponu:", discountTypeLabel: "Rodzaj rabatu:", discountValueLabel: "Wartość rabatu:",
+        percentOption: "% Rabat", fixedOption: "Stały rabat",
+        submitButton: "Opublikuj"
+      },
+      ru: {
+        navEvents: "События", navServices: "Услуги", navPremium: "Премиум", navMy: "Моё",
+        providerButton: "Для партнёров",
+        useLocation: "Моё местоположение", searchButton: "Поиск",
+        eventsIntro: "Откройте для себя события рядом с вами.", servicesIntro: "Исследуйте местные услуги и предложения.",
+        featuredTitle: "Рекомендуемое",
+        moreButton: "Еще", closeButton: "Закрыть",
+        noResults: "Результаты не найдены.",
+        premiumInfo: "Станьте Premium-участником, чтобы получить эксклюзивные преимущества, предложения и впечатления.",
+        premiumButton: "Оформить Premium",
+        myInfo: "Добро пожаловать в ваш профиль. Здесь появятся ваши сохраненные события и услуги.",
+        formTitle: "Добавить новую услугу или событие",
+        nameLabel: "Название:", descriptionLabel: "Описание:", locationLabel: "Локация:",
+        imageLabel: "Загрузить изображение:", scheduleLabel: "Доступность:",
+        unlimitedOption: "Неограниченно", datesOption: "Определенные даты",
+        couponCodeLabel: "Код купона:", discountTypeLabel: "Тип скидки:", discountValueLabel: "Величина скидки:",
+        percentOption: "% скидка", fixedOption: "Фиксированная скидка",
+        submitButton: "Опубликовать"
+      },
+      zh: {
+        navEvents: "活动", navServices: "服务", navPremium: "高级", navMy: "我的",
+        providerButton: "商家入口",
+        useLocation: "使用我的位置", searchButton: "搜索",
+        eventsIntro: "发现您附近的活动。", servicesIntro: "探索本地服务和优惠。",
+        featuredTitle: "精选",
+        moreButton: "更多", closeButton: "关闭",
+        noResults: "未找到结果。",
+        premiumInfo: "成为高级会员，解锁专属优惠、折扣和体验。",
+        premiumButton: "升级到高级版",
+        myInfo: "欢迎来到您的个人中心。您保存的活动和服务将显示在这里。",
+        formTitle: "添加新服务或活动",
+        nameLabel: "名称：", descriptionLabel: "描述：", locationLabel: "位置：",
+        imageLabel: "上传图片：", scheduleLabel: "可用性：",
+        unlimitedOption: "无限", datesOption: "特定日期",
+        couponCodeLabel: "优惠码：", discountTypeLabel: "折扣类型：", discountValueLabel: "折扣值：",
+        percentOption: "% 折扣", fixedOption: "固定折扣",
+        submitButton: "发布"
+      },
+      ja: {
+        navEvents: "イベント", navServices: "サービス", navPremium: "プレミアム", navMy: "マイ",
+        providerButton: "店舗向け",
+        useLocation: "現在地を使用", searchButton: "検索",
+        eventsIntro: "お近くのイベントを発見しましょう。", servicesIntro: "地元のサービスやオファーを探索。",
+        featuredTitle: "注目",
+        moreButton: "もっと", closeButton: "閉じる",
+        noResults: "結果が見つかりません。",
+        premiumInfo: "プレミアムメンバーになって、限定特典やお得情報、体験を手に入れましょう。",
+        premiumButton: "プレミアムにアップグレード",
+        myInfo: "プロフィールへようこそ。保存したイベントとサービスがここに表示されます。",
+        formTitle: "新しいサービスまたはイベントを追加",
+        nameLabel: "名前：", descriptionLabel: "説明：", locationLabel: "場所：",
+        imageLabel: "画像をアップロード：", scheduleLabel: "提供状況：",
+        unlimitedOption: "無制限", datesOption: "特定の日付",
+        couponCodeLabel: "クーポンコード：", discountTypeLabel: "割引タイプ：", discountValueLabel: "割引額：",
+        percentOption: "% 割引", fixedOption: "固定割引",
+        submitButton: "公開"
+      },
+      ko: {
+        navEvents: "이벤트", navServices: "서비스", navPremium: "프리미엄", navMy: "내",
+        providerButton: "파트너용",
+        useLocation: "내 위치 사용", searchButton: "검색",
+        eventsIntro: "내 주변의 이벤트를 찾아보세요.", servicesIntro: "현지 서비스 및 제공 항목을 탐색하세요.",
+        featuredTitle: "추천",
+        moreButton: "더보기", closeButton: "닫기",
+        noResults: "결과를 찾을 수 없습니다.",
+        premiumInfo: "프리미엄 멤버가 되어 독점 혜택, 할인 및 경험을 누리세요.",
+        premiumButton: "프리미엄으로 업그레이드",
+        myInfo: "프로필에 오신 것을 환영합니다. 저장된 이벤트 및 서비스가 여기에 표시됩니다.",
+        formTitle: "새 서비스 또는 이벤트 추가",
+        nameLabel: "이름:", descriptionLabel: "설명:", locationLabel: "위치:",
+        imageLabel: "이미지 업로드:", scheduleLabel: "이용 가능:",
+        unlimitedOption: "무제한", datesOption: "특정 날짜",
+        couponCodeLabel: "쿠폰 코드:", discountTypeLabel: "할인 유형:", discountValueLabel: "할인 값:",
+        percentOption: "% 할인", fixedOption: "정액 할인",
+        submitButton: "게시"
+      },
+      ar: {
+        navEvents: "الفعاليات", navServices: "الخدمات", navPremium: "الممتازة", navMy: "خاصتي",
+        providerButton: "للشركاء",
+        useLocation: "استخدام موقعي", searchButton: "بحث",
+        eventsIntro: "اكتشف الفعاليات بالقرب منك.", servicesIntro: "استكشف الخدمات والعروض المحلية.",
+        featuredTitle: "مميز",
+        moreButton: "المزيد", closeButton: "إغلاق",
+        noResults: "لم يتم العثور على نتائج.",
+        premiumInfo: "كن عضوًا مميزًا لتحصل على مزايا وعروض وتجارب حصرية.",
+        premiumButton: "ترقية إلى Premium",
+        myInfo: "مرحبًا بك في ملفك الشخصي. ستظهر فعالياتك وخدماتك المحفوظة هنا.",
+        formTitle: "أضف خدمة أو فعالية جديدة",
+        nameLabel: "الاسم:", descriptionLabel: "الوصف:", locationLabel: "الموقع:",
+        imageLabel: "تحميل صورة:", scheduleLabel: "التوفر:",
+        unlimitedOption: "غير محدود", datesOption: "مواعيد محددة",
+        couponCodeLabel: "رمز القسيمة:", discountTypeLabel: "نوع الخصم:", discountValueLabel: "قيمة الخصم:",
+        percentOption: "% خصم", fixedOption: "خصم ثابت",
+        submitButton: "انشر"
+      },
+      hu: {
+        navEvents: "Események", navServices: "Szolgáltatások", navPremium: "Prémium", navMy: "Saját",
+        providerButton: "Szolgáltatóknak",
+        useLocation: "Saját hely használata", searchButton: "Keresés",
+        eventsIntro: "Fedezd fel a közeli eseményeket.", servicesIntro: "Fedezd fel a helyi szolgáltatásokat és ajánlatokat.",
+        featuredTitle: "Kiemelt",
+        moreButton: "Több", closeButton: "Bezárás",
+        noResults: "Nincs találat.",
+        premiumInfo: "Legyen Prémium tag, hogy exkluzív előnyökhöz, ajánlatokhoz és élményekhez jusson.",
+        premiumButton: "Frissítés Prémiumra",
+        myInfo: "Üdvözlünk a profilodban. Itt jelennek meg a mentett eseményeid és szolgáltatásaid.",
+        formTitle: "Új szolgáltatás vagy esemény hozzáadása",
+        nameLabel: "Név:", descriptionLabel: "Leírás:", locationLabel: "Helyszín:",
+        imageLabel: "Kép feltöltése:", scheduleLabel: "Elérhetőség:",
+        unlimitedOption: "Korlátlan", datesOption: "Meghatározott időpontok",
+        couponCodeLabel: "Kuponkód:", discountTypeLabel: "Kedvezmény típusa:", discountValueLabel: "Kedvezmény értéke:",
+        percentOption: "% kedvezmény", fixedOption: "Fix kedvezmény",
+        submitButton: "Közzététel"
+      },
+      cs: {
+        navEvents: "Události", navServices: "Služby", navPremium: "Premium", navMy: "Moje",
+        providerButton: "Pro poskytovatele",
+        useLocation: "Použít mojí polohu", searchButton: "Hledat",
+        eventsIntro: "Objevte události ve svém okolí.", servicesIntro: "Prozkoumejte místní služby a nabídky.",
+        featuredTitle: "Doporučené",
+        moreButton: "Více", closeButton: "Zavřít",
+        noResults: "Nenalezeny žádné výsledky.",
+        premiumInfo: "Staňte se členem Premium a získejte exkluzivní výhody, nabídky a zážitky.",
+        premiumButton: "Přejít na Premium",
+        myInfo: "Vítejte ve svém profilu. Vaše uložené události a služby se zobrazí zde.",
+        formTitle: "Přidat novou službu nebo událost",
+        nameLabel: "Název:", descriptionLabel: "Popis:", locationLabel: "Lokalita:",
+        imageLabel: "Nahrát obrázek:", scheduleLabel: "Dostupnost:",
+        unlimitedOption: "Neomezeně", datesOption: "Určené termíny",
+        couponCodeLabel: "Kód kupónu:", discountTypeLabel: "Typ slevy:", discountValueLabel: "Hodnota slevy:",
+        percentOption: "% sleva", fixedOption: "Pevná sleva",
+        submitButton: "Publikovat"
+      },
+      id: {
+        navEvents: "Acara", navServices: "Layanan", navPremium: "Premium", navMy: "Saya",
+        providerButton: "Untuk penyedia",
+        useLocation: "Gunakan lokasi saya", searchButton: "Cari",
+        eventsIntro: "Temukan acara di dekat Anda.", servicesIntro: "Jelajahi layanan dan penawaran lokal.",
+        featuredTitle: "Unggulan",
+        moreButton: "Lebih", closeButton: "Tutup",
+        noResults: "Tidak ada hasil ditemukan.",
+        premiumInfo: "Jadilah anggota Premium untuk membuka manfaat, penawaran, dan pengalaman eksklusif.",
+        premiumButton: "Tingkatkan ke Premium",
+        myInfo: "Selamat datang di profil Anda. Acara dan layanan tersimpan Anda akan muncul di sini.",
+        formTitle: "Tambahkan layanan atau acara baru",
+        nameLabel: "Nama:", descriptionLabel: "Deskripsi:", locationLabel: "Lokasi:",
+        imageLabel: "Unggah Gambar:", scheduleLabel: "Ketersediaan:",
+        unlimitedOption: "Tak terbatas", datesOption: "Tanggal tertentu",
+        couponCodeLabel: "Kode kupon:", discountTypeLabel: "Jenis diskon:", discountValueLabel: "Nilai diskon:",
+        percentOption: "% Diskon", fixedOption: "Diskon tetap",
+        submitButton: "Terbitkan"
+      }
+    };
+
+    // Funkcija za pridobivanje prevedenega niza ali privzetega (angleščina) če ni na voljo
+    function t(key) {
+      const lang = currentLang;
+      return (texts[lang] && texts[lang][key]) ? texts[lang][key] : (texts['en'][key] || '');
+    }
+
+    // Uporabniška nastavitev jezika (če uporabnik ročno izbere)
+    let userSelectedLang = false;
+    // Trenutni jezik (privzeto bo nastavljen spodaj)
+    let currentLang = 'sl';
+
+    // Funkcija za nastavitev jezika vmesnika
+    function setLanguage(lang) {
+      if (!texts[lang]) lang = 'en'; // če je neznan jezik, uporabi angleščino
+      currentLang = lang;
+      // Posodobi HTML lang atribut
+      document.documentElement.lang = lang;
+      // Posodobi vse elemente z data-i18n atributom
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (texts[lang] && texts[lang][key]) {
+          if (el.tagName.toLowerCase() === 'input' || el.tagName.toLowerCase() === 'textarea') {
+            // Če je input (npr. placeholder), preskoči - ročno nastavljamo spodaj kjer potrebno
+            if (el.placeholder) {
+              el.placeholder = texts[lang][key];
+            }
+          } else if (el.tagName.toLowerCase() === 'button' || el.tagName.toLowerCase() === 'option' || el.tagName.toLowerCase() === 'legend' || el.tagName.toLowerCase() === 'label' || el.tagName.toLowerCase() === 'span') {
+            // Posodobi tekstovno vsebino
+            el.textContent = texts[lang][key];
+          } else {
+            el.innerText = texts[lang][key];
+          }
+        }
+      });
+      // Posodobi posebne elemente (placeholderje)
+      if (texts[lang].useLocation) {
+        document.getElementById('locationInput').placeholder = texts[lang].locationLabel || texts[lang].locationPlaceholder || "Location";
+        document.getElementById('serviceLocationInput').placeholder = texts[lang].locationLabel || texts[lang].locationPlaceholder || "Location";
+      }
+      // Nastavi izbirnik jezikov na trenutno vrednost
+      const langSelect = document.getElementById('languageSelect');
+      if (langSelect) langSelect.value = lang;
+    }
+
+    // Samodejno zaznavanje jezika glede na lokacijo uporabnika
+    function detectLanguageByLocation(lat, lon) {
+      // Uporaba Nominatim reverse geocode za pridobitev country_code
+      const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
+      fetch(url, { headers: { 'Accept-Language': 'en' } })
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.address && data.address.country_code) {
+            let countryCode = data.address.country_code.toUpperCase();
+            // Mapa držav v jezike
+            const countryLangMap = {
+              "SI": "sl", "HR": "hr", "RS": "sr", "BA": "sr", // Bosna - sr/hr? (privzeto sr)
+              "IT": "it", "DE": "de", "AT": "de", "CH": "de", 
+              "FR": "fr", "BE": "fr", "ES": "es", "PT": "pt", 
+              "BR": "pt", "PL": "pl", "RU": "ru", "CN": "zh", 
+              "TW": "zh", "HK": "zh", "JP": "ja", "KR": "ko", 
+              "AE": "ar", "SA": "ar", "DZ": "ar", "EG": "ar",
+              "HU": "hu", "CZ": "cs", "SK": "cs", "ID": "id",
+              "US": "en", "GB": "en", "AU": "en", "CA": "en"
+            };
+            if (countryLangMap[countryCode]) {
+              const lang = countryLangMap[countryCode];
+              // Če uporabnik še ni ročno izbral jezika, nastavi glede na lokacijo
+              if (!userSelectedLang) {
+                setLanguage(lang);
+              }
+            }
+          }
+        })
+        .catch(err => {
+          console.warn("Geolocation reverse lookup failed:", err);
+        });
+    }
+
+    // Inicializacija jezikovnih nastavitev ob nalaganju strani
+    document.addEventListener('DOMContentLoaded', () => {
+      // Privzeto nastavi jezik po brskalniku
+      const browserLang = navigator.language.slice(0,2).toLowerCase();
+      setLanguage(browserLang in texts ? browserLang : 'en');
+      // Poskusi geolocirati uporabnika za jezik
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          detectLanguageByLocation(pos.coords.latitude, pos.coords.longitude);
+        });
+      }
+    });
+
+    // Dogodek za ročno izbiro jezika s spustnega seznama
+    document.getElementById('languageSelect').addEventListener('change', function() {
+      userSelectedLang = true;
+      setLanguage(this.value);
+    });
+
+    // Podatki primerov (za testiranje, brez prave vsebine)
+    const eventsData = [
+      { name: "Poletni festival", description: "Velik poletni festival v mestu.", lat: 46.2397, lon: 15.2677, link: "#", featured: true },
+      { name: "Umetniška delavnica", description: "Ustvarjalna delavnica za vse starosti.", lat: 46.25, lon: 15.30, link: "#", featured: true },
+      { name: "Oddaljen dogodek", description: "Ta dogodek je nekoliko izven območja.", lat: 46.30, lon: 15.30, link: "#", featured: false }
+    ];
+    const servicesData = [
+      { name: "Restavracija Pri Okusih", description: "20% popust na vsa kosila med tednom.", lat: 46.226, lon: 15.264, link: "#", featured: true },
+      { name: "Servis koles HitroKolo", description: "Popravilo koles na domu v 24h.", lat: 46.24, lon: 15.25, link: "#", featured: true },
+      { name: "Oddaljena storitev", description: "Storitve na lokaciji izven območja.", lat: 46.29, lon: 15.32, link: "#", featured: false }
+    ];
+
+    // Inicializacija zemljevidov Leaflet
+    let eventsMap, servicesMap;
+    let eventsLayer, servicesLayer;
+    let eventsLightTiles, eventsDarkTiles, servicesLightTiles, servicesDarkTiles;
+    function initMaps() {
+      // Dogodki zemljevid
+      eventsMap = L.map('eventsMap').setView([46.2397, 15.2677], 13);
+      eventsLightTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      });
+      eventsDarkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://carto.com/">CARTO</a>, &copy; OpenStreetMap'
+      });
+      eventsLightTiles.addTo(eventsMap);
+      eventsLayer = L.layerGroup().addTo(eventsMap);
+
+      // Storitve zemljevid
+      servicesMap = L.map('servicesMap').setView([46.2397, 15.2677], 13);
+      servicesLightTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      });
+      servicesDarkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CARTO, OpenStreetMap'
+      });
+      servicesLightTiles.addTo(servicesMap);
+      servicesLayer = L.layerGroup().addTo(servicesMap);
+    }
+    initMaps();
+
+    // Funkcija za prikaz sekcije strani in posodobitev navigacije
+    function showSection(sectionId) {
+      const sections = ['eventsSection','servicesSection','premiumSection','mySection','providerSection'];
+      sections.forEach(id => {
+        document.getElementById(id).style.display = (id === sectionId ? 'block' : 'none');
+      });
+      // Posodobi aktivno stanje gumbov v navigaciji
+      document.querySelectorAll('.main-nav button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      if (sectionId === 'eventsSection') document.getElementById('navEvents').classList.add('active');
+      if (sectionId === 'servicesSection') document.getElementById('navServices').classList.add('active');
+      if (sectionId === 'premiumSection') document.getElementById('navPremium').classList.add('active');
+      if (sectionId === 'mySection') document.getElementById('navMy').classList.add('active');
+      // Če je ponudniška sekcija, ne označi ničesar v glavni navigaciji
+    }
+
+    // Kliki navigacijskih gumbov
+    document.getElementById('navEvents').addEventListener('click', () => showSection('eventsSection'));
+    document.getElementById('navServices').addEventListener('click', () => showSection('servicesSection'));
+    document.getElementById('navPremium').addEventListener('click', () => showSection('premiumSection'));
+    document.getElementById('navMy').addEventListener('click', () => showSection('mySection'));
+    document.getElementById('providerButton').addEventListener('click', () => showSection('providerSection'));
+
+    // Night mode (nočni način) toggle
+    document.getElementById('darkModeToggle').addEventListener('click', () => {
+      document.body.classList.toggle('dark');
+      const darkModeOn = document.body.classList.contains('dark');
+      // Zamenjaj ikono gumba (luna / sonce)
+      document.getElementById('darkModeToggle').textContent = darkModeOn ? "☀️" : "🌙";
+      // Zamenjaj tile layerje na zemljevidih
+      if (eventsMap && servicesMap) {
+        if (darkModeOn) {
+          if (eventsMap.hasLayer(eventsLightTiles)) { eventsMap.removeLayer(eventsLightTiles); eventsDarkTiles.addTo(eventsMap); }
+          if (servicesMap.hasLayer(servicesLightTiles)) { servicesMap.removeLayer(servicesLightTiles); servicesDarkTiles.addTo(servicesMap); }
+        } else {
+          if (eventsMap.hasLayer(eventsDarkTiles)) { eventsMap.removeLayer(eventsDarkTiles); eventsLightTiles.addTo(eventsMap); }
+          if (servicesMap.hasLayer(servicesDarkTiles)) { servicesMap.removeLayer(servicesDarkTiles); servicesLightTiles.addTo(servicesMap); }
+        }
+      }
+    });
+
+    // Prikaz izpostavljenih primerov na podlagi označenih podatkov (featured: true)
+    function renderFeatured() {
+      const eventsFeaturedEl = document.getElementById('eventsFeatured');
+      const servicesFeaturedEl = document.getElementById('servicesFeatured');
+      eventsFeaturedEl.innerHTML = '';
+      servicesFeaturedEl.innerHTML = '';
+      eventsData.filter(e => e.featured).forEach(e => {
+        const item = document.createElement('div');
+        item.className = 'featured-item';
+        item.innerHTML = `<h3>${e.name}</h3><p>${e.description}</p>`;
+        eventsFeaturedEl.appendChild(item);
+      });
+      servicesData.filter(s => s.featured).forEach(s => {
+        const item = document.createElement('div');
+        item.className = 'featured-item';
+        item.innerHTML = `<h3>${s.name}</h3><p>${s.description}</p>`;
+        servicesFeaturedEl.appendChild(item);
+      });
+    }
+    renderFeatured();
+
+    // Funkcija za izris rezultatov iskanja na zemljevidu in seznamu (za dogodke in storitve)
+    function performSearch(type) {
+      // Izberi prave podatke in elemente glede na tip (events ali services)
+      const isEvent = (type === 'events');
+      const data = isEvent ? eventsData : servicesData;
+      const map = isEvent ? eventsMap : servicesMap;
+      const layer = isEvent ? eventsLayer : servicesLayer;
+      const locationInput = document.getElementById(isEvent ? 'locationInput' : 'serviceLocationInput');
+      const radiusInput = document.getElementById(isEvent ? 'radiusSelect' : 'serviceRadiusSelect');
+      const resultsEl = document.getElementById(isEvent ? 'eventResults' : 'serviceResults');
+      const noResultsEl = document.getElementById(isEvent ? 'noResultsEvents' : 'noResultsServices');
+      // Počisti obstoječe rezultate
+      layer.clearLayers();
+      resultsEl.innerHTML = '';
+      noResultsEl.innerText = '';
+      // Določi center iskanja: če je vnešena lokacija, uporabimo geokodiranje, sicer uporabimo geolocation ali privzeto
+      const radiusKm = parseFloat(radiusInput.value) || 5;
+      const searchAndDisplay = (centerLat, centerLon) => {
+        // Dodaj krog radija na zemljevid
+        const circle = L.circle([centerLat, centerLon], { radius: radiusKm * 1000, color: '#3366cc', fillColor: '#3366cc', fillOpacity: 0.1 });
+        layer.addLayer(circle);
+        // Filtriraj podatke znotraj radija
+        const results = data.filter(item => {
+          const dist = distanceKm(centerLat, centerLon, item.lat, item.lon);
+          return dist <= radiusKm;
+        });
+        if (results.length === 0) {
+          // Ni rezultatov
+          noResultsEl.innerText = t('noResults');
+        }
+        // Dodaj markerje in kartice za vsako najdeno storitev/dogodek
+        results.forEach(item => {
+          const marker = L.marker([item.lat, item.lon]).addTo(layer);
+          let popupContent = `<strong>${item.name}</strong><br>${item.description}`;
+          if (item.link) popupContent += `<br><a href="${item.link}" target="_blank">Več &raquo;</a>`;
+          marker.bindPopup(popupContent);
+          // Kartica rezultata
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <h4>${item.name}</h4>
+            <p>${item.description}</p>
+            <button class="more-btn" data-i18n="moreButton">${t('moreButton')}</button>
+            <div class="more-info">
+              <p>${item.description}</p>
+              <span class="close-btn" data-i18n="closeButton">${t('closeButton')}</span>
+            </div>
+          `;
+          // Dogodki za Več/Zapri
+          const moreBtn = card.querySelector('.more-btn');
+          const moreInfo = card.querySelector('.more-info');
+          const closeBtn = card.querySelector('.close-btn');
+          moreBtn.addEventListener('click', () => {
+            moreInfo.style.display = 'block';
+            moreBtn.style.display = 'none';
+          });
+          closeBtn.addEventListener('click', () => {
+            moreInfo.style.display = 'none';
+            moreBtn.style.display = 'inline-block';
+          });
+          resultsEl.appendChild(card);
+        });
+        // Prilagodi pogled zemljevida, da pokaže vse markerje in krog
+        if (results.length > 0) {
+          const groupItems = [circle];
+          layer.eachLayer(l => { if (l instanceof L.Marker) groupItems.push(l); });
+          const group = L.featureGroup(groupItems);
+          map.fitBounds(group.getBounds(), { padding: [20, 20] });
+        } else {
+          // Če ni rezultatov, prikaži samo krog na sredini
+          map.setView([centerLat, centerLon], Math.max(13, 8));
+        }
+      };
+      // Če je vnos lokacije prazen, uporabimo geolocation ali privzete koordinate
+      const locationQuery = locationInput.value.trim();
+      if (locationQuery === "") {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(pos => {
+            searchAndDisplay(pos.coords.latitude, pos.coords.longitude);
+          }, err => {
+            // Če geolokacija ni na voljo, uporabimo privzeto središče
+            searchAndDisplay(46.2397, 15.2677);
+          });
+        } else {
+          searchAndDisplay(46.2397, 15.2677);
+        }
+      } else {
+        // Geokodiraj besedilo naslova z uporabo Nominatim
+        const geocodeUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationQuery)}&limit=1`;
+        fetch(geocodeUrl)
+          .then(response => response.json())
+          .then(data => {
+            if (data && data[0]) {
+              const lat = parseFloat(data[0].lat);
+              const lon = parseFloat(data[0].lon);
+              searchAndDisplay(lat, lon);
+            } else {
+              noResultsEl.innerText = t('noResults');
+            }
+          })
+          .catch(() => {
+            noResultsEl.innerText = t('noResults');
+          });
+      }
+    }
+
+    // Funkcija za izračun razdalje (Haversine formula) med dvema koordinatama v km
+    function distanceKm(lat1, lon1, lat2, lon2) {
+      const R = 6371; // radij Zemlje v km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    // Poveži gumbe iskanja z izvedbo iskanja
+    document.getElementById('searchButton').addEventListener('click', () => performSearch('events'));
+    document.getElementById('serviceSearchButton').addEventListener('click', () => performSearch('services'));
+    // Gumb "Uporabi mojo lokacijo" nastavi lokacijsko polje (prazno, ker search funkcija bo uporabla geolokacijo) in sproži iskanje
+    document.getElementById('useLocationBtn').addEventListener('click', () => {
+      document.getElementById('locationInput').value = "";
+      performSearch('events');
+    });
+    document.getElementById('useServiceLocationBtn').addEventListener('click', () => {
+      document.getElementById('serviceLocationInput').value = "";
+      performSearch('services');
+    });
+
+    // Upravljanje obrazca za ponudnike
+    const couponSection = document.getElementById('couponSection');
+    const datesSection = document.getElementById('datesSection');
+    let calendar; // FullCalendar instance
+    let calendarInitialized = false;
+    // Preklop med Neomejeno in Določeni termini
+    document.querySelectorAll('input[name="scheduleType"]').forEach(radio => {
+      radio.addEventListener('change', event => {
+        if (event.target.value === 'unlimited') {
+          // Pokaži kupon sekcijo, skrij koledar
+          couponSection.classList.add('active');
+          datesSection.classList.remove('active');
+        } else if (event.target.value === 'dates') {
+          // Pokaži koledar, skrij kupon
+          couponSection.classList.remove('active');
+          datesSection.classList.add('active');
+          // Inicializiraj FullCalendar, če še ni
+          if (!calendarInitialized) {
+            calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+              initialView: 'dayGridMonth',
+              selectable: true,
+              select: function(info) {
+                // Dodaj označen datum kot ozadje (highlight) dogodek
+                calendar.addEvent({ start: info.start, end: info.end, display: 'background', backgroundColor: '#0d6efd' });
+              }
+            });
+            calendar.render();
+            calendarInitialized = true;
+          }
+        }
+      });
+    });
+    // Predogled slike ob nalaganju
+    document.getElementById('imageUpload').addEventListener('change', function() {
+      const preview = document.getElementById('imagePreview');
+      if (this.files && this.files[0]) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          preview.src = e.target.result;
+          preview.style.display = 'block';
+        };
+        reader.readAsDataURL(this.files[0]);
+      } else {
+        preview.style.display = 'none';
+        preview.src = "";
+      }
+    });
+    // (Opomba: oddaja obrazca bi se obdelala na strežniku; tukaj preprečimo privzeto pošiljanje)
+    document.getElementById('providerForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      alert('Form submitted (demo).');
+    });
+  </script>
+</body>
+</html>

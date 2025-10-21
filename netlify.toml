@@ -52,6 +52,27 @@
   status = 200
   force = true
 
+  # Apple Server Notifications v2 (push obveščanje App Store-a)
+[[redirects]]
+  from = "/api/iap/apple/notifications"
+  to   = "/.netlify/functions/iap-apple-notify"
+  status = 200
+  force = true
+
+# Apple SK2 (iOS 15+) - takoj po nakupu ti app pošlje podpisani transaction JWS
+[[redirects]]
+  from = "/api/iap/apple/tx/verify"
+  to   = "/.netlify/functions/iap-apple-transaction-verify"
+  status = 200
+  force = true
+
+# Apple SK1 (legacy) - verifyReceipt fallback (zahteva APPLE_SHARED_SECRET)
+[[redirects]]
+  from = "/api/iap/apple/verify"
+  to   = "/.netlify/functions/iap-apple-verify"
+  status = 200
+  force = true
+
 # Stripe Checkout
 [[redirects]]
   from = "/api/checkout"

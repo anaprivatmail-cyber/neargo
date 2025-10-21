@@ -1,8 +1,13 @@
+# =========================
+# Build & Functions paths
+# =========================
 [build]
-  publish = "."
+  publish   = "."
   functions = "netlify/functions"
 
-# ===== Redirects to serverless functions (API) =====
+# =========================
+# Redirects to serverless functions (API)
+# =========================
 
 [[redirects]]
   from = "/api/search"
@@ -103,7 +108,48 @@
   status = 200
   force = true
 
-# ===== Static asset caching =====
+# === NOVO: koledar storitev – shranjevanje in branje ===
+[[redirects]]
+  from = "/api/service-slots-save"
+  to   = "/.netlify/functions/service-slots-save"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/service-slots-get"
+  to   = "/.netlify/functions/service-slots-get"
+  status = 200
+  force = true
+
+# === NOVO: rezervacije (hold) termina ===
+[[redirects]]
+  from = "/api/reserve-slot"
+  to   = "/.netlify/functions/reserve-slot"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/release-slot"
+  to   = "/.netlify/functions/release-slot"
+  status = 200
+  force = true
+
+# === NOVO: IAP (Premium/Boost) – kot uporablja index ===
+[[redirects]]
+  from = "/api/iap/start"
+  to   = "/.netlify/functions/iap-start"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/iap/boost-start"
+  to   = "/.netlify/functions/iap-boost-start"
+  status = 200
+  force = true
+
+# =========================
+# Static asset caching
+# =========================
 [[headers]]
   for = "/*.html"
   [headers.values]
@@ -114,7 +160,9 @@
   [headers.values]
     cache-control = "public, max-age=31536000, immutable"
 
-# ===== Security headers =====
+# =========================
+# Security headers
+# =========================
 [[headers]]
   for = "/*"
   [headers.values]
@@ -124,7 +172,9 @@
     permissions-policy = "geolocation=(self), camera=(self)"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
 
-# ===== CORS for functions =====
+# =========================
+# CORS for functions
+# =========================
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
@@ -132,20 +182,34 @@
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization, x-scanner-key"
 
-# ===== SPA fallback =====
+# =========================
+# SPA fallback
+# =========================
 [[redirects]]
   from = "/*"
   to   = "/index.html"
   status = 200
 
-# ===== Functions bundling (global) =====
+# =========================
+# Functions bundling (global)
+# =========================
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["@netlify/blobs", "@supabase/supabase-js", "busboy"]
+  external_node_modules = [
+    "@netlify/blobs",
+    "@supabase/supabase-js",
+    "busboy",
+    "stripe",
+    "qrcode",
+    "pdf-lib",
+    "@pdf-lib/fontkit",
+    "@getbrevo/brevo"
+  ]
   included_files = [
     "providers/**",
     "netlify/functions/fonts/**"
   ]
 
+# Posebna nastavitev za ticket-redeem (pusti kot imaš)
 [functions."ticket-redeem"]
   node_bundler = "none"

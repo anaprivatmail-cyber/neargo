@@ -1,19 +1,26 @@
 // netlify/functions/iap-boost-start.js
-// Namen: vrne URL za "Boost izpostavitev". Stub, da UI deluje in deploy ne pade.
+import Stripe from "stripe";
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-20" });
 
-exports.handler = async () => {
+export const handler = async () => {
   try {
-    const url = "/organizers.html#boost"; // zamenjaj s pravim plačilnim/konfiguracijskim URL-jem
-    return {
-      statusCode: 200,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ok: true, url })
-    };
-  } catch (err) {
-    return {
-      statusCode: 200,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ok: false })
-    };
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [{
+        price_data: {
+          currency: "eur",
+          product_data: { name: "Boost izpostavitev dogodka/storitve (7 dni)" },
+          unit_amount: 400,  # 4 €
+        },
+        quantity: 1,
+      }],
+      success_url: `${process.env.PUBLIC_BASE_URL}/#success`,
+      cancel_url: `${process.env.PUBLIC_BASE_URL}/#cancel`,
+      metadata: { type: "boost" },
+    });
+
+    return { statusCode: 200, body: JSON.stringify({ ok: true, url: session.url }) };
+  } catch (e) {
+    return { statusCode: 500, body: JSON.stringify({ ok: false, error: e.message }) };
   }
 };

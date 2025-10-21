@@ -1,4 +1,4 @@
-// netlify/functions/service-slots-save.js
+// netlify/functions/service-slots-get.js
 import { createClient } from "@supabase/supabase-js";
 
 const supa = createClient(
@@ -8,31 +8,21 @@ const supa = createClient(
 );
 
 export const handler = async (event) => {
-  if (event.httpMethod !== "POST")
-    return { statusCode: 405, body: "POST only" };
+  const { eventId } = event.queryStringParameters || {};
+  if (!eventId)
+    return { statusCode: 400, body: JSON.stringify({ ok: false, error: "Missing eventId" }) };
 
-  const { eventId, slots = [] } = JSON.parse(event.body || "{}");
-  if (!eventId) return { statusCode: 400, body: "Missing eventId" };
+  const { data, error } = await supa
+    .from("service_slots")
+    .select("*")
+    .eq("event_id", eventId)
+    .order("start_ts");
 
-  // zbriši stare in vstavi nove
-  await supa.from("service_slots").delete().eq("event_id", eventId);
+  if (error)
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ ok: false, error: error.message }),
+    };
 
-  if (Array.isArray(slots) && slots.length > 0) {
-    const payload = slots.map((s) => ({
-      event_id: eventId,
-      start_ts: s.start,
-      end_ts: s.end || null,
-      capacity: s.quota || 1,
-      reserved: 0,
-    }));
-
-    const { error } = await supa.from("service_slots").insert(payload);
-    if (error)
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ ok: false, error: error.message }),
-      };
-  }
-
-  return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+  return { statusCode: 200, body: JSON.stringify({ ok: true, results: data }) };
 };

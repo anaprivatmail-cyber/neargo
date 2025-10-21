@@ -1,156 +1,113 @@
-// netlify/functions/iap-apple-verify.js  (ESM)
-import { createClient } from "@supabase/supabase-js";
-
-/**
- * iOS IAP verifikacija (legacy, a še vedno podprta) prek Apple /verifyReceipt.
- * Uporabimo "shared secret" (APPLE_SHARED_SECRET).
- *
- * Pričakovani JSON body iz iOS appa:
- * {
- *   "receiptData": "<base64>",
- *   "productId": "premium.monthly",          // opcijsko, pomaga pri logiki
- *   "originalTransactionId": "1234567890",   // opcijsko, lepše vezano na uporabnika
- *   "email": "user@example.com",             // če imaš e-pošto uporabnika (drugače user_id)
- *   "userId": "<uuid | app id>"              // opcijsko, če ne želiš e-pošte
- * }
- *
- * Odgovor:
- * { ok: true, premium: true, valid_until: "...", auto_renew: true }
- */
+// netlify/functions/iap-apple-notify.js
+import { createClient } from '@supabase/supabase-js'
+import { jwtVerify, decodeProtectedHeader, importX509 } from 'jose'
 
 const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Access-Control-Allow-Methods": "POST,OPTIONS"
-};
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type'
+}
 const json = (d, s = 200) => ({
   statusCode: s,
-  headers: { "Content-Type": "application/json; charset=utf-8", ...CORS },
-  body: JSON.stringify(d)
-});
+  headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS },
+  body: JSON.stringify(d),
+})
 
-const SUPABASE_URL  = process.env.SUPABASE_URL;
-const SUPABASE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY; // service role (potrebujemo write)
-const APPLE_SHARED_SECRET = process.env.APPLE_SHARED_SECRET; // App Store Connect -> App-Specific Shared Secret
+const SUPABASE_URL = process.env.SUPABASE_URL
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const APP_BUNDLE_ID = process.env.APPLE_APP_BUNDLE_ID || '' // npr. com.neargo.app
 
-const supa = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession:false } });
+const supa = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession:false } })
 
-const APPLE_VERIFY_PROD = "https://buy.itunes.apple.com/verifyReceipt";
-const APPLE_VERIFY_SANDBOX = "https://sandbox.itunes.apple.com/verifyReceipt";
-
-// Helper: v Apple receiptih je datum v ms (string)
-const msToIso = (ms) => new Date(Number(ms||0)).toISOString();
-
-function pickLatestActive(lines = [], productId = null){
-  // Apple vrača vrstice (latest_receipt_info). Vzamemo NAJVEČJI expires_date_ms,
-  // po možnosti za isti productId, sicer najpoznejšega.
-  const arr = (lines||[]).slice().sort((a,b)=> Number(b.expires_date_ms||0) - Number(a.expires_date_ms||0));
-  if (!arr.length) return null;
-  if (productId) {
-    const same = arr.find(r => String(r.product_id||"") === String(productId));
-    if (same) return same;
+async function verifyAppleJws(compactJws) {
+  const header = decodeProtectedHeader(compactJws)
+  const x5cArr = header?.x5c
+  if (!x5cArr || !Array.isArray(x5cArr) || !x5cArr.length) {
+    throw new Error('Apple JWS manjka x5c header')
   }
-  return arr[0];
+  const alg = header.alg || 'ES256'
+  const pem = `-----BEGIN CERTIFICATE-----\n${x5cArr[0]}\n-----END CERTIFICATE-----`
+  const key = await importX509(pem, alg)
+  const { payload, protectedHeader } = await jwtVerify(compactJws, key, { algorithms: [alg] })
+  return { payload, header: protectedHeader }
+}
+const msToIso = (ms) => (ms ? new Date(Number(ms)).toISOString() : null)
+
+function mapNotificationToStatus(notificationType = '') {
+  const t = String(notificationType||'').toUpperCase()
+  if (['SUBSCRIBED','DID_RENEW','DID_RECOVER'].includes(t)) return 'active'
+  if (['EXPIRED','REFUND','REVOKED'].includes(t)) return 'expired'
+  if (['GRACE_PERIOD_EXPIRED','DID_FAIL_TO_RENEW','BILLING_RETRY'].includes(t)) return 'active'
+  return 'active'
 }
 
-export const handler = async (event) => {
-  try{
-    if (event.httpMethod === "OPTIONS") return { statusCode:200, headers:CORS, body:"" };
-    if (event.httpMethod !== "POST")   return json({ ok:false, error:"Method Not Allowed" }, 405);
+export async function handler(event) {
+  try {
+    if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' }
+    if (event.httpMethod !== 'POST') return json({ ok:false, error:'Method Not Allowed' }, 405)
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return json({ ok:false, error:'Missing SUPABASE env' }, 500)
 
-    if (!SUPABASE_URL || !SUPABASE_KEY || !APPLE_SHARED_SECRET) {
-      return json({ ok:false, error:"Manjka SUPABASE_URL/SERVICE_ROLE_KEY ali APPLE_SHARED_SECRET" }, 500);
+    const body = JSON.parse(event.body||'{}')
+    const signedPayload = body?.signedPayload
+    if (!signedPayload) return json({ ok:false, error:'Missing signedPayload' }, 400)
+
+    // 1) preveri top-level JWS podpis (brez APPLE_SHARED_SECRET)
+    const { payload: top } = await verifyAppleJws(signedPayload)
+
+    // varnostni check
+    if (top?.iss && top.iss !== 'appstoreconnect-v1') throw new Error(`Nepričakovani issuer: ${top.iss}`)
+    if (APP_BUNDLE_ID && top?.data?.bundleId && top.data.bundleId !== APP_BUNDLE_ID) {
+      throw new Error(`BundleId mismatch: ${top.data.bundleId}`)
     }
 
-    let body;
-    try { body = JSON.parse(event.body||"{}"); }
-    catch { return json({ ok:false, error:"Neveljaven JSON" }, 400); }
+    const notificationType = String(top?.notificationType||'')
+    const signedTx = top?.data?.signedTransactionInfo
+    const signedRenewal = top?.data?.signedRenewalInfo
 
-    const receiptData = String(body.receiptData||"").trim();
-    if (!receiptData) return json({ ok:false, error:"Manjka 'receiptData' (base64)" }, 400);
-
-    const productId = body.productId ? String(body.productId) : null;
-    const email     = body.email ? String(body.email).trim() : null;
-    const userId    = body.userId ? String(body.userId).trim() : null;
-
-    // 1) Pošlji v production verifyReceipt
-    async function verifyAt(url){
-      const r = await fetch(url, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({
-          "receipt-data": receiptData,
-          "password": APPLE_SHARED_SECRET,     // app specific shared secret
-          "exclude-old-transactions": true
-        })
-      });
-      const j = await r.json();
-      return j;
+    let tx = null, renewal = null
+    if (typeof signedTx === 'string') {
+      const v = await verifyAppleJws(signedTx)
+      tx = v.payload
+    }
+    if (typeof signedRenewal === 'string') {
+      const r = await verifyAppleJws(signedRenewal)
+      renewal = r.payload
     }
 
-    let res = await verifyAt(APPLE_VERIFY_PROD);
+    const originalTransactionId =
+      tx?.originalTransactionId || tx?.original_transaction_id || top?.data?.originalTransactionId || null
+    const productId = tx?.productId || top?.data?.productId || null
 
-    // 21007 = sandbox receipt poslan na prod -> preusmeri v sandbox
-    if (res?.status === 21007) {
-      res = await verifyAt(APPLE_VERIFY_SANDBOX);
+    let expiresMs =
+      (tx?.expiresDateMs && Number(tx.expiresDateMs)) ||
+      (tx?.expiresDate    && Number(tx.expiresDate)) ||
+      (renewal?.gracePeriodExpiresDate && Number(renewal.gracePeriodExpiresDate)) ||
+      null
+
+    const validUntil = expiresMs ? msToIso(expiresMs) : null
+    let autoRenew = true
+    if (typeof renewal?.autoRenewStatus !== 'undefined') {
+      const raw = String(renewal.autoRenewStatus)
+      autoRenew = raw === '1' || raw.toUpperCase() === 'ON'
     }
+    const status = mapNotificationToStatus(notificationType)
 
-    if (!res || typeof res.status === "undefined") {
-      return json({ ok:false, error:"Nepričakovan odgovor Apple" }, 502);
-    }
-    if (res.status !== 0) {
-      // status != 0 pomeni napako ali neveljavno
-      return json({ ok:false, error:`Apple verifyReceipt status=${res.status}` }, 400);
-    }
-
-    // 2) Izluščimo zadnjo aktivno naročnino (latest_receipt_info)
-    const latestLines = res.latest_receipt_info || [];
-    const latest = pickLatestActive(latestLines, productId);
-
-    if (!latest) {
-      // Ni zapisa o naročnini
-      return json({ ok:false, premium:false, error:"Ni aktivnega zapisa v latest_receipt_info" }, 200);
-    }
-
-    const expiresMs = Number(latest.expires_date_ms||0);
-    const validUntil = expiresMs ? msToIso(expiresMs) : null;
-    const isActive = expiresMs > Date.now();
-
-    // auto_renew_status pride v pending_renewal_info (polje)
-    const pending = Array.isArray(res.pending_renewal_info) ? res.pending_renewal_info[0] : null;
-    const autoRenew = pending ? (String(pending.auto_renew_status||"0")==="1") : true;
-
-    // original_transaction_id = stabilen ID naročnine v Apple svetu
-    const originalTxn = latest.original_transaction_id || body.originalTransactionId || null;
-
-    // 3) Zapišemo v "subscriptions" (platform = 'apple')
-    try{
-      await supa.from("subscriptions").upsert({
-        email: email || null,
-        user_id: userId || null,
-        platform: "apple",
-        provider_sub_id: originalTxn,         // to je tvoj ključ za to naročnino
-        product_id: latest.product_id || productId || null,
-        status: isActive ? "active" : "expired",
+    if (originalTransactionId) {
+      await supa.from('subscriptions').upsert({
+        provider_sub_id: String(originalTransactionId),
+        platform: 'apple',
+        product_id: productId || null,
+        status,
         current_period_end: validUntil,
-        auto_renew: !!autoRenew,
+        auto_renew: autoRenew,
         updated_at: new Date().toISOString()
-      }, { onConflict: "provider_sub_id" });
-    }catch(e){
-      console.error("[iap-apple-verify] upsert subscriptions error:", e?.message||e);
-      // ne ustavimo odgovora; vrnemo premium status, a z opozorilom
+      }, { onConflict: 'provider_sub_id' })
     }
 
-    return json({
-      ok:true,
-      premium: isActive,
-      valid_until: validUntil,
-      auto_renew: !!autoRenew,
-      platform: "apple"
-    });
-
-  }catch(e){
-    console.error("[iap-apple-verify] fatal:", e?.message||e);
-    return json({ ok:false, error:e?.message||"Server error" }, 500);
+    return json({ ok:true, type:notificationType, provider_sub_id:originalTransactionId })
+  } catch (e) {
+    console.error('[iap-apple-notify] error:', e?.message||e)
+    // Apple pričakuje 200 OK, tudi če je interna napaka — da ne pinga v nedogled
+    return json({ ok:true })
   }
-};
+}

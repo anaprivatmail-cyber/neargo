@@ -213,3 +213,8 @@
 # Posebna nastavitev za ticket-redeem (pusti kot imaš)
 [functions."ticket-redeem"]
   node_bundler = "none"
+  [[redirects]]
+  from = "/api/iap/apple/verify"
+  to   = "/.netlify/functions/iap-apple-verify"
+  status = 200
+  force = true

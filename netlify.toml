@@ -9,6 +9,13 @@
 # Redirects to serverless functions (API)
 # =========================
 
+# Stripe Customer Portal session
+[[redirects]]
+  from = "/api/iap/portal"
+  to   = "/.netlify/functions/iap-portal"
+  status = 200
+  force = true
+
 # Iskanje po “velikih appih”
 [[redirects]]
   from = "/api/search"

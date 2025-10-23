@@ -1,0 +1,259 @@
+# =========================
+# Build & Functions paths
+# =========================
+[build]
+  publish   = "."
+  functions = "netlify/functions"
+
+# =========================
+# Redirects to serverless functions (API)
+# =========================
+
+# Iskanje po “velikih appih”
+[[redirects]]
+  from = "/api/search"
+  to   = "/.netlify/functions/tm-search"
+  status = 200
+  force = true
+
+# Apple IAP — SK1 (legacy) verifyReceipt (zahteva APPLE_SHARED_SECRET)
+[[redirects]]
+  from = "/api/iap/apple/verify"
+  to   = "/.netlify/functions/iap-apple-verify"
+  status = 200
+  force = true
+
+# Apple IAP — Server Notifications v2 (Signed JWS)
+[[redirects]]
+  from = "/api/iap/apple/notifications"
+  to   = "/.netlify/functions/iap-apple-notify"
+  status = 200
+  force = true
+
+# Apple IAP — SK2 (iOS 15+) transaction JWS verify (takoj po nakupu)
+[[redirects]]
+  from = "/api/iap/apple/tx/verify"
+  to   = "/.netlify/functions/iap-apple-transaction-verify"
+  status = 200
+  force = true
+
+# Google Play Billing — verify purchaseToken (Premium)
+[[redirects]]
+  from = "/api/iap/google/verify"
+  to   = "/.netlify/functions/iap-google-verify"
+  status = 200
+  force = true
+
+# Google Play Billing — RTDN push notifications (Pub/Sub HTTP)
+[[redirects]]
+  from = "/api/iap/google/notifications"
+  to   = "/.netlify/functions/iap-google-notify"
+  status = 200
+  force = true
+
+# IAP “start” (Premium) — web Stripe fallback ali signal “iap” za native
+[[redirects]]
+  from = "/api/iap/start"
+  to   = "/.netlify/functions/iap-start"
+  status = 200
+  force = true
+
+# IAP “Boost” (promocijska izpostavitev) — web Stripe
+[[redirects]]
+  from = "/api/iap/boost-start"
+  to   = "/.netlify/functions/iap-boost-start"
+  status = 200
+  force = true
+
+# Oddaja/urejanje ponudb (dogodki/storitve)
+[[redirects]]
+  from = "/api/provider-submit"
+  to   = "/.netlify/functions/provider-submit"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/provider-upload"
+  to   = "/.netlify/functions/provider-upload"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/provider-list"
+  to   = "/.netlify/functions/provider-list"
+  status = 200
+  force = true
+
+# Urejanje in posodobitev (link “Uredi/Statistika” v potrditvenem e-mailu)
+[[redirects]]
+  from = "/api/provider-edit"
+  to   = "/.netlify/functions/provider-edit"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/provider-update"
+  to   = "/.netlify/functions/provider-update"
+  status = 200
+  force = true
+
+# Stripe Checkout (kuponi/vstopnice)
+[[redirects]]
+  from = "/api/checkout"
+  to   = "/.netlify/functions/checkout"
+  status = 200
+  force = true
+
+# Stripe webhook
+[[redirects]]
+  from = "/api/stripe-webhook"
+  to   = "/.netlify/functions/stripe-webhook"
+  status = 200
+  force = true
+
+# QR unovčitev kupona/vstopnice (lep URL)
+[[redirects]]
+  from = "/api/ticket-redeem"
+  to   = "/.netlify/functions/ticket-redeem"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/redirect-qr"
+  to   = "/.netlify/functions/redirect-qr"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/r/:token"
+  to   = "/.netlify/functions/ticket-redeem?token=:token"
+  status = 200
+  force = true
+
+# Skeniranje (checker) – enostaven API za QR skener v appu
+[[redirects]]
+  from = "/api/checker"
+  to   = "/.netlify/functions/scan"
+  status = 200
+  force = true
+
+# “Moje” — lookup nakupov/kuponov/vstopnic + premium status
+[[redirects]]
+  from = "/api/purchase-lookup"
+  to   = "/.netlify/functions/purchase-lookup"
+  status = 200
+  force = true
+
+# Koledar storitev — shranjevanje & branje terminov
+[[redirects]]
+  from = "/api/service-slots-save"
+  to   = "/.netlify/functions/service-slots-save"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/service-slots-get"
+  to   = "/.netlify/functions/service-slots-get"
+  status = 200
+  force = true
+
+# Rezervacije terminov (hold/release)
+[[redirects]]
+  from = "/api/reserve-slot"
+  to   = "/.netlify/functions/reserve-slot"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/release-slot"
+  to   = "/.netlify/functions/release-slot"
+  status = 200
+  force = true
+
+# Analitika / točke (light ping)
+[[redirects]]
+  from = "/api/analytics"
+  to   = "/.netlify/functions/analytics"
+  status = 200
+  force = true
+
+# Sales API (za org-stats.html – KPI, byType, funnel)
+[[redirects]]
+  from = "/api/sales"
+  to   = "/.netlify/functions/sales"
+  status = 200
+  force = true
+
+# =========================
+# Static asset caching
+# =========================
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    cache-control = "public, max-age=60, must-revalidate"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    cache-control = "public, max-age=31536000, immutable"
+
+# Service Worker naj bo vedno svež (ne keširaj)
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    cache-control = "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+
+# =========================
+# Security headers
+# =========================
+[[headers]]
+  for = "/*"
+  [headers.values]
+    x-content-type-options = "nosniff"
+    x-frame-options = "SAMEORIGIN"
+    referrer-policy = "strict-origin-when-cross-origin"
+    permissions-policy = "geolocation=(self), camera=(self)"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+
+# =========================
+# CORS for functions
+# =========================
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin  = "*"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization, x-scanner-key"
+
+# =========================
+# SPA fallback
+# =========================
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200
+
+# =========================
+# Functions bundling (global)
+# =========================
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = [
+    "@netlify/blobs",
+    "@supabase/supabase-js",
+    "busboy",
+    "stripe",
+    "qrcode",
+    "pdf-lib",
+    "@pdf-lib/fontkit",
+    "@getbrevo/brevo",
+    "jose"
+  ]
+  included_files = [
+    "providers/**",
+    "netlify/functions/fonts/**"
+  ]
+
+# Posebna nastavitev za ticket-redeem (pusti kot je)
+[functions."ticket-redeem"]
+  node_bundler = "none"

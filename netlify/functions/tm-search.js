@@ -121,11 +121,30 @@ async function fetchTicketmaster({ q, center, radiusKm, size=50 }){
     return arr.map(ev=>{
       const vi = ev._embedded?.venues?.[0];
       const img = (ev.images||[]).sort((a,b)=>b.width-a.width)[0]?.url;
+      
+      // Mapiranje Ticketmaster kategorij v slovenščino
+      const rawCategory = (ev.classifications?.[0]?.segment?.name || '').toLowerCase();
+      const rawGenre = (ev.classifications?.[0]?.genre?.name || '').toLowerCase();
+      const eventName = (ev.name || '').toLowerCase();
+      
+      let category = 'kultura'; // default
+      if (rawCategory.includes('music') || rawGenre.includes('music') || eventName.includes('concert')) {
+        category = 'koncert';
+      } else if (rawCategory.includes('sports') || rawGenre.includes('sport')) {
+        category = 'sport';
+      } else if (rawCategory.includes('family') || rawGenre.includes('family') || eventName.includes('otrok')) {
+        category = 'otroci';
+      } else if (rawCategory.includes('theatre') || rawCategory.includes('arts') || rawGenre.includes('theatre')) {
+        category = 'kultura';
+      } else if (rawCategory.includes('miscellaneous') || rawGenre.includes('comedy')) {
+        category = 'zabava';
+      }
+      
       return {
         id: ev.id,
         name: ev.name || '',
         description: (ev.info || ev.pleaseNote || '')?.slice(0, 800),
-        category: (ev.classifications?.[0]?.segment?.name || '').toLowerCase(),
+        category: category,
         start: ev.dates?.start?.dateTime || null,
         end: null,
         url: ev.url || '',
@@ -162,11 +181,34 @@ async function fetchEventbrite({ q, center, radiusKm, size=50 }){
     return arr.map(ev=>{
       const v = ev.venue || {};
       const img = ev.logo?.url;
+      
+      // Mapiranje Eventbrite kategorij v slovenščino  
+      const eventName = (ev.name?.text || '').toLowerCase();
+      const eventSummary = (ev.summary || '').toLowerCase();
+      const rawCategory = (ev.category_id || '').toLowerCase();
+      
+      let category = 'kultura'; // default
+      if (eventName.includes('concert') || eventName.includes('music') || eventSummary.includes('music')) {
+        category = 'koncert';
+      } else if (eventName.includes('sport') || eventSummary.includes('sport') || rawCategory.includes('sport')) {
+        category = 'sport';
+      } else if (eventName.includes('food') || eventName.includes('culinar') || eventSummary.includes('food')) {
+        category = 'hrana';
+      } else if (eventName.includes('business') || eventName.includes('conference') || eventSummary.includes('business')) {
+        category = 'za-podjetja';
+      } else if (eventName.includes('party') || eventName.includes('club') || eventSummary.includes('party')) {
+        category = 'zabava';
+      } else if (eventName.includes('family') || eventName.includes('kid') || eventSummary.includes('otrok')) {
+        category = 'otroci';
+      } else if (eventName.includes('nature') || eventName.includes('outdoor') || eventSummary.includes('nature')) {
+        category = 'narava';
+      }
+      
       return {
         id: ev.id,
         name: ev.name?.text || '',
         description: (ev.summary || '')?.slice(0,800),
-        category: (ev.category_id || '').toLowerCase(),
+        category: category,
         start: ev.start?.utc || null,
         end: ev.end?.utc || null,
         url: ev.url || '',

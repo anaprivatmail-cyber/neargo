@@ -726,6 +726,20 @@
 /* ===== SAFEGUARD ===== */
 (function(){ window._toast=(msg,ok)=>{const t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.className='toast '+(ok===false?'bad':'ok'); t.style.display='flex'; setTimeout(()=>t.style.display='none',4000); }; window.onerror=(m)=>{ try{window._toast('Napaka: '+m,false);}catch(e){} }; })();
 
+/* ===== GLOBAL UTIL FUNCTIONS ===== */
+const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
+const el=(t,c)=>{const x=document.createElement(t); if(c) x.className=c; return x;};
+const qs=o=>new URLSearchParams(o).toString();
+const euro=v=>Number.isFinite(+v)?new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR'}).format(+v):'';
+const debounce=(fn,ms=350)=>{let t; return(...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);} };
+const headerH=()=>document.querySelector('header')?.getBoundingClientRect().height||64;
+const clamp=(n,min,max)=>Math.min(Math.max(n,min),max);
+const isExternalAPI=e=>((e?.url||"").toLowerCase().includes("ticketmaster")||(e?.url||"").toLowerCase().includes("eventbrite"));
+
+/* Stabilen ID + register */
+const ITEMS_BY_ID = new Map();
+const hashId = e => e.id ? `ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}` : `ev-${(e.name||e.title||'').toLowerCase().replace(/[^a-z0-9]/g,'')}-${(e.start||'').replace(/[^0-9]/g,'')}`.slice(0,64);
+
 /* ===== BULLETPROOF INITIALIZATION ===== */
 function initializeApp() {
   if (window.neargoInitialized) {
@@ -754,19 +768,7 @@ function initializeApp() {
   const btnStart = document.getElementById('btnStart');
   const btnUseLocation = document.getElementById('btnUseLocation');
 
-  /* ===== UTIL (znotraj funkcije) ===== */
-  const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
-const el=(t,c)=>{const x=document.createElement(t); if(c) x.className=c; return x;};
-const qs=o=>new URLSearchParams(o).toString();
-const euro=v=>Number.isFinite(+v)?new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR'}).format(+v):'';
-const debounce=(fn,ms=350)=>{let t; return(...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);} };
-const headerH=()=>document.querySelector('header')?.getBoundingClientRect().height||64;
-const clamp=(n,min,max)=>Math.min(Math.max(n,min),max);
-const isExternalAPI=e=>((e?.url||"").toLowerCase().includes("ticketmaster")||(e?.url||"").toLowerCase().includes("eventbrite"));
 
-/* Stabilen ID + register */
-const ITEMS_BY_ID = new Map();
-const hashId = e => e.id ? `ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}` : `ev-${(e.name||e.title||'').toLowerCase().replace(/[^a-z0-9]/g,'')}-${(e.start||'').replace(/[^0-9]/g,'')}`.slice(0,64);
 
 /* ===== STATE ===== */
 let GEO=null, currentPage=0, PAGE_SIZE=10, lastResults=[];
@@ -1140,9 +1142,9 @@ async function loadFeatured(){
 
     if ((!items || items.length < 10) && ACTIVE_MODE==='events'){
       const p3 = new URLSearchParams(); 
-      if(GEO){ p3.set('center.lat', GEO.lat); p3.set('center.lon', GEO.lon); p3.set('radiusKm', '120'); }
+      if(GEO){ p3.set('latlon', GEO.lat + ',' + GEO.lon); p3.set('radiuskm', '120'); }
       p3.set('size', '40');
-      let ex=null; try{ ex=await fetch('/api/search?'+p3.toString()).then(r=>r.json()); }catch(e){}
+      let ex=null; try{ ex=await fetch('/.netlify/functions/tm-search?'+p3.toString()).then(r=>r.json()); }catch(e){}
       const ext = (ex && ex.results) ? ex.results.map(normalizeExt).filter(isFuture) : [];
       items = mergeNoDup(items||[], ext);
     }
@@ -1242,11 +1244,11 @@ async function doSearch(page){
     if (ACTIVE_MODE==='events'){
       const p2 = new URLSearchParams(); 
       if(center){ 
-        p2.set('center.lat', center.lat); 
-        p2.set('center.lon', center.lon); 
-        p2.set('radiusKm', center.r); 
+        p2.set('latlon', center.lat + ',' + center.lon); 
+        p2.set('radiuskm', center.r); 
       } 
       if(q) p2.set('q', q);
+      if(cat && cat !== 'Vse') p2.set('category', cat);
       p2.set('size', '60');
       let ex=null; try{ ex=await fetch('/.netlify/functions/tm-search?'+p2.toString()).then(r=>r.json()); }catch(e){}
       const ext = (ex && ex.results) ? ex.results.map(normalizeExt).filter(isFuture) : [];

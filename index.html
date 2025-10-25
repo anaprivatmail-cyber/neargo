@@ -770,6 +770,10 @@ function initializeApp() {
 
 
 
+/* ===== CACHE BUSTING ===== */
+window.__BUILD_TS__ = Date.now();
+console.log("NearGo build timestamp:", window.__BUILD_TS__);
+
 /* ===== STATE ===== */
 let GEO=null, currentPage=0, PAGE_SIZE=10, lastResults=[];
 let mapSearch=null, markersSearch=[];

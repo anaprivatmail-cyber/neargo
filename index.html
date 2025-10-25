@@ -1159,8 +1159,8 @@ async function loadFeatured(){
     let raf=0, pausedUntil=0, lastScroll=0;
     function loop(){
       const now = Date.now();
-      if(now>=pausedUntil && now - lastScroll > 50){ /* max 20 fps */
-        const step = 0.5; /* berljiva hitrost */
+      if(now>=pausedUntil && now - lastScroll > 100){ /* max 10 fps */
+        const step = 0.2; /* počasnejša, bolj berljiva hitrost */
         if ((car.scrollLeft + car.clientWidth + step) >= car.scrollWidth){
           car.scrollTo({left:0, behavior:'auto'});
         } else {
@@ -1695,7 +1695,7 @@ initNotifyUI();
 })();
 (function lang(){
   const wrap=$('#langWrap'), menu=$('#langMenu'), label=$('#langLabel');
-  const langs=[['SL','sl'],['EN','en'],['DE','de'],['HR','hr'],['IT','it']];
+  const langs=[['SL','sl'],['EN','en'],['DE','de'],['HR','hr'],['IT','it'],['FR','fr'],['ES','es'],['PT','pt'],['NL','nl'],['PL','pl'], ['CZ','cs'],['SK','sk'],['HU','hu'],['RO','ro'],['BG','bg'],['GR','el'],['SE','sv'],['NO','no']];
   function build(){
     menu.innerHTML=''; langs.forEach(([t,v])=>{ const b=el('button'); b.textContent=t; b.addEventListener('click',()=>{ localStorage.setItem('ng_lang', v); label.textContent=t; menu.style.display='none'; }); menu.appendChild(b); });
   }

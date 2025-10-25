@@ -726,20 +726,33 @@
 /* ===== SAFEGUARD ===== */
 (function(){ window._toast=(msg,ok)=>{const t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.className='toast '+(ok===false?'bad':'ok'); t.style.display='flex'; setTimeout(()=>t.style.display='none',4000); }; window.onerror=(m)=>{ try{window._toast('Napaka: '+m,false);}catch(e){} }; })();
 
-/* ===== INITIALIZATION FUNCTION ===== */
+/* ===== BULLETPROOF INITIALIZATION ===== */
 function initializeApp() {
-  console.log("Initializing NearGo app...");
-  
-  // Test da elementi obstajajo
-  const btnStart = document.getElementById('btnStart');
-  const btnUseLocation = document.getElementById('btnUseLocation');
-  console.log("Elements found:", { btnStart, btnUseLocation });
-  
-  if (!btnStart || !btnUseLocation) {
-    console.error("Critical elements missing! Retrying in 100ms...");
-    setTimeout(initializeApp, 100);
+  if (window.neargoInitialized) {
+    console.log("App already initialized, skipping...");
     return;
   }
+  
+  console.log("🚀 Initializing NearGo app...");
+  
+  // KRITIČNO: Preverimo vnaprej, ali so vsi ključni elementi prisotni
+  const criticalElements = [
+    'btnStart', 'btnUseLocation', 'btnPickOnMap', 'searchPanel', 'hero'
+  ];
+  
+  const missing = criticalElements.filter(id => !document.getElementById(id));
+  if (missing.length > 0) {
+    console.error(`❌ Missing critical elements: ${missing.join(', ')}`);
+    if (Date.now() - window.initStartTime < 5000) { // Poskušaj 5 sekund
+      setTimeout(initializeApp, 200);
+      return;
+    } else {
+      console.error("🚨 CRITICAL: Elements still missing after 5s, proceeding anyway...");
+    }
+  }
+  
+  const btnStart = document.getElementById('btnStart');
+  const btnUseLocation = document.getElementById('btnUseLocation');
 
 /* ===== UTIL ===== */
 const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
@@ -1705,29 +1718,40 @@ console.log("NearGo app fully initialized!");
 window.neargoInitialized = true;
 } // konec initializeApp
 
-/* ===== MULTIPLE INITIALIZATION STRATEGIES ===== */
-// Poskusi z različnimi strategijami za zagotovitev, da se app zažene
+/* ===== BULLETPROOF STARTUP SEQUENCE ===== */
+window.initStartTime = Date.now();
+
+// Strategija 1: Takoj, če je DOM že pripravljen
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeApp);
 } else {
+  console.log("📋 DOM already ready, initializing immediately");
   initializeApp();
 }
 
-// Backup za primer, da DOMContentLoaded ne deluje
+// Strategija 2: Window load kot backup
 window.addEventListener('load', function() {
   if (!window.neargoInitialized) {
-    console.log("Backup initialization triggered");
+    console.log("🔄 Window load backup triggered");
     initializeApp();
   }
 });
 
-// Emergency backup po 500ms
+// Strategija 3: Agresivni timeout za vse scenarije
 setTimeout(function() {
   if (!window.neargoInitialized) {
-    console.log("Emergency initialization triggered");
+    console.log("⏰ Emergency timeout initialization");
     initializeApp();
   }
-}, 500);
+}, 1000);
+
+// Strategija 4: Še zadnji obup po 3 sekundah
+setTimeout(function() {
+  if (!window.neargoInitialized) {
+    console.log("🆘 LAST RESORT initialization after 3s");
+    initializeApp();
+  }
+}, 3000);
 
   </script>
 </body>

@@ -233,20 +233,20 @@
       <div class="chips">
         <button class="btn" id="btnStart">Začni z iskanjem</button>
       </div>
-    </section>
-
-    <!-- 🔔 Early notify teaser (na domači strani) -->
-    <section class="card" id="earlyNotifyTeaser" style="display:flex;align-items:center;gap:10px;justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="font-size:18px">🔔</div>
-        <div>
-          <div style="font-weight:900">Vključi predčasna obvestila</div>
-          <div class="muted" style="font-size:13px">Prejmi najnovejše izbrane <span id="notifyNoun">dogodke</span> vnaprej – posebej za tvoje interese.</div>
+      
+      <!-- 🔔 Early notify teaser (premaknjeno pod gumb) -->
+      <div id="earlyNotifyTeaser" style="display:flex;align-items:center;gap:10px;justify-content:space-between;margin-top:20px;padding:15px;background-color:rgba(0,0,0,0.03);border-radius:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:18px">🔔</div>
+          <div>
+            <div style="font-weight:900">Vključi predčasna obvestila</div>
+            <div class="muted" style="font-size:13px">Prejmi najnovejše izbrane <span id="notifyNoun">dogodke</span> vnaprej – posebej za tvoje interese.</div>
+          </div>
         </div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn mini" id="btnEarlyNotifyTeaser">Vključi</button>
-        <button class="btn mini link" id="btnEarlyNotifyPrefs" style="display:none">Nastavi preference</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn mini" id="btnEarlyNotifyTeaser">Vključi</button>
+          <button class="btn mini link" id="btnEarlyNotifyPrefs" style="display:none">Nastavi preference</button>
+        </div>
       </div>
     </section>
 
@@ -1679,7 +1679,6 @@ window.appInit = function() {
   </script>
   
   <!-- Naloži assets JavaScript datoteke -->
-  <script src="/assets/app-logic.js"></script>
   <script src="/assets/main.js"></script>
 </body>
 </html>

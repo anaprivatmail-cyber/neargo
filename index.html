@@ -1282,14 +1282,14 @@ function renderCard(e){
     tps.forEach(tp=>{
       buyRows += `<div class="buy" style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:nowrap">
                     <span class="value-chip">${euro(tp.price||0)}</span> 
-                    <button class="btn mini" data-buy="${id}" data-price="${tp.price}" data-label="${tp.label||'Vstopnica'}">Kupi vstopnico — ${tp.label||'Vstopnica'}</button>
+                    <button class="btn mini" data-buy="${id}" data-price="${tp.price}" data-kind="ticket" data-name="${encodeURIComponent(title)}" data-venue="${encodeURIComponent(where)}" data-startiso="${e.start||''}" data-img="${img}">Kupi vstopnico — ${tp.label||'Vstopnica'}</button>
                   </div>`;
     });
   } else if ((e.offerType||e.type)==='coupon'){
     const couponButtonText = IS_PREMIUM ? "Vzemi kupon" : "Kupi kupon (2 €)";
     buyRows += `<div class="buy" style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:nowrap">
                   <span class="value-chip">${offerChipText(e)}</span> 
-                  <button class="btn mini" data-buy="${id}" data-kind="coupon">${couponButtonText}</button>
+                  <button class="btn mini" data-buy="${id}" data-kind="coupon" data-name="${encodeURIComponent(title)}" data-venue="${encodeURIComponent(where)}" data-startiso="${e.start||''}" data-img="${img}" data-benefit="${encodeURIComponent(offerChipText(e)||'')}">${couponButtonText}</button>
                 </div>`;
   }
 

@@ -728,6 +728,7 @@
 
 /* ===== DOM READY WRAPPER ===== */
 document.addEventListener('DOMContentLoaded', function() {
+console.log("DOM Content Loaded - JavaScript se izvršuje!");
 
 /* ===== UTIL ===== */
 const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
@@ -816,7 +817,12 @@ END:VCALENDAR`.replace(/\n/g,"\r\n");
 }
 
 /* ====== UI init (gumbi, paneli) ====== */
-$("#btnStart")?.addEventListener("click",()=>scrollToEl($("#searchPanel")));
+const btnStartEl = $("#btnStart");
+console.log("btnStart element found:", btnStartEl);
+btnStartEl?.addEventListener("click",()=>{
+  console.log("btnStart clicked!");
+  scrollToEl($("#searchPanel"));
+});
 $("#btnProvidersTop")?.addEventListener("click",(e)=>{ e.preventDefault(); showPanel('orgHub'); });
 $("#hubPublish")?.addEventListener("click",()=>showPanel('orgPanel'));
 $("#btnPremiumTop")?.addEventListener("click",(e)=>{ e.preventDefault(); showPanel('premiumPanel'); });
@@ -846,7 +852,10 @@ radius?.addEventListener('input',()=>{ radiusLbl.textContent=`${radius.value} km
 radiusCity?.addEventListener('input',()=>{ radiusCityLbl.textContent=`${radiusCity.value} km`; });
 
 /* Geolokacija */
-$("#btnUseLocation")?.addEventListener("click", ()=>{
+const btnUseLocationEl = $("#btnUseLocation");
+console.log("btnUseLocation element found:", btnUseLocationEl);
+btnUseLocationEl?.addEventListener("click", ()=>{
+  console.log("btnUseLocation clicked!");
   try{
     navigator.geolocation.getCurrentPosition((pos)=>{
       GEO = { lat: pos.coords.latitude, lon: pos.coords.longitude };

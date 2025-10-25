@@ -1238,8 +1238,8 @@ async function doSearch(page){
       return okQ && okC && okF && tsS && tsE && okMode;
     });
 
-    // 2) Veliki appi (fallback) — za dogodke
-    if (ACTIVE_MODE==='events' && (!items || items.length < 10)){
+    // 2) Veliki appi (vedno za dogodke)
+    if (ACTIVE_MODE==='events'){
       const p2 = new URLSearchParams(); 
       if(center){ 
         p2.set('center.lat', center.lat); 
@@ -1248,7 +1248,7 @@ async function doSearch(page){
       } 
       if(q) p2.set('q', q);
       p2.set('size', '60');
-      let ex=null; try{ ex=await fetch('/api/search?'+p2.toString()).then(r=>r.json()); }catch(e){}
+      let ex=null; try{ ex=await fetch('/.netlify/functions/tm-search?'+p2.toString()).then(r=>r.json()); }catch(e){}
       const ext = (ex && ex.results) ? ex.results.map(normalizeExt).filter(isFuture) : [];
       items = mergeNoDup(items||[], ext);
     }

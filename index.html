@@ -1326,7 +1326,7 @@ async function loadFeatured(){
     function loop(){
       const now = Date.now();
       if(now>=pausedUntil && now - lastScroll > 500){ /* max 2 fps */
-        const step = 0.2; /* počasno a opazno - 0.2px na 500ms = 0.4px/s */
+        const step = 0.05; /* ultra počasno - 0.05px na 500ms = 0.1px/s */
         if ((car.scrollLeft + car.clientWidth + step) >= car.scrollWidth){
           car.scrollTo({left:0, behavior:'auto'});
         } else {

@@ -796,7 +796,9 @@ window.appInit = function() {
     if (act === 'buy') {
       ev.preventDefault();
       btn.disabled = true;
-      console.log("Nakup kliknien, procesiranje...", btn.dataset);
+      console.log("NAKUP KLIKNJEN!", btn.dataset);
+      console.log("Button element:", btn);
+      console.log("Event target:", ev.target);
       
       try {
         const kind = btn.dataset.kind || "ticket"; 
@@ -1325,26 +1327,26 @@ async function loadFeatured(){
     items = (items||[]).slice(0,12);
     items.forEach(e=>car.appendChild(renderCard(e)));
 
-    /* počasnejše vrtenje + pavza na klik */
-    let raf=0, pausedUntil=0, lastScroll=0;
+    /* počasno tekoče vrtenje + pavza na klik/hover */
+    let raf=0, pausedUntil=0, lastScroll=0, currentScroll=0;
     function loop(){
       const now = Date.now();
-      if(now>=pausedUntil && now - lastScroll > 500){ /* max 2 fps */
-        const step = 0.05; /* ultra počasno - 0.05px na 500ms = 0.1px/s */
-        if ((car.scrollLeft + car.clientWidth + step) >= car.scrollWidth){
-          car.scrollTo({left:0, behavior:'auto'});
-        } else {
-          car.scrollBy({left:step, behavior:'auto'});
+      if(now>=pausedUntil && now - lastScroll > 100){ /* 10 fps za smooth */
+        const step = 0.1; /* 0.1px na 100ms = 1px/sekundo - počasno a opazno */
+        currentScroll += step;
+        if (currentScroll >= car.scrollWidth - car.clientWidth){
+          currentScroll = 0;
         }
+        car.scrollLeft = currentScroll;
         lastScroll = now;
       }
       raf = requestAnimationFrame(loop);
     }
     cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
 
-    car.addEventListener('mouseenter', ()=>{cancelAnimationFrame(raf); pausedUntil=Date.now()+1000;});
-    car.addEventListener('mouseleave', ()=>{ pausedUntil=Date.now()+500; cancelAnimationFrame(raf); raf=requestAnimationFrame(loop); });
-    car.addEventListener('click', (ev)=>{ pausedUntil=Date.now()+4000; commonCardClicks(ev); }); /* pavza 4 s na klik */
+    car.addEventListener('mouseenter', ()=>{cancelAnimationFrame(raf); pausedUntil=Date.now()+2000;});
+    car.addEventListener('mouseleave', ()=>{ pausedUntil=Date.now()+1000; cancelAnimationFrame(raf); raf=requestAnimationFrame(loop); });
+    car.addEventListener('click', (ev)=>{ pausedUntil=Date.now()+5000; commonCardClicks(ev); }); /* pavza 5s na klik */
   }catch(err){}
 }
 
@@ -1969,7 +1971,7 @@ function initNotifyUI(){
   }
 
   btnOn?.addEventListener('click', async ()=>{
-    /* Prikažemo Premium panel z informacijami o predčasnih obvestilih */
+    /* Najprej prikažemo začetno obvestilo o predčasnih obvestilih */
     const premMsg = $('#premMsg');
     if(premMsg) {
       premMsg.textContent = 'Predčasna obvestila omogočajo prilagojene notifikacije o dogodkih in storitvah v tvoji bližini, še preden so javno objavljene.';
@@ -1988,6 +1990,13 @@ function initNotifyUI(){
         return;
       }
     }catch{ /* Continue to Premium panel */ }
+    
+    /* Po 3 sekundah spremenimo besedilo na nakup Premium dostopa */
+    setTimeout(() => {
+      if(premMsg) {
+        premMsg.textContent = 'Za predčasna obvestila potrebuješ Premium dostop. Pridobi Premium in bodi prvi obveščen o novih dogodkih in storitvah v tvoji bližini.';
+      }
+    }, 3000);
   });
   btnPrefs?.addEventListener('click', openModal);
   close1?.addEventListener('click', closeModal);

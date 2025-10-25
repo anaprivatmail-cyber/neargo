@@ -943,7 +943,9 @@ if (btnStart) {
 }
 $("#btnProvidersTop")?.addEventListener("click",(e)=>{ 
   e.preventDefault(); 
-  console.log("Za ponudnike button clicked"); 
+  console.log("Za ponudnike button clicked - opening orgHub panel"); 
+  const panel = document.getElementById('orgHub');
+  console.log("orgHub panel element:", panel);
   showPanel('orgHub'); 
 });
 $("#hubPublish")?.addEventListener("click",()=>showPanel('orgPanel'));
@@ -1324,7 +1326,7 @@ async function loadFeatured(){
     function loop(){
       const now = Date.now();
       if(now>=pausedUntil && now - lastScroll > 500){ /* max 2 fps */
-        const step = 0.05; /* ultra počasna, skoraj statična */
+        const step = 0.2; /* počasno a opazno - 0.2px na 500ms = 0.4px/s */
         if ((car.scrollLeft + car.clientWidth + step) >= car.scrollWidth){
           car.scrollTo({left:0, behavior:'auto'});
         } else {
@@ -1458,10 +1460,13 @@ function renderResultsPage(page){
   slice.forEach(e=>{
     list.appendChild(renderCard(e));
     if (mapSearch && e.venue && e.venue.lat && e.venue.lon){
+      console.log("Dodajam marker za:", e.name, "koordinate:", e.venue.lat, e.venue.lon);
       const id = hashId(e);
       const m = L.marker([e.venue.lat, e.venue.lon]).addTo(mapSearch)
         .bindPopup('<b>'+(e.title||e.name)+'</b><br>'+((e.venue&&e.venue.address)||'')+'<br>'+formatDateRange(e.start,e.end)+'<br><a href="#card-'+id+'" data-scroll-id="'+id+'">Prikaži</a>');
       markersSearch.push(m);
+    } else if (mapSearch) {
+      console.log("Ni koordinat za:", e.name, "venue:", e.venue);
     }
   });
 
@@ -2001,25 +2006,8 @@ initNotifyUI();
   btn?.addEventListener('click',()=>{ localStorage.setItem('ng_dark', localStorage.getItem('ng_dark')==='1'?'0':'1'); apply(); });
   apply();
 })();
-(function lang(){
-  const wrap=document.getElementById('langWrap'), menu=document.getElementById('langMenu'), label=document.getElementById('langLabel');
-  const langs=[['SL','sl'],['EN','en'],['DE','de'],['HR','hr'],['IT','it'],['FR','fr'],['ES','es'],['PT','pt'],['NL','nl'],['PL','pl'], ['CZ','cs'],['SK','sk'],['HU','hu'],['RO','ro'],['BG','bg'],['GR','el'],['SE','sv'],['NO','no']];
-  function build(){
-    menu.innerHTML=''; langs.forEach(([t,v])=>{ const b=document.createElement('button'); b.textContent=t; b.addEventListener('click',()=>{ localStorage.setItem('ng_lang', v); label.textContent=t; menu.style.display='none'; }); menu.appendChild(b); });
-  }
-  function closeMenu(){ menu.style.display='none'; }
-  
-  wrap?.addEventListener('click',(e)=>{ 
-    e.stopPropagation();
-    if(e.target.closest('.lang-menu')) return; 
-    menu.style.display = (menu.style.display==='block' ? 'none' : 'block'); 
-  });
-  
-  // Zapri meni ob kliku izven njega
-  document.addEventListener('click', closeMenu);
-  
-  build();
-})();
+
+/* Jezikovi meni je sedaj v main.js - duplikat odstranjen */
 
 /* Cookie banner */
 (function cookies(){

@@ -985,7 +985,7 @@ function refreshPickOverlay(){
 
 /* Kategorije (za iskalnik) */
 const CATS_EVENTS = ["Vse","Koncerti","Hrana & pijača","Družina/otroci","Šport","Kultura","Sejmi","Ostalo"];
-const CATS_SERVS  = ["Vse","Lepota","Zdravje","Wellness","Šport & fit","Učenje","Servis","Ostalo"];
+const CATS_SERVS  = ["Vse","Lepota","Zdravje","Dom & vrt","Avto","Popravila","Wellness","Šport & fit","Učenje","Servis","Ostalo"];
 function renderCats(){
   const elc = $("#cats"); if (!elc) return; elc.innerHTML='';
   const list = (ACTIVE_MODE==='events'?CATS_EVENTS:CATS_SERVS);
@@ -1000,7 +1000,7 @@ $$('.mode').forEach(btn=>{
     $$('.mode').forEach(x=>x.classList.remove('active')); btn.classList.add('active');
     ACTIVE_MODE = btn.getAttribute('data-mode');
     const noun = ACTIVE_MODE==='services' ? 'storitve' : 'dogodke';
-    const headline = ACTIVE_MODE==='services' ? 'Najdi storitve blizu — lepota, zdravje, wellness, učenje & več' : 'Najdi dogodke blizu — koncerti, hrana, kultura, otroci & več';
+    const headline = ACTIVE_MODE==='services' ? 'Najdi storitve blizu — lepota, zdravje, dom&vrt, avto, popravila & več' : 'Najdi dogodke blizu — koncerti, hrana, kultura, otroci & več';
     $("#heroNoun").textContent = noun+" blizu";
     $("#heroNoun2").textContent = noun;
     $("#heroHeadline").innerHTML = headline.replace(/(storitve|dogodke) blizu/, '<span id="heroNoun" style="color:var(--brand)">$1 blizu</span>');
@@ -1414,7 +1414,7 @@ async function tryEndpoints(primaryUrl, primaryInit, ...fallbacks){
 /* ======== ZA PONUDNIKE – kategorije ======== */
 const FORM_CATS = {
   event: ["Koncerti","Hrana & pijača","Družina/otroci","Šport","Kultura","Sejmi","Ostalo"],
-  service: ["Lepota","Zdravje","Wellness","Šport & fit","Učenje","Servis","Ostalo"]
+  service: ["Lepota","Zdravje","Dom & vrt","Avto","Popravila","Wellness","Šport & fit","Učenje","Servis","Ostalo"]
 };
 function refreshCategories(){
   const sel=$('#category'); const entry=$('#entryType'); if(!sel||!entry) return;
@@ -1696,10 +1696,10 @@ initNotifyUI();
   apply();
 })();
 (function lang(){
-  const wrap=$('#langWrap'), menu=$('#langMenu'), label=$('#langLabel');
+  const wrap=document.getElementById('langWrap'), menu=document.getElementById('langMenu'), label=document.getElementById('langLabel');
   const langs=[['SL','sl'],['EN','en'],['DE','de'],['HR','hr'],['IT','it'],['FR','fr'],['ES','es'],['PT','pt'],['NL','nl'],['PL','pl'], ['CZ','cs'],['SK','sk'],['HU','hu'],['RO','ro'],['BG','bg'],['GR','el'],['SE','sv'],['NO','no']];
   function build(){
-    menu.innerHTML=''; langs.forEach(([t,v])=>{ const b=el('button'); b.textContent=t; b.addEventListener('click',()=>{ localStorage.setItem('ng_lang', v); label.textContent=t; menu.style.display='none'; }); menu.appendChild(b); });
+    menu.innerHTML=''; langs.forEach(([t,v])=>{ const b=document.createElement('button'); b.textContent=t; b.addEventListener('click',()=>{ localStorage.setItem('ng_lang', v); label.textContent=t; menu.style.display='none'; }); menu.appendChild(b); });
   }
   wrap?.addEventListener('click',(e)=>{ if(e.target.id==='langMenu') return; menu.style.display = (menu.style.display==='block'?'none':'block'); });
   build();
@@ -1708,8 +1708,18 @@ initNotifyUI();
 /* Cookie banner */
 (function cookies(){
   const ok=$('#cookieAccept'), bn=$('#cookieBanner');
-  if(localStorage.getItem('ng_cookie_ok')!=='1'){ bn.style.display='block'; }
-  ok?.addEventListener('click',()=>{ localStorage.setItem('ng_cookie_ok','1'); bn.style.display='none'; });
+  if(localStorage.getItem('ng_cookie_ok')!=='1' && bn){ 
+    bn.style.display='block'; 
+    // Dodaj fade-in animacijo
+    setTimeout(() => bn.classList.add('show'), 100);
+  }
+  ok?.addEventListener('click',()=>{ 
+    localStorage.setItem('ng_cookie_ok','1'); 
+    if(bn) {
+      bn.classList.add('fade-out');
+      setTimeout(() => bn.style.display='none', 300);
+    }
+  });
 })();
 
 /* Inicialni prikaz */

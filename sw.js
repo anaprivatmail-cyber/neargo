@@ -1,4 +1,4 @@
-// version: 2025-10-25-3
+// version: 2025-10-25-4
 
 self.addEventListener('install', () => self.skipWaiting());
 

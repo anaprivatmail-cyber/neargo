@@ -748,6 +748,7 @@ function initializeApp() {
   }
   
   console.log("🚀 Initializing NearGo app...");
+  console.log("DOM elements check starting...");
   
   // KRITIČNO: Preverimo vnaprej, ali so vsi ključni elementi prisotni
   const criticalElements = [
@@ -757,12 +758,15 @@ function initializeApp() {
   const missing = criticalElements.filter(id => !document.getElementById(id));
   if (missing.length > 0) {
     console.error(`❌ Missing critical elements: ${missing.join(', ')}`);
+    console.log("Current DOM elements with IDs:", Array.from(document.querySelectorAll('[id]')).map(el => el.id));
     if (Date.now() - window.initStartTime < 5000) { // Poskušaj 5 sekund
       setTimeout(initializeApp, 200);
       return;
     } else {
       console.error("🚨 CRITICAL: Elements still missing after 5s, proceeding anyway...");
     }
+  } else {
+    console.log("✅ All critical elements found!");
   }
   
   const btnStart = document.getElementById('btnStart');

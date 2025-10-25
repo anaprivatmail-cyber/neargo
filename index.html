@@ -1126,8 +1126,8 @@ function renderCard(e){
       <div class="muted" style="margin-top:4px">${where?(`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(where)}" target="_blank">📍 ${where}</a>`):''}</div>
       <div class="muted" style="margin-top:4px">${when}</div>
       ${more ? `<div class="more-text" id="more-${id}" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--chipborder)">${more}${isExternalAPI(e)?(` <a href="${e.url}" target="_blank">[odpri vir]</a>`):''}</div>` : ''}
-      ${buyRows}
       ${cardActionBar(e)}
+      ${buyRows}
      </div>`;
   return wrap;
 }
@@ -1161,8 +1161,8 @@ async function loadFeatured(){
     let raf=0, pausedUntil=0, lastScroll=0;
     function loop(){
       const now = Date.now();
-      if(now>=pausedUntil && now - lastScroll > 100){ /* max 10 fps */
-        const step = 0.2; /* počasnejša, bolj berljiva hitrost */
+      if(now>=pausedUntil && now - lastScroll > 200){ /* max 5 fps */
+        const step = 0.1; /* zelo počasna, mirna hitrost */
         if ((car.scrollLeft + car.clientWidth + step) >= car.scrollWidth){
           car.scrollTo({left:0, behavior:'auto'});
         } else {

@@ -887,7 +887,8 @@ if (btnUseLocation) {
   try{
     navigator.geolocation.getCurrentPosition((pos)=>{
       GEO = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-      $("#btnUseLocation .txt")?.textContent="Uporabljam tvojo lokacijo ✓";
+      const txtEl = $("#btnUseLocation .txt");
+      if (txtEl) txtEl.textContent = "Uporabljam tvojo lokacijo ✓";
       $("#cityRadiusWrap").style.display='none';
       radiusLbl.textContent = `${radius.value} km`;
       setLocButtonsActive('gps');

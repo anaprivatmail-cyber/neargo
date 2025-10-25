@@ -865,6 +865,63 @@ $("#btnClosePlans")?.addEventListener("click",()=>showPanel(prevPanelBeforePlans
 $("#linkPlansInline")?.addEventListener("click",(e)=>{ e.preventDefault(); showPanel('plansPanel'); });
 $("#featPlansLink")?.addEventListener("click",(e)=>{ e.preventDefault(); showPanel('plansPanel'); });
 
+/* Provider plan purchase handlers */
+async function startProviderPurchase(planType) {
+  const platform = detectPlatform();
+  
+  try {
+    if (platform === 'ios') {
+      // Use Apple App Store IAP for provider plans
+      if (window.webkit?.messageHandlers?.iOS) {
+        window.webkit.messageHandlers.iOS.postMessage({
+          action: 'purchaseSubscription',
+          productId: `provider_${planType}_monthly`,
+          type: 'provider',
+          plan: planType
+        });
+        return;
+      }
+      window._toast('Apple plačilo ni na voljo v tej različici.', false);
+      
+    } else if (platform === 'android') {
+      // Use Google Play Billing for provider plans
+      if (window.Android?.purchaseSubscription) {
+        window.Android.purchaseSubscription(`provider_${planType}_monthly`, 'provider', planType);
+        return;
+      }
+      window._toast('Google plačilo ni na voljo v tej različici.', false);
+      
+    } else {
+      // Use Stripe for web/desktop
+      const r = await fetch('/.netlify/functions/iap-start', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          plan: `provider_${planType}_monthly`,
+          interval: 'monthly'
+        })
+      }).then(r => r.json());
+      
+      if (r?.url) {
+        location.href = r.url;
+      } else {
+        window._toast(`${planType} paket ni na voljo.`, false);
+      }
+    }
+  } catch (err) {
+    console.error('Provider purchase error:', err);
+    window._toast('Nakup paketa ni na voljo.', false);
+  }
+}
+
+// Event listeners for provider plan buttons
+$$('[data-start-plan]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const planType = btn.getAttribute('data-start-plan'); // 'grow' or 'pro'
+    startProviderPurchase(planType);
+  });
+});
+
 /* Pri interakciji z iskanjem skrij ponudniške panele */
 $("#searchPanel")?.addEventListener("click",()=>hideAllPanels());
 
@@ -1115,7 +1172,8 @@ function renderCard(e){
       buyRows += `<div class="buy"><span class="value-chip">${euro(tp.price||0)}</span> <button class="btn mini" data-buy="${id}" data-price="${tp.price}" data-label="${tp.label||'Vstopnica'}">Kupi vstopnico — ${tp.label||'Vstopnica'}</button></div>`;
     });
   } else if ((e.offerType||e.type)==='coupon'){
-    buyRows += `<div class="buy"><span class="value-chip">${offerChipText(e)}</span> <button class="btn mini" data-buy="${id}" data-kind="coupon">Kupi kupon</button></div>`;
+    const couponButtonText = IS_PREMIUM ? "Vzemi kupon" : "Kupi kupon (2 €)";
+    buyRows += `<div class="buy"><span class="value-chip">${offerChipText(e)}</span> <button class="btn mini" data-buy="${id}" data-kind="coupon">${couponButtonText}</button></div>`;
   }
 
   const wrap = el('div','spot'); wrap.id='card-'+id;
@@ -1521,15 +1579,75 @@ function refreshCategories(){
     });
   })();
 
+  // User status checking function
+  async function checkUserStatus() {
+    try {
+      // Try to get stored purchase token from localStorage for anonymous users
+      const storedToken = localStorage.getItem('ng_purchase_token');
+      const storedPlatform = localStorage.getItem('ng_platform');
+      
+      const params = new URLSearchParams();
+      if (storedToken) {
+        params.set('purchaseToken', storedToken);
+        if (storedPlatform) params.set('platform', storedPlatform);
+      }
+      
+      const response = await fetch(`/.netlify/functions/user-status?${params.toString()}`);
+      const status = await response.json();
+      
+      if (status.ok) {
+        IS_PREMIUM = status.isPremium || false;
+        PROVIDER_PLAN = status.providerPlan || 'free';
+        
+        // Update UI based on status
+        updatePremiumUI();
+        updateProviderUI();
+        
+        return status;
+      }
+    } catch (err) {
+      console.error('Failed to check user status:', err);
+    }
+    
+    // Fallback to free tier
+    IS_PREMIUM = false;
+    PROVIDER_PLAN = 'free';
+    return { isPremium: false, providerPlan: 'free' };
+  }
+  
+  function updatePremiumUI() {
+    const premiumMsg = $('#premMsg');
+    if (premiumMsg) {
+      premiumMsg.textContent = IS_PREMIUM ? 'Premium aktiven ✓' : '';
+    }
+    
+    // Update button text
+    const premiumBtn = $('#btnGoPremium');
+    if (premiumBtn) {
+      premiumBtn.textContent = IS_PREMIUM ? 'Premium aktiven' : 'Naroči Premium';
+      premiumBtn.disabled = IS_PREMIUM;
+    }
+  }
+  
+  function updateProviderUI() {
+    // Update provider plan indicators
+    $$('[data-start-plan]').forEach(btn => {
+      const planType = btn.getAttribute('data-start-plan');
+      if (PROVIDER_PLAN === `provider_${planType}` || PROVIDER_PLAN === planType) {
+        btn.textContent = `${planType} aktiven`;
+        btn.disabled = true;
+      }
+    });
+  }
+
   // Featured -> paket
   const featured=$('#featured');
   featured?.addEventListener('change', async ()=>{
     if (!featured.checked) return;
-    try{
-      const s = await fetch('/api/iap/status').then(r=>r.json());
-      PROVIDER_PLAN = (s && s.providerPlan) ? s.providerPlan : 'free';
-    }catch{ PROVIDER_PLAN='free'; }
-    if (PROVIDER_PLAN==='free'){
+    
+    const status = await checkUserStatus();
+    
+    if (PROVIDER_PLAN === 'free'){
       $('#featMsg').textContent='Za izpostavitev potrebuješ paket Grow/Pro.';
       const go = confirm('Za izpostavitve je potreben paket (Grow/Pro). Želiš nadgraditi?');
       if (go){ showPanel('plansPanel'); }
@@ -1538,6 +1656,9 @@ function refreshCategories(){
       $('#featMsg').textContent='Izpostavljena objava bo aktivirana po potrditvi.';
     }
   });
+  
+  // Check user status on page load
+  checkUserStatus();
 
   $('#btnSubmitEvent')?.addEventListener('click', submitProvider);
   async function submitProvider(){
@@ -1638,9 +1759,69 @@ function refreshCategories(){
 })();
 
 /* BOOST & PREMIUM + PAKETI */
-$("#btnGoPremium")?.addEventListener('click', async ()=>{
-  try{ const r = await fetch('/api/iap/start', { method:'POST' }).then(r=>r.json()); if (r?.url) location.href=r.url; else window._toast('Premium nakup ni na voljo.', false); }catch{ window._toast('Premium nakup ni na voljo.', false); }
-});
+// Platform detection for payments
+function detectPlatform() {
+  const ua = navigator.userAgent || '';
+  const isInApp = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+  
+  // Check if running in mobile app environment
+  if (isInApp) {
+    if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
+    if (/Android/i.test(ua)) return 'android';
+  }
+  
+  // Check for specific app webview indicators
+  if (window.webkit?.messageHandlers?.iOS) return 'ios';
+  if (window.Android?.purchaseSubscription) return 'android';
+  
+  return 'web'; // Desktop/browser
+}
+
+async function startPremiumPurchase() {
+  const platform = detectPlatform();
+  
+  try {
+    if (platform === 'ios') {
+      // Use Apple App Store IAP
+      if (window.webkit?.messageHandlers?.iOS) {
+        window.webkit.messageHandlers.iOS.postMessage({
+          action: 'purchaseSubscription',
+          productId: 'premium_monthly',
+          type: 'premium'
+        });
+        return;
+      }
+      window._toast('Apple plačilo ni na voljo v tej različici.', false);
+      
+    } else if (platform === 'android') {
+      // Use Google Play Billing
+      if (window.Android?.purchaseSubscription) {
+        window.Android.purchaseSubscription('premium_monthly', 'premium');
+        return;
+      }
+      window._toast('Google plačilo ni na voljo v tej različici.', false);
+      
+    } else {
+      // Use Stripe for web/desktop
+      const r = await fetch('/.netlify/functions/iap-start', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: 'premium_monthly' })
+      }).then(r => r.json());
+      
+      if (r?.url) {
+        location.href = r.url;
+      } else {
+        window._toast('Stripe plačilo ni na voljo.', false);
+      }
+    }
+  } catch (err) {
+    console.error('Premium purchase error:', err);
+    window._toast('Premium nakup ni na voljo.', false);
+  }
+}
+
+$("#btnGoPremium")?.addEventListener('click', startPremiumPurchase);
 
 /* Early notify teaser */
 function initNotifyUI(){

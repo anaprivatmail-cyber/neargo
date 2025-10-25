@@ -754,8 +754,8 @@ function initializeApp() {
   const btnStart = document.getElementById('btnStart');
   const btnUseLocation = document.getElementById('btnUseLocation');
 
-/* ===== UTIL ===== */
-const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
+  /* ===== UTIL (znotraj funkcije) ===== */
+  const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
 const el=(t,c)=>{const x=document.createElement(t); if(c) x.className=c; return x;};
 const qs=o=>new URLSearchParams(o).toString();
 const euro=v=>Number.isFinite(+v)?new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR'}).format(+v):'';

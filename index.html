@@ -726,9 +726,20 @@
 /* ===== SAFEGUARD ===== */
 (function(){ window._toast=(msg,ok)=>{const t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.className='toast '+(ok===false?'bad':'ok'); t.style.display='flex'; setTimeout(()=>t.style.display='none',4000); }; window.onerror=(m)=>{ try{window._toast('Napaka: '+m,false);}catch(e){} }; })();
 
-/* ===== DOM READY WRAPPER ===== */
-document.addEventListener('DOMContentLoaded', function() {
-console.log("DOM Content Loaded - JavaScript se izvršuje!");
+/* ===== INITIALIZATION FUNCTION ===== */
+function initializeApp() {
+  console.log("Initializing NearGo app...");
+  
+  // Test da elementi obstajajo
+  const btnStart = document.getElementById('btnStart');
+  const btnUseLocation = document.getElementById('btnUseLocation');
+  console.log("Elements found:", { btnStart, btnUseLocation });
+  
+  if (!btnStart || !btnUseLocation) {
+    console.error("Critical elements missing! Retrying in 100ms...");
+    setTimeout(initializeApp, 100);
+    return;
+  }
 
 /* ===== UTIL ===== */
 const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
@@ -817,12 +828,16 @@ END:VCALENDAR`.replace(/\n/g,"\r\n");
 }
 
 /* ====== UI init (gumbi, paneli) ====== */
-const btnStartEl = $("#btnStart");
-console.log("btnStart element found:", btnStartEl);
-btnStartEl?.addEventListener("click",()=>{
-  console.log("btnStart clicked!");
-  scrollToEl($("#searchPanel"));
-});
+if (btnStart) {
+  btnStart.addEventListener("click", function(e) {
+    e.preventDefault();
+    console.log("btnStart clicked!");
+    scrollToEl(document.getElementById('searchPanel'));
+  });
+  console.log("btnStart event listener added successfully");
+} else {
+  console.error("btnStart element not found!");
+}
 $("#btnProvidersTop")?.addEventListener("click",(e)=>{ e.preventDefault(); showPanel('orgHub'); });
 $("#hubPublish")?.addEventListener("click",()=>showPanel('orgPanel'));
 $("#btnPremiumTop")?.addEventListener("click",(e)=>{ e.preventDefault(); showPanel('premiumPanel'); });
@@ -852,10 +867,10 @@ radius?.addEventListener('input',()=>{ radiusLbl.textContent=`${radius.value} km
 radiusCity?.addEventListener('input',()=>{ radiusCityLbl.textContent=`${radiusCity.value} km`; });
 
 /* Geolokacija */
-const btnUseLocationEl = $("#btnUseLocation");
-console.log("btnUseLocation element found:", btnUseLocationEl);
-btnUseLocationEl?.addEventListener("click", ()=>{
-  console.log("btnUseLocation clicked!");
+if (btnUseLocation) {
+  btnUseLocation.addEventListener("click", function(e) {
+    e.preventDefault();
+    console.log("btnUseLocation clicked!");
   try{
     navigator.geolocation.getCurrentPosition((pos)=>{
       GEO = { lat: pos.coords.latitude, lon: pos.coords.longitude };
@@ -866,7 +881,11 @@ btnUseLocationEl?.addEventListener("click", ()=>{
       doSearch(0);
     }, ()=>{ window._toast("Lokacije ni bilo mogoče pridobiti.", false); }, {enableHighAccuracy:true,timeout:15000});
   }catch{}
-});
+  });
+  console.log("btnUseLocation event listener added successfully");
+} else {
+  console.error("btnUseLocation element not found!");
+}
 
 /* ======= Map picker z interaktivnim krogom ======= */
 $("#btnPickOnMap")?.addEventListener("click", ()=>{ $("#pickModal").style.display="flex"; setTimeout(initPickMap,50); setLocButtonsActive('pick'); });
@@ -1682,7 +1701,33 @@ loadFeatured(); /* featured za privzeti način (Dogodki) */
 /* ob nalaganju ne išči nič, dokler uporabnik ne izbere kriterijev (točka 4) */
 lastResults=[]; renderResultsPage(0);
 
-}); // konec DOMContentLoaded
+console.log("NearGo app fully initialized!");
+window.neargoInitialized = true;
+} // konec initializeApp
+
+/* ===== MULTIPLE INITIALIZATION STRATEGIES ===== */
+// Poskusi z različnimi strategijami za zagotovitev, da se app zažene
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+  initializeApp();
+}
+
+// Backup za primer, da DOMContentLoaded ne deluje
+window.addEventListener('load', function() {
+  if (!window.neargoInitialized) {
+    console.log("Backup initialization triggered");
+    initializeApp();
+  }
+});
+
+// Emergency backup po 500ms
+setTimeout(function() {
+  if (!window.neargoInitialized) {
+    console.log("Emergency initialization triggered");
+    initializeApp();
+  }
+}, 500);
 
   </script>
 </body>

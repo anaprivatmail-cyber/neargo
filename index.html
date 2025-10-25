@@ -726,6 +726,9 @@
 /* ===== SAFEGUARD ===== */
 (function(){ window._toast=(msg,ok)=>{const t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.className='toast '+(ok===false?'bad':'ok'); t.style.display='flex'; setTimeout(()=>t.style.display='none',4000); }; window.onerror=(m)=>{ try{window._toast('Napaka: '+m,false);}catch(e){} }; })();
 
+/* ===== DOM READY WRAPPER ===== */
+document.addEventListener('DOMContentLoaded', function() {
+
 /* ===== UTIL ===== */
 const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
 const el=(t,c)=>{const x=document.createElement(t); if(c) x.className=c; return x;};
@@ -1670,15 +1673,8 @@ loadFeatured(); /* featured za privzeti način (Dogodki) */
 /* ob nalaganju ne išči nič, dokler uporabnik ne izbere kriterijev (točka 4) */
 lastResults=[]; renderResultsPage(0);
 
-/* Export appInit funkcijo za main.js */
-window.appInit = function() {
-  console.log('NearGo app initialized!');
-  // Vsa koda se že izvršuje direktno zgoraj
-};
+}); // konec DOMContentLoaded
 
   </script>
-  
-  <!-- Naloži assets JavaScript datoteke -->
-  <script src="/assets/main.js"></script>
 </body>
 </html>

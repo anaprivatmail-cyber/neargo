@@ -14,6 +14,7 @@
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/assets/main.js"></script>
   <style>
     :root{
       --brand:#0bbbd6; --text:#0b1b2b; --muted:#5b6b7b; --card:#fff;
@@ -2024,59 +2025,7 @@ initNotifyUI();
   apply();
 })();
 
-/* Jezikovni meni - implementacija nazaj iz main.js */
-(function language(){
-  const wrap = document.getElementById('langWrap');
-  const menu = document.getElementById('langMenu');
-  const label = document.getElementById('langLabel');
-  
-  if (wrap && menu){
-    // Populiraj meni z jeziki
-    const languages = [
-      {code: 'sl', name: 'Slovenščina', flag: '🇸🇮'},
-      {code: 'en', name: 'English', flag: '🇬🇧'},
-      {code: 'de', name: 'Deutsch', flag: '🇩🇪'}
-    ];
-    
-    // Ustvari gumbe za jezike
-    languages.forEach(lang => {
-      const btn = document.createElement('button');
-      btn.innerHTML = `${lang.flag} ${lang.name}`;
-      btn.onclick = () => {
-        if(label) label.textContent = lang.code.toUpperCase();
-        localStorage.setItem('ng_lang', lang.code);
-        wrap.classList.remove('open');
-        menu.hidden = true;
-        // Tukaj bi lahko dodali dejanski prevod
-      };
-      menu.appendChild(btn);
-    });
-    
-    // Naloži shranjeni jezik
-    const savedLang = localStorage.getItem('ng_lang') || 'sl';
-    const currentLang = languages.find(l => l.code === savedLang);
-    if(label && currentLang) label.textContent = currentLang.code.toUpperCase();
-    
-    wrap.classList.remove('open'); 
-    menu.hidden = true;
-    
-    // Odpiranje z klikom na langWrap, zapiranje z klikom izven
-    wrap.addEventListener('click', (e)=>{
-      if (e.target.closest('.lang-menu')) return; // Ne zapri če kliknemo na menu
-      e.stopPropagation();
-      const opened = wrap.classList.toggle('open');
-      menu.hidden = !opened;
-      menu.style.display = opened ? 'block' : 'none';
-    });
-    
-    // Zapiranje z klikom kjerkoli drugje
-    document.addEventListener('click', ()=>{ 
-      wrap.classList.remove('open'); 
-      menu.hidden = true; 
-      menu.style.display = 'none';
-    });
-  }
-})();
+/* Jezikovni meni sedaj v assets/main.js z 18 jeziki */
 
 /* Cookie banner */
 (function cookies(){

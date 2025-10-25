@@ -953,8 +953,10 @@ $$('.mode').forEach(btn=>{
     $$('.mode').forEach(x=>x.classList.remove('active')); btn.classList.add('active');
     ACTIVE_MODE = btn.getAttribute('data-mode');
     const noun = ACTIVE_MODE==='services' ? 'storitve' : 'dogodke';
+    const headline = ACTIVE_MODE==='services' ? 'Najdi storitve blizu — lepota, zdravje, wellness, učenje & več' : 'Najdi dogodke blizu — koncerti, hrana, kultura, otroci & več';
     $("#heroNoun").textContent = noun+" blizu";
     $("#heroNoun2").textContent = noun;
+    $("#heroHeadline").innerHTML = headline.replace(/(storitve|dogodke) blizu/, '<span id="heroNoun" style="color:var(--brand)">$1 blizu</span>');
     $("#featTitle").textContent = ACTIVE_MODE==='services' ? "Izpostavljene storitve v tvoji bližini" : "Izpostavljeno v tvoji bližini";
     $("#notifyNoun").textContent = ACTIVE_MODE==='services' ? "storitve" : "dogodke";
     renderCats(); showPanel('searchPanel'); doSearch(0); loadFeatured();
@@ -1035,11 +1037,17 @@ function cardActionBar(e){
   const id = hashId(e);
   const chip = offerChipText(e);
   const where=(e.venue&&e.venue.address)||'';
-  const btns = [
+  const more = (e.description||'').trim();
+  
+  const actionBtns = [
+    more ? `<button class="btn mini link" data-more="${id}">Več ▾</button>
+    <button class="btn mini link" data-less="${id}" style="display:none">Skrij ▴</button>` : '',
+    `<button class="btn mini link" data-ical="${id}">Koledar</button>`,
     `<button class="btn mini link" data-share="${id}">Povabi</button>`,
     (where && e.venue.lat && e.venue.lon) ? `<button class="btn mini link" data-map="${id}">Zemljevid</button>` : ''
   ].filter(Boolean).join(' ');
-  return `<div class="buy">${chip?`<span class="value-chip">${chip}</span>`:''}${btns}</div>`;
+  
+  return `<div class="buy" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${actionBtns}</div>`;
 }
 function renderCard(e){
   const id = hashId(e); ITEMS_BY_ID.set(id, e);
@@ -1070,14 +1078,9 @@ function renderCard(e){
       <div style="font-weight:900">${title}</div>
       <div class="muted" style="margin-top:4px">${where?(`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(where)}" target="_blank">📍 ${where}</a>`):''}</div>
       <div class="muted" style="margin-top:4px">${when}</div>
-      <div class="buy" style="margin-top:8px">
-        <button class="btn mini link" data-more="${id}">Več ▾</button>
-        <button class="btn mini link" data-less="${id}" style="display:none">Skrij ▴</button>
-        ${calendarButtonHTML(id)}
-      </div>
-      ${more ? `<div class="more-text" id="more-${id}" style="display:none;margin-top:6px">${more}${isExternalAPI(e)?(` <a href="${e.url}" target="_blank">[odpri vir]</a>`):''}</div>` : ''}
-      ${cardActionBar(e)}
+      ${more ? `<div class="more-text" id="more-${id}" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--chipborder)">${more}${isExternalAPI(e)?(` <a href="${e.url}" target="_blank">[odpri vir]</a>`):''}</div>` : ''}
       ${buyRows}
+      ${cardActionBar(e)}
      </div>`;
   return wrap;
 }
@@ -1091,7 +1094,10 @@ async function loadFeatured(){
     let items = (r1 && r1.results) ? r1.results.map(normalizeLocal).filter(isFuture) : [];
 
     if ((!items || items.length < 10) && ACTIVE_MODE==='events'){
-      let ex=null; try{ ex=await fetch('/api/search?limit=40'+(latlon?('&lat='+GEO?.lat+'&lon='+GEO?.lon+'&radius=120'):'')).then(r=>r.json()); }catch(e){}
+      const p3 = new URLSearchParams(); 
+      if(GEO){ p3.set('center.lat', GEO.lat); p3.set('center.lon', GEO.lon); p3.set('radiusKm', '120'); }
+      p3.set('size', '40');
+      let ex=null; try{ ex=await fetch('/api/search?'+p3.toString()).then(r=>r.json()); }catch(e){}
       const ext = (ex && ex.results) ? ex.results.map(normalizeExt).filter(isFuture) : [];
       items = mergeNoDup(items||[], ext);
     }
@@ -1105,23 +1111,25 @@ async function loadFeatured(){
     items.forEach(e=>car.appendChild(renderCard(e)));
 
     /* počasnejše vrtenje + pavza na klik */
-    let raf=0, pausedUntil=0;
+    let raf=0, pausedUntil=0, lastScroll=0;
     function loop(){
-      if(Date.now()>=pausedUntil){
-        const step = 1; /* počasneje kot prej */
+      const now = Date.now();
+      if(now>=pausedUntil && now - lastScroll > 50){ /* max 20 fps */
+        const step = 0.5; /* berljiva hitrost */
         if ((car.scrollLeft + car.clientWidth + step) >= car.scrollWidth){
           car.scrollTo({left:0, behavior:'auto'});
         } else {
           car.scrollBy({left:step, behavior:'auto'});
         }
+        lastScroll = now;
       }
       raf = requestAnimationFrame(loop);
     }
     cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
 
-    car.addEventListener('mouseenter', ()=>cancelAnimationFrame(raf));
-    car.addEventListener('mouseleave', ()=>{ cancelAnimationFrame(raf); raf=requestAnimationFrame(loop); });
-    car.addEventListener('click', (ev)=>{ pausedUntil=Date.now()+3000; commonCardClicks(ev); }); /* pavza 3 s na klik */
+    car.addEventListener('mouseenter', ()=>{cancelAnimationFrame(raf); pausedUntil=Date.now()+1000;});
+    car.addEventListener('mouseleave', ()=>{ pausedUntil=Date.now()+500; cancelAnimationFrame(raf); raf=requestAnimationFrame(loop); });
+    car.addEventListener('click', (ev)=>{ pausedUntil=Date.now()+4000; commonCardClicks(ev); }); /* pavza 4 s na klik */
   }catch(err){}
 }
 
@@ -1187,8 +1195,15 @@ async function doSearch(page){
 
     // 2) Veliki appi (fallback) — za dogodke
     if (ACTIVE_MODE==='events' && (!items || items.length < 10)){
-      const p2 = new URLSearchParams(); if(center){ p2.set('lat', center.lat); p2.set('lon', center.lon); p2.set('radius', center.r); } if(q) p2.set('q', q);
-      let ex=null; try{ ex=await fetch('/api/search?limit=60&'+p2.toString()).then(r=>r.json()); }catch(e){}
+      const p2 = new URLSearchParams(); 
+      if(center){ 
+        p2.set('center.lat', center.lat); 
+        p2.set('center.lon', center.lon); 
+        p2.set('radiusKm', center.r); 
+      } 
+      if(q) p2.set('q', q);
+      p2.set('size', '60');
+      let ex=null; try{ ex=await fetch('/api/search?'+p2.toString()).then(r=>r.json()); }catch(e){}
       const ext = (ex && ex.results) ? ex.results.map(normalizeExt).filter(isFuture) : [];
       items = mergeNoDup(items||[], ext);
     }
@@ -1655,6 +1670,16 @@ loadFeatured(); /* featured za privzeti način (Dogodki) */
 /* ob nalaganju ne išči nič, dokler uporabnik ne izbere kriterijev (točka 4) */
 lastResults=[]; renderResultsPage(0);
 
+/* Export appInit funkcijo za main.js */
+window.appInit = function() {
+  console.log('NearGo app initialized!');
+  // Vsa koda se že izvršuje direktno zgoraj
+};
+
   </script>
+  
+  <!-- Naloži assets JavaScript datoteke -->
+  <script src="/assets/app-logic.js"></script>
+  <script src="/assets/main.js"></script>
 </body>
 </html>

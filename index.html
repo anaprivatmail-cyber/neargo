@@ -14,7 +14,6 @@
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="/assets/main.js"></script>
   <style>
     :root{
       --brand:#0bbbd6; --text:#0b1b2b; --muted:#5b6b7b; --card:#fff;
@@ -127,7 +126,7 @@
     .spot .meta{padding:10px}
     .spot .more-text{ margin-top:6px; color:var(--muted) }
 
-    .panel{display:none} .panel.show{display:block}
+    .panel{display:none !important} .panel.show{display:block !important}
 
     .file-wrap{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
     input[type="file"]::file-selector-button{padding:.35rem .6rem; border-radius:10px; border:1px solid var(--chipborder); background:var(--chip); cursor:pointer}
@@ -234,20 +233,20 @@
       <div class="chips">
         <button class="btn" id="btnStart">Začni z iskanjem</button>
       </div>
-      
-      <!-- 🔔 Early notify teaser (premaknjeno pod gumb) -->
-      <div id="earlyNotifyTeaser" style="display:flex;align-items:center;gap:10px;justify-content:space-between;margin-top:20px;padding:15px;background-color:rgba(0,0,0,0.03);border-radius:8px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="font-size:18px">🔔</div>
-          <div>
-            <div style="font-weight:900">Vključi predčasna obvestila</div>
-            <div class="muted" style="font-size:13px">Prejmi najnovejše izbrane <span id="notifyNoun">dogodke</span> vnaprej – posebej za tvoje interese.</div>
-          </div>
+    </section>
+
+    <!-- 🔔 Early notify teaser (na domači strani) -->
+    <section class="card" id="earlyNotifyTeaser" style="display:flex;align-items:center;gap:10px;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:18px">🔔</div>
+        <div>
+          <div style="font-weight:900">Vključi predčasna obvestila</div>
+          <div class="muted" style="font-size:13px">Prejmi najnovejše izbrane <span id="notifyNoun">dogodke</span> vnaprej – posebej za tvoje interese.</div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn mini" id="btnEarlyNotifyTeaser">Vključi</button>
-          <button class="btn mini link" id="btnEarlyNotifyPrefs" style="display:none">Nastavi preference</button>
-        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn mini" id="btnEarlyNotifyTeaser">Vključi</button>
+        <button class="btn mini link" id="btnEarlyNotifyPrefs" style="display:none">Nastavi preference</button>
       </div>
     </section>
 
@@ -342,7 +341,7 @@
     </section>
 
     <!-- PONUDNIKI HUB -->
-    <section class="card panel" id="orgHub" style="display:none">
+    <section class="card panel" id="orgHub">
       <div class="title">Za ponudnike</div>
       <p class="muted">Objava je brezplačna. NearGo pomaga povečevati prodajo, zapolniti prazne termine in povečati doseg.</p>
       <div class="inline" style="display:flex; gap:10px; flex-wrap:wrap">
@@ -578,7 +577,7 @@
     </section>
 
     <!-- PREMIUM -->
-    <section class="card panel" id="premiumPanel" style="display:none">
+    <section class="card panel" id="premiumPanel">
       <div class="title" style="display:flex;justify-content:space-between;align-items:center">
         <span>Premium</span>
         <button class="btn mini link" id="btnClosePremium">Zapri</button>
@@ -727,7 +726,7 @@
 /* ===== SAFEGUARD ===== */
 (function(){ window._toast=(msg,ok)=>{const t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.className='toast '+(ok===false?'bad':'ok'); t.style.display='flex'; setTimeout(()=>t.style.display='none',4000); }; window.onerror=(m)=>{ try{window._toast('Napaka: '+m,false);}catch(e){} }; })();
 
-/* ===== GLOBAL UTIL FUNCTIONS ===== */
+/* ===== UTIL ===== */
 const $=s=>document.querySelector(s); const $$=s=>Array.from(document.querySelectorAll(s));
 const el=(t,c)=>{const x=document.createElement(t); if(c) x.className=c; return x;};
 const qs=o=>new URLSearchParams(o).toString();
@@ -741,44 +740,6 @@ const isExternalAPI=e=>((e?.url||"").toLowerCase().includes("ticketmaster")||(e?
 const ITEMS_BY_ID = new Map();
 const hashId = e => e.id ? `ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}` : `ev-${(e.name||e.title||'').toLowerCase().replace(/[^a-z0-9]/g,'')}-${(e.start||'').replace(/[^0-9]/g,'')}`.slice(0,64);
 
-/* ===== BULLETPROOF INITIALIZATION ===== */
-function initializeApp() {
-  if (window.neargoInitialized) {
-    console.log("App already initialized, skipping...");
-    return;
-  }
-  
-  console.log("🚀 Initializing NearGo app...");
-  console.log("DOM elements check starting...");
-  
-  // KRITIČNO: Preverimo vnaprej, ali so vsi ključni elementi prisotni
-  const criticalElements = [
-    'btnStart', 'btnUseLocation', 'btnPickOnMap', 'searchPanel', 'hero'
-  ];
-  
-  const missing = criticalElements.filter(id => !document.getElementById(id));
-  if (missing.length > 0) {
-    console.error(`❌ Missing critical elements: ${missing.join(', ')}`);
-    console.log("Current DOM elements with IDs:", Array.from(document.querySelectorAll('[id]')).map(el => el.id));
-    if (Date.now() - window.initStartTime < 5000) { // Poskušaj 5 sekund
-      setTimeout(initializeApp, 200);
-      return;
-    } else {
-      console.error("🚨 CRITICAL: Elements still missing after 5s, proceeding anyway...");
-    }
-  } else {
-    console.log("✅ All critical elements found!");
-  }
-  
-  const btnStart = document.getElementById('btnStart');
-  const btnUseLocation = document.getElementById('btnUseLocation');
-
-
-
-/* ===== CACHE BUSTING ===== */
-window.__BUILD_TS__ = Date.now();
-console.log("NearGo build timestamp:", window.__BUILD_TS__);
-
 /* ===== STATE ===== */
 let GEO=null, currentPage=0, PAGE_SIZE=10, lastResults=[];
 let mapSearch=null, markersSearch=[];
@@ -788,101 +749,11 @@ let ACTIVE_MODE='events';
 let IS_PREMIUM=false; let PROVIDER_PLAN='free';
 let lastPanel=null, prevPanelBeforePlans=null;
 
-/* ===== App initialization ===== */
-window.appInit = function() {
-  console.log("Inicializujem aplikacijo...");
-  
-  // Inicializacija nakupnega modula (buy.js ekvivalent)
-  document.addEventListener('click', async (ev) => {
-    const btn = ev.target.closest('[data-act]'); 
-    if (!btn) return;
-    const act = btn.dataset.act;
-
-    if (act === 'buy') {
-      ev.preventDefault();
-      btn.disabled = true;
-      console.log("NAKUP KLIKNJEN!", btn.dataset);
-      console.log("Button element:", btn);
-      console.log("Event target:", ev.target);
-      
-      try {
-        const kind = btn.dataset.kind || "ticket"; 
-        let payload;
-        
-        if (kind === "coupon") {
-          payload = {
-            type: "coupon",
-            metadata: {
-              type: "coupon",
-              event_title: decodeURIComponent(btn.dataset.name || "Dogodek"),
-              event_id: btn.dataset.eid || "",
-              event_venue: decodeURIComponent(btn.dataset.venue || ""),
-              event_start_iso: btn.dataset.startiso || "",
-              image_url: btn.dataset.img || "",
-              display_benefit: decodeURIComponent(btn.dataset.benefit || "")
-            },
-            successUrl: `${location.origin}/#success`,
-            cancelUrl: `${location.origin}/#cancel`
-          };
-        } else {
-          payload = {
-            lineItems: [{
-              name: decodeURIComponent(btn.dataset.name || "Dogodek"),
-              description: kind,
-              amount: Number(btn.dataset.price || 0),
-              currency: "eur", 
-              quantity: 1
-            }],
-            metadata: { 
-              image_url: btn.dataset.img || "", 
-              event_id: btn.dataset.eid || "",
-              event_title: decodeURIComponent(btn.dataset.name || "Dogodek"),
-              event_venue: decodeURIComponent(btn.dataset.venue || ""),
-              event_start_iso: btn.dataset.startiso || "",
-              type: "ticket"
-            },
-            successUrl: `${location.origin}/#success`,
-            cancelUrl: `${location.origin}/#cancel`
-          };
-        }
-        
-        console.log("Pošiljam na checkout:", payload);
-        const r = await fetch("/api/checkout", {
-          method: "POST",
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(payload)
-        }).then(x => x.json()).catch(() => ({}));
-        
-        if (r && r.ok && r.url) { 
-          console.log("Preusmerjam na Stripe:", r.url);
-          location.href = r.url; 
-        } else { 
-          console.error("Checkout failed:", r);
-          window._toast("Plačilnega okna ni bilo mogoče odpreti.", false); 
-        }
-      } catch (err) { 
-        console.error("Napaka pri plačilu:", err);
-        window._toast("Napaka pri plačilu.", false); 
-      } finally { 
-        btn.disabled = false; 
-      }
-      return;
-    }
-  }, {passive: false});
-  
-  console.log("Aplikacija inicializirana - buy handler dodan");
-};
-
 /* ===== Panel helpers (definirano zgodaj – gumbi se zdaj odzivajo) ===== */
 function hideAllPanels(){ $$('.panel').forEach(p=>p.classList.remove('show')); }
 function scrollToEl(node){ if(!node) return; const y=node.getBoundingClientRect().top+window.scrollY-headerH()-8; window.scrollTo({top:y,behavior:'smooth'}); }
 function showPanel(id){
-  const p = document.getElementById(id); 
-  if(!p) {
-    console.log("showPanel: element ne obstaja -", id);
-    return;
-  }
-  console.log("showPanel:", id, "element:", p);
+  const p = document.getElementById(id); if(!p) return;
   /* zapomni prejšnji panel, če gremo v pakete */
   if(id==='plansPanel'){ prevPanelBeforePlans = lastPanel; }
   hideAllPanels(); p.classList.add('show'); lastPanel=id; scrollToEl(p);
@@ -942,29 +813,10 @@ END:VCALENDAR`.replace(/\n/g,"\r\n");
 }
 
 /* ====== UI init (gumbi, paneli) ====== */
-if (btnStart) {
-  btnStart.addEventListener("click", function(e) {
-    e.preventDefault();
-    console.log("btnStart clicked!");
-    scrollToEl(document.getElementById('searchPanel'));
-  });
-  console.log("btnStart event listener added successfully");
-} else {
-  console.error("btnStart element not found!");
-}
-$("#btnProvidersTop")?.addEventListener("click",(e)=>{ 
-  e.preventDefault(); 
-  console.log("Za ponudnike button clicked - opening orgHub panel"); 
-  const panel = document.getElementById('orgHub');
-  console.log("orgHub panel element:", panel);
-  showPanel('orgHub'); 
-});
+$("#btnStart")?.addEventListener("click",()=>scrollToEl($("#searchPanel")));
+$("#btnProvidersTop")?.addEventListener("click",(e)=>{ e.preventDefault(); showPanel('orgHub'); });
 $("#hubPublish")?.addEventListener("click",()=>showPanel('orgPanel'));
-$("#btnPremiumTop")?.addEventListener("click",(e)=>{ 
-  e.preventDefault(); 
-  console.log("Premium gumb kliknjen, odpiranje premiumPanel...");
-  showPanel('premiumPanel'); 
-});
+$("#btnPremiumTop")?.addEventListener("click",(e)=>{ e.preventDefault(); showPanel('premiumPanel'); });
 $("#btnClosePremium")?.addEventListener("click",()=>scrollToEl($("#hero")));
 $("#btnCloseMap")?.addEventListener("click",()=>scrollToEl($("#searchPanel")));
 $("#showProviderTerms")?.addEventListener("click",(e)=>{ e.preventDefault(); showPanel('providerTermsPanel'); });
@@ -973,63 +825,6 @@ $("#hubPlans")?.addEventListener("click",()=>showPanel('plansPanel'));
 $("#btnClosePlans")?.addEventListener("click",()=>showPanel(prevPanelBeforePlans || 'orgHub'));
 $("#linkPlansInline")?.addEventListener("click",(e)=>{ e.preventDefault(); showPanel('plansPanel'); });
 $("#featPlansLink")?.addEventListener("click",(e)=>{ e.preventDefault(); showPanel('plansPanel'); });
-
-/* Provider plan purchase handlers */
-async function startProviderPurchase(planType) {
-  const platform = detectPlatform();
-  
-  try {
-    if (platform === 'ios') {
-      // Use Apple App Store IAP for provider plans
-      if (window.webkit?.messageHandlers?.iOS) {
-        window.webkit.messageHandlers.iOS.postMessage({
-          action: 'purchaseSubscription',
-          productId: `provider_${planType}_monthly`,
-          type: 'provider',
-          plan: planType
-        });
-        return;
-      }
-      window._toast('Apple plačilo ni na voljo v tej različici.', false);
-      
-    } else if (platform === 'android') {
-      // Use Google Play Billing for provider plans
-      if (window.Android?.purchaseSubscription) {
-        window.Android.purchaseSubscription(`provider_${planType}_monthly`, 'provider', planType);
-        return;
-      }
-      window._toast('Google plačilo ni na voljo v tej različici.', false);
-      
-    } else {
-      // Use Stripe for web/desktop
-      const r = await fetch('/.netlify/functions/iap-start', { 
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          plan: `provider_${planType}_monthly`,
-          interval: 'monthly'
-        })
-      }).then(r => r.json());
-      
-      if (r?.url) {
-        location.href = r.url;
-      } else {
-        window._toast(`${planType} paket ni na voljo.`, false);
-      }
-    }
-  } catch (err) {
-    console.error('Provider purchase error:', err);
-    window._toast('Nakup paketa ni na voljo.', false);
-  }
-}
-
-// Event listeners for provider plan buttons
-$$('[data-start-plan]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const planType = btn.getAttribute('data-start-plan'); // 'grow' or 'pro'
-    startProviderPurchase(planType);
-  });
-});
 
 /* Pri interakciji z iskanjem skrij ponudniške panele */
 $("#searchPanel")?.addEventListener("click",()=>hideAllPanels());
@@ -1048,26 +843,18 @@ radius?.addEventListener('input',()=>{ radiusLbl.textContent=`${radius.value} km
 radiusCity?.addEventListener('input',()=>{ radiusCityLbl.textContent=`${radiusCity.value} km`; });
 
 /* Geolokacija */
-if (btnUseLocation) {
-  btnUseLocation.addEventListener("click", function(e) {
-    e.preventDefault();
-    console.log("btnUseLocation clicked!");
+$("#btnUseLocation")?.addEventListener("click", ()=>{
   try{
     navigator.geolocation.getCurrentPosition((pos)=>{
       GEO = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-      const txtEl = $("#btnUseLocation .txt");
-      if (txtEl) txtEl.textContent = "Uporabljam tvojo lokacijo ✓";
+      $("#btnUseLocation .txt")?.textContent="Uporabljam tvojo lokacijo ✓";
       $("#cityRadiusWrap").style.display='none';
       radiusLbl.textContent = `${radius.value} km`;
       setLocButtonsActive('gps');
       doSearch(0);
     }, ()=>{ window._toast("Lokacije ni bilo mogoče pridobiti.", false); }, {enableHighAccuracy:true,timeout:15000});
   }catch{}
-  });
-  console.log("btnUseLocation event listener added successfully");
-} else {
-  console.error("btnUseLocation element not found!");
-}
+});
 
 /* ======= Map picker z interaktivnim krogom ======= */
 $("#btnPickOnMap")?.addEventListener("click", ()=>{ $("#pickModal").style.display="flex"; setTimeout(initPickMap,50); setLocButtonsActive('pick'); });
@@ -1151,7 +938,7 @@ function refreshPickOverlay(){
 
 /* Kategorije (za iskalnik) */
 const CATS_EVENTS = ["Vse","Koncerti","Hrana & pijača","Družina/otroci","Šport","Kultura","Sejmi","Ostalo"];
-const CATS_SERVS  = ["Vse","Lepota","Zdravje","Dom & vrt","Avto","Popravila","Wellness","Šport & fit","Učenje","Servis","Ostalo"];
+const CATS_SERVS  = ["Vse","Lepota","Zdravje","Wellness","Šport & fit","Učenje","Servis","Ostalo"];
 function renderCats(){
   const elc = $("#cats"); if (!elc) return; elc.innerHTML='';
   const list = (ACTIVE_MODE==='events'?CATS_EVENTS:CATS_SERVS);
@@ -1166,10 +953,8 @@ $$('.mode').forEach(btn=>{
     $$('.mode').forEach(x=>x.classList.remove('active')); btn.classList.add('active');
     ACTIVE_MODE = btn.getAttribute('data-mode');
     const noun = ACTIVE_MODE==='services' ? 'storitve' : 'dogodke';
-    const headline = ACTIVE_MODE==='services' ? 'Najdi storitve blizu — lepota, zdravje, dom&vrt, avto, servis & več' : 'Najdi dogodke blizu — koncerti, hrana, kultura, otroci & več';
     $("#heroNoun").textContent = noun+" blizu";
     $("#heroNoun2").textContent = noun;
-    $("#heroHeadline").innerHTML = headline.replace(/(storitve|dogodke) blizu/, '<span id="heroNoun" style="color:var(--brand)">$1 blizu</span>');
     $("#featTitle").textContent = ACTIVE_MODE==='services' ? "Izpostavljene storitve v tvoji bližini" : "Izpostavljeno v tvoji bližini";
     $("#notifyNoun").textContent = ACTIVE_MODE==='services' ? "storitve" : "dogodke";
     renderCats(); showPanel('searchPanel'); doSearch(0); loadFeatured();
@@ -1204,6 +989,20 @@ function normalizeLocal(x){
     featured: !!x.featured
   };
 }
+function mapCategory(apiCat){
+  if (!apiCat) return 'Drugo';
+  const cat = apiCat.toLowerCase();
+  if (cat.includes('music') || cat.includes('concert') || cat.includes('glasbā') || cat.includes('koncer')) return 'Koncerti';
+  if (cat.includes('sport') || cat.includes('šport')) return 'Šport';
+  if (cat.includes('food') || cat.includes('culinar') || cat.includes('hrana') || cat.includes('restoran')) return 'Hrana';
+  if (cat.includes('theatre') || cat.includes('theater') || cat.includes('gledal')) return 'Gledališče';
+  if (cat.includes('film') || cat.includes('cinema') || cat.includes('movie')) return 'Film';
+  if (cat.includes('art') || cat.includes('umetnost') || cat.includes('razsta')) return 'Umetnost';
+  if (cat.includes('family') || cat.includes('child') || cat.includes('družin') || cat.includes('otroc')) return 'Družinski';
+  if (cat.includes('business') || cat.includes('conference') || cat.includes('poslovn') || cat.includes('konfer')) return 'Poslovni';
+  return 'Drugo';
+}
+
 function normalizeExt(x){
   const venue = normalizeVenue(x.venue||x);
   return {
@@ -1218,6 +1017,7 @@ function normalizeExt(x){
     offerType: x.offerType || (Number(x.price||0)>0?'ticket':'none'),
     price: Number(x.price||0) || null,
     type: 'event',
+    category: mapCategory(x.category),
     description: x.description || x.desc || ''
   };
 }
@@ -1250,17 +1050,11 @@ function cardActionBar(e){
   const id = hashId(e);
   const chip = offerChipText(e);
   const where=(e.venue&&e.venue.address)||'';
-  const more = (e.description||'').trim();
-  
-  const actionBtns = [
-    more ? `<button class="btn mini link" data-more="${id}">Več ▾</button>
-    <button class="btn mini link" data-less="${id}" style="display:none">Skrij ▴</button>` : '',
-    `<button class="btn mini link" data-ical="${id}">Koledar</button>`,
+  const btns = [
     `<button class="btn mini link" data-share="${id}">Povabi</button>`,
     (where && e.venue.lat && e.venue.lon) ? `<button class="btn mini link" data-map="${id}">Zemljevid</button>` : ''
   ].filter(Boolean).join(' ');
-  
-  return `<div class="buy" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${actionBtns}</div>`;
+  return `<div class="buy">${chip?`<span class="value-chip">${chip}</span>`:''}${btns}</div>`;
 }
 function renderCard(e){
   const id = hashId(e); ITEMS_BY_ID.set(id, e);
@@ -1272,25 +1066,16 @@ function renderCard(e){
   let buyRows = '';
 
   if (isExternalAPI(e)){
-    buyRows += `<div class="buy" style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:nowrap">
-                  <span class="value-chip">${offerChipText(e)||'Več informacij'}</span>
-                  <a class="btn mini" href="${e.url||'#'}" target="_blank">Kupi vstopnico</a>
-                  <a class="btn mini link" href="${e.url||'#'}" target="_blank">Več</a>
-                </div>`;
+    buyRows += `<div class="buy"><span class="value-chip">${offerChipText(e)||'Več informacij'}</span>
+                <a class="btn mini" href="${e.url||'#'}" target="_blank">Kupi vstopnico</a>
+                <a class="btn mini link" href="${e.url||'#'}" target="_blank">Več</a></div>`;
   } else if ((e.offerType||e.type)==='ticket'){
     const tps = Array.isArray(e.ticketPrices)&&e.ticketPrices.length? e.ticketPrices : (Number(e.price||0)>0 ? [{label:'Osnovna', price:+e.price}] : []);
     tps.forEach(tp=>{
-      buyRows += `<div class="buy" style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:nowrap">
-                    <span class="value-chip">${euro(tp.price||0)}</span> 
-                    <button class="btn mini" data-buy="${id}" data-price="${tp.price}" data-kind="ticket" data-name="${encodeURIComponent(title)}" data-venue="${encodeURIComponent(where)}" data-startiso="${e.start||''}" data-img="${img}">Kupi vstopnico — ${tp.label||'Vstopnica'}</button>
-                  </div>`;
+      buyRows += `<div class="buy"><span class="value-chip">${euro(tp.price||0)}</span> <button class="btn mini" data-buy="${id}" data-price="${tp.price}" data-label="${tp.label||'Vstopnica'}">Kupi vstopnico — ${tp.label||'Vstopnica'}</button></div>`;
     });
   } else if ((e.offerType||e.type)==='coupon'){
-    const couponButtonText = IS_PREMIUM ? "Vzemi kupon" : "Kupi kupon (2 €)";
-    buyRows += `<div class="buy" style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:nowrap">
-                  <span class="value-chip">${offerChipText(e)}</span> 
-                  <button class="btn mini" data-buy="${id}" data-kind="coupon" data-name="${encodeURIComponent(title)}" data-venue="${encodeURIComponent(where)}" data-startiso="${e.start||''}" data-img="${img}" data-benefit="${encodeURIComponent(offerChipText(e)||'')}">${couponButtonText}</button>
-                </div>`;
+    buyRows += `<div class="buy"><span class="value-chip">${offerChipText(e)}</span> <button class="btn mini" data-buy="${id}" data-kind="coupon">Kupi kupon</button></div>`;
   }
 
   const wrap = el('div','spot'); wrap.id='card-'+id;
@@ -1300,7 +1085,12 @@ function renderCard(e){
       <div style="font-weight:900">${title}</div>
       <div class="muted" style="margin-top:4px">${where?(`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(where)}" target="_blank">📍 ${where}</a>`):''}</div>
       <div class="muted" style="margin-top:4px">${when}</div>
-      ${more ? `<div class="more-text" id="more-${id}" style="display:none;margin-top:6px;padding-top:6px;border-top:1px solid var(--chipborder)">${more}${isExternalAPI(e)?(` <a href="${e.url}" target="_blank">[odpri vir]</a>`):''}</div>` : ''}
+      <div class="buy" style="margin-top:8px">
+        <button class="btn mini link" data-more="${id}">Več ▾</button>
+        <button class="btn mini link" data-less="${id}" style="display:none">Skrij ▴</button>
+        ${calendarButtonHTML(id)}
+      </div>
+      ${more ? `<div class="more-text" id="more-${id}" style="display:none;margin-top:6px">${more}${isExternalAPI(e)?(` <a href="${e.url}" target="_blank">[odpri vir]</a>`):''}</div>` : ''}
       ${cardActionBar(e)}
       ${buyRows}
      </div>`;
@@ -1316,10 +1106,7 @@ async function loadFeatured(){
     let items = (r1 && r1.results) ? r1.results.map(normalizeLocal).filter(isFuture) : [];
 
     if ((!items || items.length < 10) && ACTIVE_MODE==='events'){
-      const p3 = new URLSearchParams(); 
-      if(GEO){ p3.set('latlon', GEO.lat + ',' + GEO.lon); p3.set('radiuskm', '120'); }
-      p3.set('size', '40');
-      let ex=null; try{ ex=await fetch('/.netlify/functions/tm-search?'+p3.toString()).then(r=>r.json()); }catch(e){}
+      let ex=null; try{ ex=await fetch('/api/search?limit=40'+(latlon?('&lat='+GEO?.lat+'&lon='+GEO?.lon+'&radius=120'):'')).then(r=>r.json()); }catch(e){}
       const ext = (ex && ex.results) ? ex.results.map(normalizeExt).filter(isFuture) : [];
       items = mergeNoDup(items||[], ext);
     }
@@ -1332,25 +1119,25 @@ async function loadFeatured(){
     items = (items||[]).slice(0,12);
     items.forEach(e=>car.appendChild(renderCard(e)));
 
-    /* počasno tekoče vrtenje + pavza na klik/hover */
-    let raf=0, pausedUntil=0, lastScroll=0, currentScroll=0;
-    function loop(){
-      const now = Date.now();
-      if(now>=pausedUntil && now - lastScroll > 100){ /* 10 fps za smooth */
-        const step = 0.1; /* 0.1px na 100ms = 1px/sekundo - počasno a opazno */
-        currentScroll += step;
-        if (currentScroll >= car.scrollWidth - car.clientWidth){
-          currentScroll = 0;
+    /* počasnejše vrtenje + pavza na klik (0.5px/50ms s 5s pavzo) */
+    let scrollTimer=0, pausedUntil=0;
+    function startScroll(){
+      if(scrollTimer) clearInterval(scrollTimer);
+      scrollTimer = setInterval(()=>{
+        if(Date.now()>=pausedUntil){
+          const step = 0.5; /* optimizirana hitrost */
+          if ((car.scrollLeft + car.clientWidth + step) >= car.scrollWidth){
+            car.scrollTo({left:0, behavior:'auto'});
+          } else {
+            car.scrollBy({left:step, behavior:'auto'});
+          }
         }
-        car.scrollLeft = currentScroll;
-        lastScroll = now;
-      }
-      raf = requestAnimationFrame(loop);
+      }, 50); /* 50ms interval */
     }
-    cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
+    startScroll();
 
-    car.addEventListener('mouseenter', ()=>{cancelAnimationFrame(raf); pausedUntil=Date.now()+2000;});
-    car.addEventListener('mouseleave', ()=>{ pausedUntil=Date.now()+1000; cancelAnimationFrame(raf); raf=requestAnimationFrame(loop); });
+    car.addEventListener('mouseenter', ()=>clearInterval(scrollTimer));
+    car.addEventListener('mouseleave', startScroll);
     car.addEventListener('click', (ev)=>{ pausedUntil=Date.now()+5000; commonCardClicks(ev); }); /* pavza 5s na klik */
   }catch(err){}
 }
@@ -1415,17 +1202,10 @@ async function doSearch(page){
       return okQ && okC && okF && tsS && tsE && okMode;
     });
 
-    // 2) Veliki appi (vedno za dogodke)
-    if (ACTIVE_MODE==='events'){
-      const p2 = new URLSearchParams(); 
-      if(center){ 
-        p2.set('latlon', center.lat + ',' + center.lon); 
-        p2.set('radiuskm', center.r); 
-      } 
-      if(q) p2.set('q', q);
-      if(cat && cat !== 'Vse') p2.set('category', cat);
-      p2.set('size', '60');
-      let ex=null; try{ ex=await fetch('/.netlify/functions/tm-search?'+p2.toString()).then(r=>r.json()); }catch(e){}
+    // 2) Veliki appi (fallback) — za dogodke
+    if (ACTIVE_MODE==='events' && (!items || items.length < 10)){
+      const p2 = new URLSearchParams(); if(center){ p2.set('lat', center.lat); p2.set('lon', center.lon); p2.set('radius', center.r); } if(q) p2.set('q', q);
+      let ex=null; try{ ex=await fetch('/api/search?limit=60&'+p2.toString()).then(r=>r.json()); }catch(e){}
       const ext = (ex && ex.results) ? ex.results.map(normalizeExt).filter(isFuture) : [];
       items = mergeNoDup(items||[], ext);
     }
@@ -1443,16 +1223,8 @@ $("#btnToggleResultsMap")?.addEventListener("click",()=>{
   if (show && !mapSearch){
     mapSearch = L.map('mapSearch').setView([46.0569,14.5058], 7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'© OpenStreetMap' }).addTo(mapSearch);
-    setTimeout(()=>{ 
-      try{ mapSearch.invalidateSize(); }catch{}
-      fitSearchMarkers(); 
-    }, 200);
-  } else if (show){ 
-    setTimeout(()=>{
-      try{ mapSearch.invalidateSize(); }catch{}
-      fitSearchMarkers(); 
-    }, 200); 
-  }
+    setTimeout(fitSearchMarkers, 200);
+  } else if (show){ setTimeout(fitSearchMarkers, 200); }
 });
 
 function renderResultsPage(page){
@@ -1471,13 +1243,10 @@ function renderResultsPage(page){
   slice.forEach(e=>{
     list.appendChild(renderCard(e));
     if (mapSearch && e.venue && e.venue.lat && e.venue.lon){
-      console.log("Dodajam marker za:", e.name, "koordinate:", e.venue.lat, e.venue.lon);
       const id = hashId(e);
       const m = L.marker([e.venue.lat, e.venue.lon]).addTo(mapSearch)
         .bindPopup('<b>'+(e.title||e.name)+'</b><br>'+((e.venue&&e.venue.address)||'')+'<br>'+formatDateRange(e.start,e.end)+'<br><a href="#card-'+id+'" data-scroll-id="'+id+'">Prikaži</a>');
       markersSearch.push(m);
-    } else if (mapSearch) {
-      console.log("Ni koordinat za:", e.name, "venue:", e.venue);
     }
   });
 
@@ -1490,13 +1259,7 @@ function renderResultsPage(page){
     });
   }
 
-  renderPager(); 
-  if(mapSearch) {
-    setTimeout(()=>{
-      try{ mapSearch.invalidateSize(); }catch{}
-      fitSearchMarkers();
-    }, 100);
-  }
+  renderPager(); fitSearchMarkers();
 }
 function renderPager(){
   const host=$("#pagination"); if(!host) return; host.innerHTML='';
@@ -1582,14 +1345,14 @@ async function handleBuy(id, price, label, kind){
     }
 
     if (isCoupon){
-      const body = { type:'coupon', metadata };
+      const body = { type:'coupon', metadata, isPremium: IS_PREMIUM };
       const r = await tryEndpoints('/api/checkout', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(body) },
                                    '/.netlify/functions/checkout','/.netlify/functions/stripe-checkout');
       if (r?.url) location.href = r.url; else window._toast('Plačilo (kupon) ni pripravljeno.', false);
     } else {
       const amount = price ? Number(price) : Number(e.price||0);
       const lineItems = amount>0 ? [{ name: (label||'Vstopnica'), amount: amount, quantity: 1, currency:'eur' }] : [];
-      const r2 = await tryEndpoints('/api/checkout', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ lineItems, metadata }) },
+      const r2 = await tryEndpoints('/api/checkout', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ lineItems, metadata, isPremium: IS_PREMIUM }) },
                                     '/.netlify/functions/checkout','/.netlify/functions/stripe-checkout');
       if (r2?.url) location.href = r2.url; else window._toast('Plačilo (vstopnica) ni pripravljeno.', false);
     }
@@ -1606,7 +1369,7 @@ async function tryEndpoints(primaryUrl, primaryInit, ...fallbacks){
 /* ======== ZA PONUDNIKE – kategorije ======== */
 const FORM_CATS = {
   event: ["Koncerti","Hrana & pijača","Družina/otroci","Šport","Kultura","Sejmi","Ostalo"],
-  service: ["Lepota","Zdravje","Dom & vrt","Avto","Popravila","Wellness","Šport & fit","Učenje","Servis","Ostalo"]
+  service: ["Lepota","Zdravje","Wellness","Šport & fit","Učenje","Servis","Ostalo"]
 };
 function refreshCategories(){
   const sel=$('#category'); const entry=$('#entryType'); if(!sel||!entry) return;
@@ -1713,75 +1476,15 @@ function refreshCategories(){
     });
   })();
 
-  // User status checking function
-  async function checkUserStatus() {
-    try {
-      // Try to get stored purchase token from localStorage for anonymous users
-      const storedToken = localStorage.getItem('ng_purchase_token');
-      const storedPlatform = localStorage.getItem('ng_platform');
-      
-      const params = new URLSearchParams();
-      if (storedToken) {
-        params.set('purchaseToken', storedToken);
-        if (storedPlatform) params.set('platform', storedPlatform);
-      }
-      
-      const response = await fetch(`/.netlify/functions/user-status?${params.toString()}`);
-      const status = await response.json();
-      
-      if (status.ok) {
-        IS_PREMIUM = status.isPremium || false;
-        PROVIDER_PLAN = status.providerPlan || 'free';
-        
-        // Update UI based on status
-        updatePremiumUI();
-        updateProviderUI();
-        
-        return status;
-      }
-    } catch (err) {
-      console.error('Failed to check user status:', err);
-    }
-    
-    // Fallback to free tier
-    IS_PREMIUM = false;
-    PROVIDER_PLAN = 'free';
-    return { isPremium: false, providerPlan: 'free' };
-  }
-  
-  function updatePremiumUI() {
-    const premiumMsg = $('#premMsg');
-    if (premiumMsg) {
-      premiumMsg.textContent = IS_PREMIUM ? 'Premium aktiven ✓' : '';
-    }
-    
-    // Update button text
-    const premiumBtn = $('#btnGoPremium');
-    if (premiumBtn) {
-      premiumBtn.textContent = IS_PREMIUM ? 'Premium aktiven' : 'Naroči Premium';
-      premiumBtn.disabled = IS_PREMIUM;
-    }
-  }
-  
-  function updateProviderUI() {
-    // Update provider plan indicators
-    $$('[data-start-plan]').forEach(btn => {
-      const planType = btn.getAttribute('data-start-plan');
-      if (PROVIDER_PLAN === `provider_${planType}` || PROVIDER_PLAN === planType) {
-        btn.textContent = `${planType} aktiven`;
-        btn.disabled = true;
-      }
-    });
-  }
-
   // Featured -> paket
   const featured=$('#featured');
   featured?.addEventListener('change', async ()=>{
     if (!featured.checked) return;
-    
-    const status = await checkUserStatus();
-    
-    if (PROVIDER_PLAN === 'free'){
+    try{
+      const s = await fetch('/api/iap/status').then(r=>r.json());
+      PROVIDER_PLAN = (s && s.providerPlan) ? s.providerPlan : 'free';
+    }catch{ PROVIDER_PLAN='free'; }
+    if (PROVIDER_PLAN==='free'){
       $('#featMsg').textContent='Za izpostavitev potrebuješ paket Grow/Pro.';
       const go = confirm('Za izpostavitve je potreben paket (Grow/Pro). Želiš nadgraditi?');
       if (go){ showPanel('plansPanel'); }
@@ -1790,9 +1493,6 @@ function refreshCategories(){
       $('#featMsg').textContent='Izpostavljena objava bo aktivirana po potrditvi.';
     }
   });
-  
-  // Check user status on page load
-  checkUserStatus();
 
   $('#btnSubmitEvent')?.addEventListener('click', submitProvider);
   async function submitProvider(){
@@ -1893,69 +1593,9 @@ function refreshCategories(){
 })();
 
 /* BOOST & PREMIUM + PAKETI */
-// Platform detection for payments
-function detectPlatform() {
-  const ua = navigator.userAgent || '';
-  const isInApp = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-  
-  // Check if running in mobile app environment
-  if (isInApp) {
-    if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
-    if (/Android/i.test(ua)) return 'android';
-  }
-  
-  // Check for specific app webview indicators
-  if (window.webkit?.messageHandlers?.iOS) return 'ios';
-  if (window.Android?.purchaseSubscription) return 'android';
-  
-  return 'web'; // Desktop/browser
-}
-
-async function startPremiumPurchase() {
-  const platform = detectPlatform();
-  
-  try {
-    if (platform === 'ios') {
-      // Use Apple App Store IAP
-      if (window.webkit?.messageHandlers?.iOS) {
-        window.webkit.messageHandlers.iOS.postMessage({
-          action: 'purchaseSubscription',
-          productId: 'premium_monthly',
-          type: 'premium'
-        });
-        return;
-      }
-      window._toast('Apple plačilo ni na voljo v tej različici.', false);
-      
-    } else if (platform === 'android') {
-      // Use Google Play Billing
-      if (window.Android?.purchaseSubscription) {
-        window.Android.purchaseSubscription('premium_monthly', 'premium');
-        return;
-      }
-      window._toast('Google plačilo ni na voljo v tej različici.', false);
-      
-    } else {
-      // Use Stripe for web/desktop
-      const r = await fetch('/.netlify/functions/iap-start', { 
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'premium_monthly' })
-      }).then(r => r.json());
-      
-      if (r?.url) {
-        location.href = r.url;
-      } else {
-        window._toast('Stripe plačilo ni na voljo.', false);
-      }
-    }
-  } catch (err) {
-    console.error('Premium purchase error:', err);
-    window._toast('Premium nakup ni na voljo.', false);
-  }
-}
-
-$("#btnGoPremium")?.addEventListener('click', startPremiumPurchase);
+$("#btnGoPremium")?.addEventListener('click', async ()=>{
+  try{ const r = await fetch('/api/iap/start', { method:'POST' }).then(r=>r.json()); if (r?.url) location.href=r.url; else window._toast('Premium nakup ni na voljo.', false); }catch{ window._toast('Premium nakup ni na voljo.', false); }
+});
 
 /* Early notify teaser */
 function initNotifyUI(){
@@ -1976,32 +1616,18 @@ function initNotifyUI(){
   }
 
   btnOn?.addEventListener('click', async ()=>{
-    /* Najprej prikažemo začetno obvestilo o predčasnih obvestilih */
-    const premMsg = $('#premMsg');
-    if(premMsg) {
-      premMsg.textContent = 'Predčasna obvestila omogočajo prilagojene notifikacije o dogodkih in storitvah v tvoji bližini, še preden so javno objavljene.';
-    }
-    showPanel('premiumPanel');
-    
-    /* Preverimo Premium status */
     try{
-      const status = await checkUserStatus();
-      if(status.isPremium){
-        /* Če je že Premium, omogoči nastavitve */
-        setTimeout(() => {
-          $('#btnEarlyNotifyPrefs').style.display='inline-flex';
-          openModal();
-        }, 1000);
-        return;
-      }
-    }catch{ /* Continue to Premium panel */ }
-    
-    /* Po 3 sekundah spremenimo besedilo na nakup Premium dostopa */
-    setTimeout(() => {
-      if(premMsg) {
-        premMsg.textContent = 'Za predčasna obvestila potrebuješ Premium dostop. Pridobi Premium in bodi prvi obveščen o novih dogodkih in storitvah v tvoji bližini.';
-      }
-    }, 3000);
+      const st = await fetch('/api/iap/status').then(r=>r.json()).catch(()=>({premium:false}));
+      IS_PREMIUM = !!(st && (st.premium||st.isPremium));
+    }catch{ IS_PREMIUM=false; }
+    if(!IS_PREMIUM){
+      const go = confirm('Predčasna obvestila so del Premium. Želiš naročiti Premium?');
+      if(go){ try{ const r = await fetch('/api/iap/start',{method:'POST'}).then(r=>r.json()); if(r?.url) location.href=r.url; }catch{} }
+      return;
+    }
+    /* premium – odpri nastavitve */
+    $('#btnEarlyNotifyPrefs').style.display='inline-flex';
+    openModal();
   });
   btnPrefs?.addEventListener('click', openModal);
   close1?.addEventListener('click', closeModal);
@@ -2024,69 +1650,47 @@ initNotifyUI();
   btn?.addEventListener('click',()=>{ localStorage.setItem('ng_dark', localStorage.getItem('ng_dark')==='1'?'0':'1'); apply(); });
   apply();
 })();
-
-/* Jezikovni meni sedaj v assets/main.js z 18 jeziki */
+(function lang(){
+  const wrap=$('#langWrap'), menu=$('#langMenu'), label=$('#langLabel');
+  const langs=[['SL','sl'],['EN','en'],['DE','de'],['HR','hr'],['IT','it']];
+  function build(){
+    if (!menu) return;
+    menu.innerHTML=''; langs.forEach(([t,v])=>{ const b=el('button'); b.textContent=t; b.addEventListener('click',()=>{ localStorage.setItem('ng_lang', v); label.textContent=t; menu.style.display='none'; }); menu.appendChild(b); });
+  }
+  wrap?.addEventListener('click',(e)=>{ 
+    e.stopPropagation(); 
+    if(e.target.id==='langMenu' || e.target.closest('.lang-menu')) return; 
+    menu.style.display = (menu.style.display==='block'?'none':'block'); 
+  });
+  // Zapri meni ob kliku zunaj
+  document.addEventListener('click',(e)=>{
+    if (!e.target.closest('#langWrap')) {
+      if (menu) menu.style.display='none';
+    }
+  });
+  build();
+})();
 
 /* Cookie banner */
 (function cookies(){
   const ok=$('#cookieAccept'), bn=$('#cookieBanner');
-  if(localStorage.getItem('ng_cookie_ok')!=='1' && bn){ 
-    bn.style.display='block'; 
-    // Dodaj fade-in animacijo
-    setTimeout(() => bn.classList.add('show'), 100);
-  }
-  ok?.addEventListener('click',()=>{ 
-    localStorage.setItem('ng_cookie_ok','1'); 
-    if(bn) {
-      bn.classList.add('fade-out');
-      setTimeout(() => bn.style.display='none', 300);
-    }
-  });
+  if(localStorage.getItem('ng_cookie_ok')!=='1'){ bn.style.display='block'; }
+  ok?.addEventListener('click',()=>{ localStorage.setItem('ng_cookie_ok','1'); bn.style.display='none'; });
 })();
 
+/* Preveri Premium status ob zagonu */
+async function checkPremiumStatus(){
+  try{
+    const st = await fetch('/api/iap/status').then(r=>r.json()).catch(()=>({premium:false}));
+    IS_PREMIUM = !!(st && (st.premium||st.isPremium));
+  }catch{ IS_PREMIUM=false; }
+}
+
 /* Inicialni prikaz */
+checkPremiumStatus(); /* preveri Premium status */
 loadFeatured(); /* featured za privzeti način (Dogodki) */
 /* ob nalaganju ne išči nič, dokler uporabnik ne izbere kriterijev (točka 4) */
 lastResults=[]; renderResultsPage(0);
-
-console.log("NearGo app fully initialized!");
-window.neargoInitialized = true;
-} // konec initializeApp
-
-/* ===== BULLETPROOF STARTUP SEQUENCE ===== */
-window.initStartTime = Date.now();
-
-// Strategija 1: Takoj, če je DOM že pripravljen
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeApp);
-} else {
-  console.log("📋 DOM already ready, initializing immediately");
-  initializeApp();
-}
-
-// Strategija 2: Window load kot backup
-window.addEventListener('load', function() {
-  if (!window.neargoInitialized) {
-    console.log("🔄 Window load backup triggered");
-    initializeApp();
-  }
-});
-
-// Strategija 3: Agresivni timeout za vse scenarije
-setTimeout(function() {
-  if (!window.neargoInitialized) {
-    console.log("⏰ Emergency timeout initialization");
-    initializeApp();
-  }
-}, 1000);
-
-// Strategija 4: Še zadnji obup po 3 sekundah
-setTimeout(function() {
-  if (!window.neargoInitialized) {
-    console.log("🆘 LAST RESORT initialization after 3s");
-    initializeApp();
-  }
-}, 3000);
 
   </script>
 </body>

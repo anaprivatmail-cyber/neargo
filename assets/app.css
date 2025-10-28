@@ -1,11 +1,11 @@
 /* ===== Nea AI asistentka ===== */
-.nea-fab {
+#btnNea.nea-fab {
   position: fixed;
   bottom: 28px;
   right: 28px;
   z-index: 2100;
-  background: #0bbbd6;
-  border: none;
+  background: #fff;
+  border: 2px solid #0bbbd6;
   border-radius: 50%;
   width: 56px;
   height: 56px;
@@ -14,11 +14,12 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: box-shadow .2s;
+  transition: box-shadow .2s, border-color .2s;
+  padding: 0;
 }
-.nea-fab:hover {
+#btnNea.nea-fab:hover {
   box-shadow: 0 8px 24px rgba(11,187,214,0.28);
-  background: #099bb0;
+  border-color: #099bb0;
 }
 #neaModal .box {
   width: 96vw;

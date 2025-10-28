@@ -221,15 +221,6 @@
         <button class="mode" data-mode="services">Storitve</button>
         <a class="pill" id="btnPremiumTop" href="#premiumPanel">Premium</a>
         <a class="pill" id="btnMine" href="/my.html" title="Moje vstopnice & kuponi">Moje <span id="pointsBadge" class="badge" style="margin-left:6px;display:none">0</span></a>
-        <!-- Plavajoči gumb za Neo -->
-        <button id="btnNea" class="nea-fab" title="Vprašaj asistentko Neo" aria-label="Vprašaj Neo">
-          <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="16" cy="16" r="16" fill="#0bbbd6"/>
-            <path d="M10 22C10 19 13 17 16 17C19 17 22 19 22 22" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-            <circle cx="16" cy="13" r="4" fill="#fff"/>
-            <circle cx="16" cy="13" r="2" fill="#0bbbd6"/>
-          </svg>
-        </button>
       </div>
     </div>
   </header>
@@ -239,7 +230,9 @@
   <div id="neaModal" class="modal" tabindex="-1" aria-modal="true" style="display:none">
     <div class="box" style="max-width:420px;width:96vw;">
       <div class="bar" style="justify-content:space-between">
-        <span>Nea – AI asistentka</span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <img src="/assets/nea-avatar.svg" alt="Nea" style="width:32px;height:32px;border-radius:50%;object-fit:cover;box-shadow:0 2px 8px #0bbbd633;"> Nea – AI asistentka
+        </span>
         <button id="neaClose" class="btn mini" aria-label="Zapri">✕</button>
       </div>
       <div class="content" id="neaChatContent" style="min-height:180px;max-height:320px;overflow-y:auto;padding-bottom:0"></div>
@@ -742,6 +735,11 @@
     <button class="btn mini" id="cookieAccept">Razumem</button>
   </div>
 
+
+  <!-- Lebdeči gumb za Neo (doprsni avatar) -->
+  <button id="btnNea" class="nea-fab" title="Vprašaj asistentko Neo" aria-label="Vprašaj Neo">
+    <img src="/assets/nea-avatar.svg" alt="Nea" style="width:38px;height:38px;border-radius:50%;object-fit:cover;box-shadow:0 2px 8px #0bbbd633;">
+  </button>
   <!-- Toast -->
   <div id="toast" class="toast"></div>
 
@@ -1265,10 +1263,9 @@ function renderResultsPage(page){
     mapSearch.off('popupopen');
     mapSearch.on('popupopen', (e)=>{
       const a = e.popup? e.popup._contentNode.querySelector('[data-scroll-id]') : null;
-      if (a){ a.addEventListener('click',(ev)=>{ ev.preventDefault(); const id=a.getAttribute('data-scroll-id'); const elc=document.getElementById('card-'+id); if(elc){ elc.scrollIntoView({behavior:'smooth',block:'center'}); elc.style.boxShadow='0 0 0 3px rgba(11,187,214,.4) inset'; setTimeout(()=>{elc.style.boxShadow='';},1200); } }); }}
+      if (a){ a.addEventListener('click',(ev)=>{ ev.preventDefault(); const id=a.getAttribute('data-scroll-id'); const elc=document.getElementById('card-'+id); if(elc){ elc.scrollIntoView({behavior:'smooth',block:'center'}); elc.style.boxShadow='0 0 0 3px rgba(11,187,214,.4) inset'; setTimeout(()=>{elc.style.boxShadow='';},1200); } }); }
     });
   }
-
   renderPager(); fitSearchMarkers();
 }
 function renderPager(){

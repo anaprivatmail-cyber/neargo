@@ -1870,7 +1870,7 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
 
   <!-- Lebdeči gumb za Neo (FAB, spodaj desno, samostojna ikona) -->
   <button id="neaFab" class="nea-fab" title="Pogovor z Nea" style="display:none;">
-  <img src="assets/nea-avatar-animated.svg" alt="Nea" width="44" height="44" style="border-radius:50%;box-shadow:0 2px 8px #0bbbd655;" />
+  <img src="assets/nea-avatar-headset.svg" alt="Nea" width="44" height="44" style="border-radius:50%;box-shadow:0 2px 8px #0bbbd655;" />
   </button>
   <script src="assets/app-logic.js"></script>
 
@@ -1883,8 +1883,19 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
     </div>
     <div id="neaChat" style="padding:16px;min-height:120px;max-height:320px;overflow-y:auto;font-size:15px;color:#222;">Pozdravljeni! Sem Nea, vaša asistentka. Kako vam lahko pomagam?</div>
     <form id="neaForm" style="display:flex;gap:8px;padding:12px 16px 14px 16px;background:#f7fbfd;border-top:1px solid #e0eaf2;">
-      <input id="neaInput" type="text" placeholder="Vprašajte Neo..." autocomplete="off" style="flex:1;padding:8px 12px;border-radius:10px;border:1px solid #cfe1ee;font-size:15px;" />
+      <input id="neaInput" type="text" placeholder="Vprašajte Neo..." autocomplete="off" style="flex:1;padding:8px 12px;border-radius:10px;border:1px solid #cfe1ee;font-size:15px;min-height:36px;max-height:90px;overflow-y:auto;resize:none;" />
+      <button id="neaMic" type="button" style="background:#e9f7ff;border:none;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;margin-right:2px;cursor:pointer;">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="22" height="22" rx="11" fill="#0bbbd6"/><path d="M11 15c1.93 0 3.5-1.57 3.5-3.5v-3A3.5 3.5 0 0 0 11 5a3.5 3.5 0 0 0-3.5 3.5v3A3.5 3.5 0 0 0 11 15Zm5-3.5a.75.75 0 0 0-1.5 0A3.5 3.5 0 0 1 7 11.5a.75.75 0 0 0-1.5 0A5 5 0 0 0 11 16.5V18a.75.75 0 0 0 1.5 0v-1.5A5 5 0 0 0 16 11.5Z" fill="#fff"/></svg>
+      </button>
       <button type="submit" style="background:#0bbbd6;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-weight:700;">Pošlji</button>
+@keyframes nea-fab-flyin {
+  0% { transform: translate(-120vw, -40vh) scale(0.7); opacity:0; }
+  60% { transform: translate(10vw, 10vh) scale(1.1); opacity:1; }
+  100% { transform: translate(0,0) scale(1); opacity:1; }
+}
+.nea-fab.flyin {
+  animation: nea-fab-flyin 1.5s cubic-bezier(.4,1.6,.6,1) 1;
+}
     </form>
   </div>
   <script>
@@ -1893,19 +1904,27 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
       var fab = document.getElementById('neaFab');
       var modal = document.getElementById('neaModal');
       var close = document.getElementById('neaClose');
-      if(fab && modal) fab.addEventListener('click', function(){ modal.style.display = 'block'; fab.classList.remove('nea-fab-pulse'); });
+      if(fab && modal) fab.addEventListener('click', function(){ modal.style.display = 'block'; fab.classList.remove('flyin'); });
       if(close && modal) close.addEventListener('click', function(){ modal.style.display = 'none'; });
       // Zapri modal na Escape
       document.addEventListener('keydown', function(e){ if(e.key==='Escape' && modal && modal.style.display==='block'){ modal.style.display='none'; } });
-      // FAB je vedno viden, pulse animacija ob odprtju in vsakih 30s
-      function pulseFab(){
+      // FAB je vedno viden, ob odprtju in vsakih 30s animirano "prileti" čez zaslon
+      function flyFab(){
         if(modal && modal.style.display==='block') return;
-        fab.classList.add('nea-fab-pulse');
-        setTimeout(function(){ fab.classList.remove('nea-fab-pulse'); }, 1200);
+        fab.classList.add('flyin');
+        setTimeout(function(){ fab.classList.remove('flyin'); }, 1600);
       }
       fab.style.display = 'flex';
-      setTimeout(pulseFab, 900); // Prvi pulse po nalaganju
-      setInterval(pulseFab, 30000);
+      setTimeout(flyFab, 600); // Prvi fly-in po nalaganju
+      setInterval(flyFab, 30000);
+      // Glasovni vnos (priprava na Web Speech API)
+      var mic = document.getElementById('neaMic');
+      if(mic && (window.SpeechRecognition || window.webkitSpeechRecognition)){
+        mic.addEventListener('click', function(){
+          // Prikaz demo: v resnici bi tu sprožil SpeechRecognition
+          alert('Glasovni vnos bo na voljo v naslednji verziji.');
+        });
+      }
       // Init
       var mode = (function(){ try { return localStorage.getItem('theme') || 'light'; } catch { return 'light'; } })();
       applyTheme(mode);

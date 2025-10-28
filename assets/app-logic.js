@@ -39,16 +39,18 @@
   }
 
   /* ===== Tema ===== */
-  (function(){
-    const btn=$("#btnThemeToggle"), icon=btn?.querySelector('#themeIcon');
-    function apply(mode){
-      document.body.classList.toggle('dark', mode==='dark');
-      try{localStorage.setItem('theme',mode);}catch{}
-      if(icon) icon.textContent=mode==='dark'?'☀️':'🌙';
+  document.addEventListener('DOMContentLoaded', function() {
+    const btn = $("#btnThemeToggle"), icon = btn ? btn.querySelector('#themeIcon') : null;
+    function apply(mode) {
+      document.body.classList.toggle('dark', mode === 'dark');
+      try { localStorage.setItem('theme', mode); } catch {}
+      if (icon) icon.textContent = mode === 'dark' ? '☀️' : '🌙';
     }
-    apply(localStorage.getItem('theme')||'light');
-    btn?.addEventListener('click',()=>apply(document.body.classList.contains('dark')?'light':'dark'),{passive:true});
-  })();
+    apply(localStorage.getItem('theme') || 'light');
+    if (btn) btn.addEventListener('click', function() {
+      apply(document.body.classList.contains('dark') ? 'light' : 'dark');
+    }, { passive: true });
+  });
 
   /* ===== Toast ===== */
   (function(){

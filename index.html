@@ -319,7 +319,11 @@
       <!-- ROW 1: Noč/Jezik – Za ponudnike -->
       <div class="nav-row row1">
         <div class="left" style="display:flex;gap:10px;align-items:center">
-          <div id="btnThemeToggle" class="pill" title="Preklopi temo"><span id="themeIcon">🌙</span></div>
+          <!-- Gumb za preklop teme: robustna, minimalna verzija -->
+          <button id="btnThemeToggle" class="pill" type="button" title="Preklopi temo" style="display:flex;align-items:center;gap:6px;font-size:18px;">
+            <span id="themeIcon">🌙</span>
+            <span class="sr-only">Preklopi temo</span>
+          </button>
           <div class="pill lang" id="langWrap">
             <span class="label"><span id="langLabel">SL</span><span class="chev">▼</span></span>
             <select id="lang" aria-label="Jezik"></select>

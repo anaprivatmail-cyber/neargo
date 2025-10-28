@@ -3,12 +3,12 @@
   "use strict";
 
   /* ===== UTIL ===== */
-  const $=s=>document.querySelector(s);
-  const el=(t,c)=>{const x=document.createElement(t); if(c) x.className=c; return x;};
-  const qs=o=>new URLSearchParams(o).toString();
-  const euro=v=>Number.isFinite(+v)?new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR'}).format(+v):'';
-  const debounce=(fn,ms=350)=>{let t; return(...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);} };
-  function isExternalAPI(e){ const u=(e?.url||'').toLowerCase(); return u.includes('ticketmaster')||u.includes('eventbrite'); }
+  function $(s){ return document.querySelector(s); }
+  function el(t,c){ var x=document.createElement(t); if(c) x.className=c; return x; }
+  function qs(o){ return new URLSearchParams(o).toString(); }
+  function euro(v){ return isFinite(+v)?new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR'}).format(+v):''; }
+  function debounce(fn,ms){ var t; return function(){ var a=arguments; clearTimeout(t); t=setTimeout(function(){ fn.apply(null,a); }, ms||350); }; }
+  function isExternalAPI(e){ var u=(e && e.url ? e.url : "").toLowerCase(); return u.indexOf("ticketmaster")>-1 || u.indexOf("eventbrite")>-1; }
 
   // Stabilen ID za kartico
   const hashId = e => {

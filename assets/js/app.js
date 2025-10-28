@@ -1,3 +1,32 @@
+// ===== Predčasna obvestila za Premium uporabnike =====
+document.addEventListener("DOMContentLoaded", function() {
+  const form = document.getElementById("earlyNotifyForm");
+  const confirmation = document.getElementById("earlyNotifyConfirmation");
+  if (form) {
+    // Ob submit shrani izbrane kategorije v localStorage
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const checked = Array.from(form.querySelectorAll("input[type=checkbox]:checked"))
+        .map(cb => cb.value);
+      localStorage.setItem("ng_early_notify_categories", JSON.stringify(checked));
+      if (confirmation) {
+        confirmation.textContent = "Predčasna obvestila so vključena za izbrane kategorije.";
+        confirmation.style.display = "block";
+        setTimeout(() => { confirmation.style.display = "none"; }, 4000);
+      }
+    });
+    // Ob nalaganju strani označi že izbrane kategorije
+    const saved = localStorage.getItem("ng_early_notify_categories");
+    if (saved) {
+      try {
+        const arr = JSON.parse(saved);
+        form.querySelectorAll("input[type=checkbox]").forEach(cb => {
+          cb.checked = arr.includes(cb.value);
+        });
+      } catch {}
+    }
+  }
+});
 "use strict";
 
 /* ===== Helpers ===== */

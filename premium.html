@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+	<meta charset="UTF-8">
+	<title>Premium uporabnik</title>
+	<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+	<h1>Premium funkcionalnosti</h1>
+	<section id="earlyNotifySection">
+		<h2>Predčasna obvestila</h2>
+		<p>Izberite kategorije ali tipe ponudb, za katere želite prejemati predčasna obvestila:</p>
+		<form id="earlyNotifyForm">
+			<label><input type="checkbox" name="category" value="koncerti"> Koncerti</label><br>
+			<label><input type="checkbox" name="category" value="kulinarika"> Kulinarika</label><br>
+			<label><input type="checkbox" name="category" value="sport"> Šport</label><br>
+			<label><input type="checkbox" name="category" value="dogodki"> Dogodki</label><br>
+			<label><input type="checkbox" name="category" value="storitve"> Storitve</label><br>
+			<button type="submit">Shrani nastavitve</button>
+		</form>
+		<div id="earlyNotifyConfirmation" style="display:none; color:green; margin-top:10px;"></div>
+	</section>
+	<script src="assets/js/app.js"></script>
+</body>
+</html>

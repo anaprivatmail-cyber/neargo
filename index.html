@@ -325,10 +325,11 @@
             <span id="themeIcon" aria-label="Preklopi temo" style="font-size:20px;">🌙</span>
           </button>
           <!-- AI asistentka Nea: lebdeč avatar gumb -->
-          <button id="neaBtn" class="pill" type="button" title="Pogovor z Nea" style="padding:0 8px; height:34px; display:flex;align-items:center;gap:8px;min-width:34px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.08);border:1px solid #cfe1ee;">
-            <img src="assets/nea-avatar.svg" alt="Nea" class="nea-avatar-float" />
-            <span class="nea-label">Nea</span>
-          </button>
+          <!-- Nea avatar gumb je zdaj lebdeč, spodaj desno -->
+  <!-- Lebdeči gumb za Neo (spodaj desno, samostojna ikona) -->
+  <button id="neaFab" class="nea-fab" title="Pogovor z Nea">
+    <img src="assets/nea-avatar.svg" alt="Nea" />
+  </button>
           <div class="pill lang" id="langWrap">
             <span class="label"><span id="langLabel">SL</span><span class="chev">▼</span></span>
             <select id="lang" aria-label="Jezik"></select>

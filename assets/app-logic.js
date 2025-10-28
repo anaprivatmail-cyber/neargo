@@ -34,7 +34,6 @@ function formatDateRange(start,end){
     }
   }
   return `${dFmt.format(s)} ${tFmt.format(s)}`;
-}
 
 // ===== DOMContentLoaded: VSA inicializacija =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -164,3 +163,4 @@ document.addEventListener('DOMContentLoaded', function() {
     () => { loadAllForTopMap(); },
     { enableHighAccuracy: true, timeout: 8000 }
   );
+}

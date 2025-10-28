@@ -57,7 +57,10 @@ function sweep(){
 function startSweepTimer(){
   clearInterval(sweepTimer);
   sweepTimer = setInterval(()=>{
-    if (!typing && !panelOpen && sweepAllowed() && document.hasFocus() && !recentActivity()) sweep();
+    if (!typing && !panelOpen && sweepAllowed() && document.hasFocus() && !recentActivity()) {
+      sweep();
+      setTimeout(scrollFabIntoView, 100);
+    }
   }, SWEEP_INTERVAL);
 }
 function recentActivity(){
@@ -106,6 +109,14 @@ function trapFocus(){
   focusTrap = ()=>panel.removeEventListener('keydown', handler);
 }
 function untrapFocus(){ if (focusTrap) focusTrap(); focusTrap=null; }
+function scrollFabIntoView(){
+  let fab = document.querySelector('.nea-fab');
+  if (!fab) return;
+  const rect = fab.getBoundingClientRect();
+  if (rect.bottom > window.innerHeight || rect.right > window.innerWidth || rect.top < 0 || rect.left < 0) {
+    fab.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
+  }
+}
 function render(){
   let root = document.getElementById('nea-root');
   if (!root) return;
@@ -162,6 +173,7 @@ function render(){
     ta.addEventListener('focus', function(){
       if(ta.value==='' && ta.placeholder) ta.value=ta.placeholder;
     });
+  setTimeout(scrollFabIntoView, 200);
 }
 function autoGrow(e){
   let ta = e.target;
@@ -272,6 +284,7 @@ window.Nea = {
 document.addEventListener('DOMContentLoaded',()=>{
   render();
   startSweepTimer();
+  setTimeout(scrollFabIntoView, 400);
   document.addEventListener('keydown',e=>{ if (panelOpen) setActivity(); });
   document.addEventListener('mousedown',e=>{ if (panelOpen) setActivity(); });
 });

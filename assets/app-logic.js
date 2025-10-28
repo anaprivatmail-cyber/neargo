@@ -39,7 +39,7 @@
   }
 
   /* ===== Tema ===== */
-  document.addEventListener('DOMContentLoaded', function() {
+  function initThemeToggle() {
     const btn = $("#btnThemeToggle"), icon = btn ? btn.querySelector('#themeIcon') : null;
     function apply(mode) {
       document.body.classList.toggle('dark', mode === 'dark');
@@ -50,7 +50,12 @@
     if (btn) btn.addEventListener('click', function() {
       apply(document.body.classList.contains('dark') ? 'light' : 'dark');
     }, { passive: true });
-  });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    initThemeToggle();
+    // ...obstoječa inicializacija ostane nespremenjena...
+  }, { once: true });
 
   /* ===== Toast ===== */
   (function(){

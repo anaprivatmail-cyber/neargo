@@ -89,7 +89,11 @@
 
     .chips{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px}
     .chip{border:1px solid var(--chipborder); border-radius:999px; padding:10px 14px; background:var(--chip); color:var(--muted); font-weight:700; cursor:pointer}
+  .chip{border:1px solid var(--chipborder); border-radius:999px; padding:10px 14px 6px 14px; background:var(--chip); color:var(--muted); font-weight:700; cursor:pointer; min-width:48px; min-height:48px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative;}
     .chip.active{ background:var(--primary); color:#fff; border-color:#fff; }
+  .chip.active .cat-label{ display:block !important; color:#fff; font-weight:900; font-size:13px; margin-top:4px; }
+  .cat-icon{ width:32px; height:32px; display:block; margin:0 auto; }
+  .cat-label{ display:none; position:relative; font-size:13px; font-weight:700; margin-top:4px; color:var(--muted); }
 
     label{display:flex; flex-direction:column; gap:6px; font-weight:800; font-size:13px}
     input,select,textarea{ width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--chipborder); background:var(--card); color:var(--text); outline:none; min-height:40px; font-size:15px; }
@@ -521,6 +525,7 @@
         <input id="city2" placeholder="Mesto/kraj *" required>
         <input id="url" placeholder="Povezava za več info / nakup (če obstaja)">
         <label>Kategorija (glede na tip) *
+          <div id="formCatsIcons" class="chips" style="margin-bottom:8px"></div>
           <select id="category" required></select>
         </label>
       </div>

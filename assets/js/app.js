@@ -72,6 +72,40 @@ document.addEventListener("DOMContentLoaded", function() {
 "use strict";
 
 /* ===== Helpers ===== */
+// ===== Kategorije z ikonami =====
+const CATEGORY_ICONS = {
+  'Koncerti': 'guitar.svg',
+  'Kulinarika': 'food.svg',
+  'Družina': 'family.svg',
+  'Šport': 'sport.svg',
+  'Kultura': 'culture.svg',
+  'Sejmi': 'fair.svg',
+  'Ostalo': 'other.svg',
+};
+
+function renderCategoryChips() {
+  const cats = document.getElementById('cats');
+  if (!cats) return;
+  cats.innerHTML = '';
+  Object.entries(CATEGORY_ICONS).forEach(([cat, icon]) => {
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.setAttribute('data-cat', cat);
+    btn.setAttribute('aria-label', cat);
+    btn.innerHTML = `<img src="assets/icons/${icon}" alt="${cat}" class="cat-icon" style="width:32px;height:32px;display:block;margin:0 auto;"/><span class="cat-label" style="display:none">${cat}</span>`;
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('#cats .chip').forEach(b => {
+        b.classList.remove('active');
+        b.querySelector('.cat-label').style.display = 'none';
+      });
+      btn.classList.add('active');
+      btn.querySelector('.cat-label').style.display = 'block';
+      doSearch(0);
+    });
+    cats.appendChild(btn);
+  });
+}
+document.addEventListener('DOMContentLoaded', renderCategoryChips);
 const $  = s => document.querySelector(s);
 const el = (t,c)=>{const x=document.createElement(t); if(c) x.className=c; return x;};
 const qs = o => new URLSearchParams(o).toString();
@@ -391,6 +425,61 @@ async function doSearch(page=0, byGeo=false){
   lastSearchParams = params;
   // ...existing code...
 }
+  // ===== Ikone kategorij v obrazcu za dodajanje =====
+  const FORM_EVENT_CATS = {
+    'Koncerti': 'guitar.svg',
+    'Kulinarika': 'food.svg',
+    'Družina & otroci': 'family.svg',
+    'Šport': 'sport.svg',
+    'Kultura': 'culture.svg',
+    'Sejmi': 'fair.svg',
+    'Ostalo': 'other.svg',
+  };
+  const FORM_SERVICE_CATS = {
+    'Lepota': 'beauty.svg',
+    'Zdravje': 'health.svg',
+    'Wellness': 'wellness.svg',
+    'Šport & fit': 'fit.svg',
+    'Kulinarika': 'food.svg',
+    'Učenje': 'learn.svg',
+    'Servis': 'service.svg',
+    'Avto': 'car.svg',
+    'Dom & vrt': 'home-garden.svg',
+    'Ostalo': 'other.svg',
+  };
+
+  function renderFormCategoryIcons() {
+    const entryType = document.getElementById('entryType');
+    const catsContainer = document.getElementById('formCatsIcons');
+    const sel = document.getElementById('category');
+    if (!catsContainer || !sel) return;
+    catsContainer.innerHTML = '';
+    sel.style.display = 'none';
+    const cats = (entryType?.value === 'service') ? FORM_SERVICE_CATS : FORM_EVENT_CATS;
+    Object.entries(cats).forEach(([cat, icon]) => {
+      const btn = document.createElement('button');
+      btn.className = 'chip';
+      btn.setAttribute('type', 'button');
+      btn.setAttribute('data-cat', cat);
+      btn.setAttribute('aria-label', cat);
+      btn.innerHTML = `<img src="assets/icons/${icon}" alt="${cat}" class="cat-icon"/><span class="cat-label" style="display:none">${cat}</span>`;
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#formCatsIcons .chip').forEach(b => {
+          b.classList.remove('active');
+          b.querySelector('.cat-label').style.display = 'none';
+        });
+        btn.classList.add('active');
+        btn.querySelector('.cat-label').style.display = 'block';
+        sel.value = cat;
+        sel.dispatchEvent(new Event('change'));
+      });
+      catsContainer.appendChild(btn);
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('formCatsIcons')) renderFormCategoryIcons();
+    document.getElementById('entryType')?.addEventListener('change', renderFormCategoryIcons);
+  });
 
 setInterval(refreshEventsRealtime, 15000); // osveži vsakih 15s
 

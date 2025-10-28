@@ -24,17 +24,45 @@
   </style>
 </head>
 <body>
+  <header style="background:linear-gradient(90deg,#e9f7ff 60%,#0bbbd6 100%);padding:18px 0 10px 0;box-shadow:0 2px 12px rgba(11,187,214,.08);margin-bottom:18px;">
+    <div style="max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;">
+      <a href="/" style="font-size:1.7em;font-weight:900;color:#0bbbd6;text-decoration:none;letter-spacing:-1px;">NearGo</a>
+      <nav>
+        <a href="/my.html" style="font-weight:700;color:#0bbbd6;margin-right:18px;">Moje</a>
+        <a href="/premium.html" style="font-weight:700;color:#0bbbd6;">Premium</a>
+      </nav>
+    </div>
+  </header>
   <div class="wrap">
     <div class="card">
       <h1>Moje vstopnice & kuponi</h1>
       <div class="row">
-  <input id="email" placeholder="vnesi e-pošto (za dostavo vstopnic)">
-  <button id="save">Shrani</button>
-  <button id="load" class="btn" style="border:0">Naloži</button>
-  <button id="editEarlyNotify" class="btn" style="background:#11a67a;color:#fff;border:0;">Uredi predhodna obvestila</button>
+        <input id="email" placeholder="vnesi e-pošto (za dostavo vstopnic)">
+        <button id="save">Shrani</button>
+        <button id="load" class="btn" style="border:0">Naloži</button>
+        <button id="editEarlyNotify" class="btn" style="background:#11a67a;color:#fff;border:0;">Uredi predhodna obvestila</button>
       </div>
       <div id="msg" class="muted" style="margin-top:8px"></div>
       <div id="list" class="grid" style="margin-top:12px"></div>
+    </div>
+    <div class="card" style="margin-top:18px;padding:18px 12px;background:#f6fbfe;border:1px solid #e6eef7;">
+      <h2 style="font-size:1.15em;color:#0bbbd6;margin-bottom:10px;">Unovči točke</h2>
+      <div id="pointsStore" style="display:grid;gap:14px;">
+        <div class="store-item" style="background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 2px 8px rgba(11,187,214,.07);display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-weight:900;color:#0bbbd6;">Flash kupon</div>
+            <div class="muted" style="font-size:13px;">100 točk = 1 brezplačni kupon</div>
+          </div>
+          <button class="btn" id="redeemFlash" style="background:#0bbbd6;color:#fff;">Unovči</button>
+        </div>
+        <div class="store-item" style="background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 2px 8px rgba(11,187,214,.07);display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-weight:900;color:#0bbbd6;">Premium mesec</div>
+            <div class="muted" style="font-size:13px;">500 točk = 1 mesec Premium</div>
+          </div>
+          <button class="btn" id="redeemPremium" style="background:#0bbbd6;color:#fff;">Unovči</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -72,17 +100,34 @@
       window.location.href = "/premium.html#earlyNotifySection";
     };
 
+    // Unovčevanje točk
+    import { getUserPoints, redeemUserPoints } from '../providers/supabase-points.js';
+    async function handleRedeem(type) {
+      const em = emailInput.value.trim();
+      if(!em){ msg.textContent = "Vnesi e-pošto za unovčenje točk."; return; }
+      let needed = type === 'flash' ? 100 : 500;
+      const points = await getUserPoints(em);
+      if(points < needed) {
+        msg.textContent = `Za to nagrado potrebujete ${needed} točk.`;
+        return;
+      }
+      const ok = await redeemUserPoints(em, needed);
+      if(ok) {
+        msg.textContent = type === 'flash' ? "Čestitamo, pridobili ste Flash kupon!" : "Čestitamo, pridobili ste Premium mesec!";
+        document.getElementById('pointsBadge').textContent = points - needed;
+      } else {
+        msg.textContent = "Napaka pri unovčevanju. Poskusite znova.";
+      }
+    }
+    $("#redeemFlash").onclick = ()=>handleRedeem('flash');
+    $("#redeemPremium").onclick = ()=>handleRedeem('premium');
+
     async function load(){
       list.innerHTML = ""; msg.textContent = "";
       const em = emailInput.value.trim();
       if(!em){ msg.textContent = "Vnesi e-pošto in klikni Naloži."; return; }
-      // Klic funkcije – varianta z email query.
       let url = `/.netlify/functions/my?email=${encodeURIComponent(em)}`;
-
-      // Če tvoj my.js pričakuje header X-User-Id: odkomentiraj naslednji blok in odstrani ?email
-      // url = '/.netlify/functions/my';
-      const headers = { "accept":"application/json"/*, "x-user-id": "USER_ID_CE_SE_UPORABLJA"*/ };
-
+      const headers = { "accept":"application/json" };
       try{
         const r = await fetch(url, { headers });
         const data = await r.json().catch(()=> ({}));
@@ -91,12 +136,10 @@
           return;
         }
         const items = data.items || data.results;
-
         if(!items.length){
           list.innerHTML = `<div class="empty">Ni najdenih vstopnic ali kuponov.</div>`;
           return;
         }
-
         list.innerHTML = items.map(it=>{
           const img  = it.image || it.images?.[0] || "https://picsum.photos/640/360?blur=2";
           const name = it.title || it.name || "Dogodek";
@@ -104,7 +147,6 @@
           const where= it.place || it.venue?.address || "";
           const kind = (it.kind || it.type) === 'coupon' ? 'Kupon' : 'Vstopnica';
           const qr   = it.qr || it.qr_url || it.qrCode || it.token ? (`/r/${encodeURIComponent(it.token)}`) : (it.url || "#");
-
           return `
             <div class="item">
               <img src="${img}" alt="">
@@ -117,13 +159,10 @@
             </div>
           `;
         }).join("");
-
       }catch(e){
         msg.textContent = "Napaka pri nalaganju.";
       }
     }
-
-    // samodejno naloži, če imamo e-pošto
     if (emailInput.value.trim()) load();
   </script>
 </body>

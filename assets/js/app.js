@@ -1,3 +1,14 @@
+// ===== Points badge (osveževanje) =====
+import { getUserPoints } from '../../providers/supabase-points.js';
+async function refreshPointsBadge() {
+  const badge = document.getElementById('pointsBadge');
+  const email = localStorage.getItem('user_email');
+  if (!badge || !email) return;
+  const points = await getUserPoints(email);
+  badge.textContent = points;
+  badge.style.display = points > 0 ? 'inline-flex' : 'none';
+}
+document.addEventListener('DOMContentLoaded', refreshPointsBadge);
 // ===== Hero sekcija: štetje odprtij in skrivanje =====
 document.addEventListener("DOMContentLoaded", function() {
   const hero = document.getElementById("hero");

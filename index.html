@@ -327,7 +327,7 @@
           </div>
         </div>
         <div class="right">
-          <a class="cta" id="btnOrganizersTop" href="#orgHub">Za ponudnike</a>
+          <a class="cta" id="btnOrganizersTop" href="/organizers.html">Za ponudnike</a>
         </div>
       </div>
 
@@ -883,7 +883,7 @@ function showPanel(id){
   var e=$("#"+id); if(!e) return; e.classList.add("show"); e.style.display="block"; scrollToEl(e);
 }
 var btnStart=$("#btnStart"); if(btnStart) btnStart.addEventListener("click",function(){ scrollToEl($("#searchPanel")); });
-var btnOrgTop=$("#btnOrganizersTop"); if(btnOrgTop) btnOrgTop.addEventListener("click",function(ev){ ev.preventDefault(); showPanel('orgHub'); });
+// btnOrganizersTop sedaj kaže na /organizers.html - ne potrebuje JavaScript
 var hubPublish=$("#hubPublish"); if(hubPublish) hubPublish.addEventListener("click",function(){ showPanel('orgPanel'); });
 var btnPrem=$("#btnPremiumTop"); if(btnPrem) btnPrem.addEventListener("click",function(ev){ ev.preventDefault(); showPanel('premiumPanel'); });
 var btnPremClose=$("#btnClosePremium"); if(btnPremClose) btnPremClose.addEventListener("click",function(){ scrollToEl($("#hero")); });

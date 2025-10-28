@@ -1,3 +1,48 @@
+// ========== Nea Assistantka: prikaz/skritje in osnovni chat handler ==========
+document.addEventListener('DOMContentLoaded', function() {
+  var neaBtn = document.getElementById('neaBtn');
+  var neaModal = document.getElementById('neaModal');
+  var neaClose = document.getElementById('neaClose');
+  var neaChatForm = document.getElementById('neaChatForm');
+  var neaInput = document.getElementById('neaInput');
+  var neaChatLog = document.getElementById('neaChatLog');
+  if (neaBtn && neaModal) {
+    neaBtn.addEventListener('click', function() {
+      neaModal.style.display = 'flex';
+      setTimeout(function(){ neaInput && neaInput.focus(); }, 200);
+    });
+  }
+  if (neaClose && neaModal) {
+    neaClose.addEventListener('click', function() {
+      neaModal.style.display = 'none';
+    });
+  }
+  if (neaChatForm && neaInput && neaChatLog) {
+    neaChatForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var msg = neaInput.value.trim();
+      if (!msg) return;
+      // Prikaži uporabnikov vnos v chatu
+      var userMsg = document.createElement('div');
+      userMsg.className = 'nea-chat-msg user';
+      userMsg.textContent = msg;
+      neaChatLog.appendChild(userMsg);
+      neaInput.value = '';
+      neaChatLog.scrollTop = neaChatLog.scrollHeight;
+      // Prikaži "Nea razmišlja..."
+      var neaMsg = document.createElement('div');
+      neaMsg.className = 'nea-chat-msg nea';
+      neaMsg.textContent = 'Nea razmišlja ...';
+      neaChatLog.appendChild(neaMsg);
+      neaChatLog.scrollTop = neaChatLog.scrollHeight;
+      // TODO: Klic AI ali iskalne funkcije za odgovor
+      setTimeout(function(){
+        neaMsg.textContent = 'To je demo odgovor. (Integracija AI/iskanja v naslednjem koraku)';
+        neaChatLog.scrollTop = neaChatLog.scrollHeight;
+      }, 1200);
+    });
+  }
+});
 // assets/main.js
 function cacheBust(){ return (window.__BUILD_TS__ || String(Date.now())); }
 

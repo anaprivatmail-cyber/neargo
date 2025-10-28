@@ -34,24 +34,93 @@ function formatDateRange(start,end){
     }
   }
   return `${dFmt.format(s)} ${tFmt.format(s)}`;
+}
 
 // ===== DOMContentLoaded: VSA inicializacija =====
-// Tema (noč/dan) – robustno: globalna funkcija za inline onclick
-window.toggleTheme = function() {
-  var icon = document.getElementById('themeIcon');
-  var isDark = document.body.classList.contains('dark');
-  var newMode = isDark ? 'light' : 'dark';
-  document.body.classList.toggle('dark', newMode === 'dark');
-  try { localStorage.setItem('theme', newMode); } catch {}
-  if (icon) icon.textContent = newMode === 'dark' ? '☀️' : '🌙';
-};
-// Ob nalaganju strani nastavi temo glede na localStorage
 document.addEventListener('DOMContentLoaded', function() {
-  var icon = document.getElementById('themeIcon');
-  var mode = (function(){ try { return localStorage.getItem('theme') || 'light'; } catch { return 'light'; } })();
-  document.body.classList.toggle('dark', mode === 'dark');
-  if (icon) icon.textContent = mode === 'dark' ? '☀️' : '🌙';
-});
+  // Tema (noč/dan)
+  const btn = $("#btnThemeToggle"), icon = btn ? btn.querySelector('#themeIcon') : null;
+  function applyTheme(mode) {
+    document.body.classList.toggle('dark', mode === 'dark');
+    try { localStorage.setItem('theme', mode); } catch {}
+    if (icon) icon.textContent = mode === 'dark' ? '☀️' : '🌙';
+  }
+  applyTheme(localStorage.getItem('theme') || 'light');
+  if (btn) btn.addEventListener('click', function() {
+    applyTheme(document.body.classList.contains('dark') ? 'light' : 'dark');
+  }, { passive: true });
+
+  // ...obstoječa inicializacija (paneli, toast, iskanje, mape, itd.)...
+
+
+  // ===== Toast =====
+  const tToast = $("#toast");
+  const showToast = (msg, ok = true) => { if (!tToast) return; tToast.textContent = msg; tToast.className = "toast " + (ok ? "ok" : "bad"); tToast.style.display = "flex"; setTimeout(() => tToast.style.display = "none", 4000); };
+  if (location.hash === "#success") { showToast("Plačilo uspešno ✅", true); history.replaceState(null, "", location.pathname + location.search); }
+  if (location.hash === "#cancel") { showToast("Plačilo preklicano ❌", false); history.replaceState(null, "", location.pathname + location.search); }
+  window._toast = showToast;
+
+  /* ===== Paneli ===== */
+  function showPanel(id){
+    ["searchPanel","mapPanel","orgPanel","providerTermsPanel"].forEach(pid=>{ const n=$("#"+pid); if(n){ n.classList.remove("show"); n.style.display="none"; } });
+    const el=$("#"+id); if(!el) return;
+    el.classList.add("show"); el.style.display="block";
+    const h=(document.querySelector('header')?.getBoundingClientRect().height)||64;
+    const y=el.getBoundingClientRect().top + window.pageYOffset - (h+10);
+    window.scrollTo({top:y, behavior:"smooth"});
+  }
+  $("#btnStart")?.addEventListener('click',()=>showPanel("searchPanel"),{passive:true});
+  $("#btnMap")?.addEventListener('click',()=>{ showPanel("mapPanel"); refreshTopMap(); loadAllForTopMap(); },{passive:true});
+  $("#btnCloseMap")?.addEventListener('click',()=>showPanel("searchPanel"),{passive:true});
+
+  /* ===== Lokacijska gumba ===== */
+  function setLocButtonsActive(which){
+    $("#btnPickOnMap")?.classList.toggle("active", which==='pick');
+    $("#btnUseLocation")?.classList.toggle("active", which==='gps');
+  }
+
+  /* ===== Range ===== */
+  const radius=$("#radius"), radiusLbl=$("#radiusLbl"),
+        radiusCity=$("#radiusCity"), radiusCityLbl=$("#radiusCityLbl"),
+        cityInput=$("#city"), cityRadiusWrap=$("#cityRadiusWrap");
+  function updRange(input,label){ if(input&&label) label.textContent=`${input.value} km`; }
+  [radius,radiusCity].forEach(r=>{
+    if(!r) return;
+    r.addEventListener("input",()=>updRange(r,r===radius?radiusLbl:radiusCityLbl),{passive:true});
+    updRange(r,r===radius?radiusLbl:radiusCityLbl);
+  });
+  cityInput?.addEventListener('input',()=>{ if(cityRadiusWrap) cityRadiusWrap.style.display=cityInput.value.trim()?'block':'none'; });
+
+  /* ===== Render kartic ===== */
+  function renderSpotCard(e){
+    const img=(e.images&&e.images[0])||"https://picsum.photos/600/400";
+    const addr=(e.venue?.address||"");
+    const gmHref=(e.venue?.lat && e.venue?.lon)
+      ? `https://www.google.com/maps?q=${e.venue.lat},${e.venue.lon}`
+      : (addr?`https://www.google.com/maps?q=${encodeURIComponent(addr)}`:"");
+    const id=hashId(e);
+
+    const isExt=isExternalAPI(e);
+    const moreBtn=isExt?(e.url?`<a class="btn mini link" href="${e.url}" target="_blank">Več</a>`:"")
+      :(e.description&&!e.url?`<button class="btn mini link" data-act="more">Več ▾</button>`:"");
+    const linkBtn=(!isExt&&e.url)?`<a class="btn mini link" href="${e.url}" target="_blank">Povezava</a>`:"";
+
+    const card=el("div","spot"); card.id=id;
+    card.innerHTML=`
+      <img src="${img}" alt="">
+      <div class="meta">
+        <b>${e.name||"Dogodek"}</b>
+        <div style="color:var(--muted);font-size:13px">${gmHref?`<a href="${gmHref}" target="_blank">📍 ${addr||'Google Maps'}</a>`:addr}</div>
+        <div style="color:var(--muted);font-size:13px">${formatDateRange(e.start,e.end)}</div>
+        <div class="actions" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+          ${moreBtn}
+          <button class="btn mini link" data-act="share" data-title="${encodeURIComponent(e.name||'Dogodek')}" data-url="${encodeURIComponent(e.url||location.href)}">Povabi</button>
+          <button class="btn mini link" data-act="ics" data-title="${encodeURIComponent(e.name||'Dogodek')}" data-start="${e.start||""}" data-end="${e.end||""}" data-loc="${encodeURIComponent(addr)}">Koledar</button>
+          ${linkBtn}
+        </div>
+      </div>`;
+    return card;
+  }
 
   /* ===== Map ===== */
   function refreshTopMap(){
@@ -95,4 +164,3 @@ document.addEventListener('DOMContentLoaded', function() {
     () => { loadAllForTopMap(); },
     { enableHighAccuracy: true, timeout: 8000 }
   );
-}

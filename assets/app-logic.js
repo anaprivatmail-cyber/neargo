@@ -1,3 +1,51 @@
+(function(){
+  // === Nea asistentka ===
+  const btnNea = document.getElementById('btnNea');
+  const neaModal = document.getElementById('neaModal');
+  const neaClose = document.getElementById('neaClose');
+  const neaForm = document.getElementById('neaForm');
+  const neaInput = document.getElementById('neaInput');
+  const neaChatContent = document.getElementById('neaChatContent');
+  if(btnNea && neaModal && neaClose && neaForm && neaInput && neaChatContent){
+    btnNea.addEventListener('click',()=>{
+      neaModal.style.display = 'flex';
+      setTimeout(()=>neaInput.focus(), 200);
+    });
+    neaClose.addEventListener('click',()=>{
+      neaModal.style.display = 'none';
+    });
+    neaModal.addEventListener('click',e=>{
+      if(e.target===neaModal) neaModal.style.display='none';
+    });
+    neaForm.addEventListener('submit',async e=>{
+      e.preventDefault();
+      const q = neaInput.value.trim();
+      if(!q) return;
+      addNeaMsg('user',q);
+      neaInput.value = '';
+      neaInput.disabled = true;
+      // Simulacija odgovora (TODO: povezava na AI/iskanje)
+      setTimeout(()=>{
+        addNeaMsg('nea',neaMockAnswer(q));
+        neaInput.disabled = false;
+        neaInput.focus();
+      }, 900);
+    });
+    function addNeaMsg(who,txt){
+      const msg = document.createElement('div');
+      msg.className = 'nea-msg ' + (who==='nea'?'nea':'user');
+      msg.innerHTML = `<span>${who==='nea'?'🤖':'🧑'} </span>${txt}`;
+      neaChatContent.appendChild(msg);
+      neaChatContent.scrollTop = neaChatContent.scrollHeight;
+    }
+    function neaMockAnswer(q){
+      // Osnovna analiza vprašanja (demo)
+      if(q.toLowerCase().includes('gume')) return 'Za menjavo gum priporočam <b>Vulkanizer Maribor</b> – prosti termini jutri! <button class="btn mini" onclick="window._toast(\'Rezervacija ni še implementirana\')">Rezerviraj termin</button>';
+      if(q.toLowerCase().includes('koncert')) return 'V vaši bližini je koncert <b>Koncert XYZ</b> ta petek. <button class="btn mini" onclick="window._toast(\'Nakup ni še implementiran\')">Kupi vstopnico</button>';
+      return 'Nea: Hvala za vprašanje! Trenutno še učim, a kmalu bom znala več. Poskusi vprašati po storitvah ali dogodkih.';
+    }
+  }
+})();
 // assets/app-logic.js
 (function(){
   "use strict";

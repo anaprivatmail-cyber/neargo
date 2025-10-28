@@ -116,10 +116,18 @@ document.addEventListener('DOMContentLoaded', function() {
 const CATEGORY_ICONS = {
   'Koncerti': 'guitar.svg',
   'Kulinarika': 'food.svg',
-  'Družina': 'family.svg',
+  'Družina & otroci': 'family.svg',
   'Šport': 'sport.svg',
   'Kultura': 'culture.svg',
   'Sejmi': 'fair.svg',
+  'Lepota': 'beauty.svg',
+  'Zdravje': 'health.svg',
+  'Wellness': 'wellness.svg',
+  'Šport & fit': 'fit.svg',
+  'Avto': 'car.svg',
+  'Dom & vrt': 'home-garden.svg',
+  'Servis': 'service.svg',
+  'Učenje': 'learn.svg',
   'Ostalo': 'other.svg',
 };
 

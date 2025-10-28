@@ -109,19 +109,38 @@ function untrapFocus(){ if (focusTrap) focusTrap(); focusTrap=null; }
 function render(){
   let root = document.getElementById('nea-root');
   if (!root) return;
-  root.innerHTML = `
-    <button class="nea-fab" aria-label="${t('nea')} – ${t('help')}" tabindex="0" type="button" style="background:${BRAND_COLOR}"><span aria-hidden="true">💬</span></button>
-    <aside class="nea-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-label="${t('nea')}" tabindex="-1">
-      <header><span>${t('nea')}</span><button class="nea-close" aria-label="${t('close')}" tabindex="0" type="button">✖</button></header>
-      <section class="nea-messages" role="log" aria-live="polite"></section>
-      <footer>
-        <textarea rows="1" placeholder="${t('placeholder')}" aria-label="${t('placeholder')}" tabindex="0"></textarea>
-        <button class="nea-send" aria-label="${t('send')}" tabindex="0" type="button">${t('send')}</button>
-        ${supportsMic?`<button class="nea-mic" aria-label="${t('mic')}" tabindex="0" type="button">🎙️</button>`:''}
-        ${supportsTTS?`<button class="nea-tts" aria-label="${t('tts')}" tabindex="0" type="button">🔊</button>`:''}
-      </footer>
-    </aside>
-  `;
+    // Predlogi vprašanj glede na uporabnika/ponudnika
+    let userType = window.location.pathname.includes('ponudnik') ? 'provider' : 'user';
+    let suggestions = {
+      user: [
+        'Kaj se dogaja ta vikend v moji bližini?',
+        'Kje lahko kupim vstopnico za koncert?',
+        'Kateri dogodki so primerni za otroke?',
+        'Kako lahko izkoristim kupon?',
+        'Kje najdem wellness storitve?'
+      ],
+      provider: [
+        'Kako objavim svojo storitev?',
+        'Kako preverim statistiko svojih dogodkov?',
+        'Kako uredim podatke o ponudbi?',
+        'Kako izdam kupon?',
+        'Kako kontaktiram podporo?'
+      ]
+    };
+    let suggestion = suggestions[userType][Math.floor(Math.random()*suggestions[userType].length)];
+    root.innerHTML = `
+      <button class="nea-fab" aria-label="${t('nea')} – ${t('help')}" tabindex="0" type="button" style="background:${BRAND_COLOR}"><span aria-hidden="true">💬</span></button>
+      <aside class="nea-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-label="${t('nea')}" tabindex="-1">
+        <header><span>${t('nea')} – AI asistentka</span><button class="nea-close" aria-label="${t('close')}" tabindex="0" type="button">✖</button></header>
+        <section class="nea-messages" role="log" aria-live="polite"></section>
+        <footer>
+          <textarea rows="1" placeholder="${suggestion}" aria-label="${suggestion}" tabindex="0"></textarea>
+          <button class="nea-send" aria-label="${t('send')}" tabindex="0" type="button">${t('send')}</button>
+          <button class="nea-mic" aria-label="${t('mic')}" tabindex="0" type="button" style="display:${supportsMic?'inline-flex':'none'}">🎙️</button>
+          <button class="nea-tts" aria-label="${t('tts')}" tabindex="0" type="button" style="display:${supportsTTS?'inline-flex':'none'}">🔊</button>
+        </footer>
+      </aside>
+    `;
   let fab = root.querySelector('.nea-fab');
   let panel = root.querySelector('.nea-panel');
   let close = root.querySelector('.nea-close');
@@ -136,8 +155,13 @@ function render(){
   textarea.onkeydown = function(e){
     if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
-  if (mic) mic.onclick = startMic;
-  if (tts) tts.onclick = toggleTTS;
+    if (mic) mic.onclick = startMic;
+    if (tts) tts.onclick = toggleTTS;
+    // Če je predlog, klik nanj prenese v textarea
+    let ta = root.querySelector('textarea');
+    ta.addEventListener('focus', function(){
+      if(ta.value==='' && ta.placeholder) ta.value=ta.placeholder;
+    });
 }
 function autoGrow(e){
   let ta = e.target;
@@ -194,6 +218,7 @@ function replaceLastAI(text){
   if (last) last.textContent = text;
 }
 function startMic(){
+function startMic(){
   if (!supportsMic) return;
   micActive = true;
   sendMetric('nea_mic');
@@ -213,6 +238,7 @@ function startMic(){
   rec.onend = function(){ stopped=true; };
   rec.start();
   setTimeout(()=>{ if (!stopped) { rec.stop(); } }, 8000);
+}
 }
 function speak(text){
   if (!supportsTTS) return;

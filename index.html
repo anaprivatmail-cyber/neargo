@@ -161,59 +161,6 @@
     input[type="checkbox"]:checked{ border-color:var(--primary) }
     input[type="checkbox"]:checked::after{ opacity:1 }
 
-    input[type="radio"]{
-      -webkit-appearance:none; appearance:none; width:14px; height:14px; margin:0; position:relative;
-      border:2px solid #a9c3d6; border-radius:50%; background:#fff; outline:none; display:inline-block; box-sizing:content-box; padding:0; min-height:0 !important;
-    }
-    input[type="radio"]::after{
-      content:""; position:absolute; left:3px; top:3px; width:6px; height:6px; border-radius:50%;
-      background:var(--primary); opacity:0; transition:opacity .12s;
-    }
-    input[type="radio"]:checked{ border-color:var(--primary) }
-    input[type="radio"]:checked::after{ opacity:1 }
-
-    /* “Zakaj NearGo” – modri bold */
-    #benefitsUser b, #benefitsOrg b{ color:var(--primary) }
-
-    /* Scroll offset */
-    .panel{ scroll-margin-top: 120px; }
-
-    /* ——— Gumb “Za ponudnike” – nežni/outline ——— */
-    #btnOrganizersTop{
-      background:transparent;
-      color:var(--primary);
-      border:1px solid var(--chipborder);
-      box-shadow:none;
-    }
-    #btnOrganizersTop:hover{ background:rgba(11,187,214,.08); }
-
-    /* ===== DEVELOPMENT HELPER - mobilni pogled na desktop ===== */
-    @media (min-width: 768px) {
-      body {
-        max-width: 390px; /* iPhone 14 Pro širina */
-        margin: 0 auto;
-        box-shadow: 0 0 20px rgba(0,0,0,0.1); /* senčka za simulacijo telefona */
-      }
-    }
-
-    /* ===== DESKTOP RESPONSIVE IZBOLJŠAVE ===== */
-    /* ZAČASNO ONEMOGOČENO - za development na računalniku z mobilnim videzom */
-    @media (min-width: 99999px) { /* spremenjen breakpoint, da se nikoli ne aktivira */
-      /* Header na desktop - horizontalna razporeditev */
-      .nav {
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px 24px;
-      }
-      
-      .nav-row {
-        margin: 0;
-        gap: 16px;
-      }
-      
-      .row0 { /* Brand levo */
-        justify-content: flex-start;
         flex: 0 0 auto;
       }
       
@@ -1860,7 +1807,6 @@ document.addEventListener('DOMContentLoaded', function(){
 var showPT=$("#showProviderTerms"); if(showPT) showPT.addEventListener("click",function(e){ e.preventDefault(); showPanel('providerTermsPanel'); });
 var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("click",function(){ scrollToEl($("#orgPanel")); });
 
-  </script>
   <script src="assets/app-logic.js"></script>
 </body>
 </html>

@@ -187,8 +187,18 @@
     }
     #btnOrganizersTop:hover{ background:rgba(11,187,214,.08); }
 
-    /* ===== DESKTOP RESPONSIVE IZBOLJŠAVE ===== */
+    /* ===== DEVELOPMENT HELPER - mobilni pogled na desktop ===== */
     @media (min-width: 768px) {
+      body {
+        max-width: 390px; /* iPhone 14 Pro širina */
+        margin: 0 auto;
+        box-shadow: 0 0 20px rgba(0,0,0,0.1); /* senčka za simulacijo telefona */
+      }
+    }
+
+    /* ===== DESKTOP RESPONSIVE IZBOLJŠAVE ===== */
+    /* ZAČASNO ONEMOGOČENO - za development na računalniku z mobilnim videzom */
+    @media (min-width: 99999px) { /* spremenjen breakpoint, da se nikoli ne aktivira */
       /* Header na desktop - horizontalna razporeditev */
       .nav {
         flex-direction: row;
@@ -271,7 +281,7 @@
     }
 
     /* Large desktop optimizacije */
-    @media (min-width: 1200px) {
+    @media (min-width: 99999px) { /* začasno onemogočeno */
       main {
         max-width: 1400px;
         padding: 32px 48px 100px;

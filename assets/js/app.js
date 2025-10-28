@@ -151,7 +151,8 @@ function renderMapDetail(e){
   const isCoupon = e.offerType === "coupon";
   const showBuy  = isCoupon || (e.offerType==="ticket" && Number(e.price)>0);
   const priceToShow = isCoupon ? 2 : (e.price || 0);
-
+  const now = Date.now();
+  const isLive = e.start && e.end && (now >= new Date(e.start).getTime() && now <= new Date(e.end).getTime());
   card.innerHTML = `
     <div style="display:flex; gap:12px; align-items:flex-start">
       <div style="width:110px">
@@ -159,6 +160,7 @@ function renderMapDetail(e){
       </div>
       <div style="flex:1; min-width:0">
         <b>${e.name||"Dogodek"}</b>
+        ${isLive ? `<span class="badge live">🟢 V teku</span>` : ""}
         <div style="color:var(--muted);font-size:13px">${e.venue?.address||""}</div>
         <div style="color:var(--muted);font-size:13px">${e.start?new Date(e.start).toLocaleString():""}</div>
         ${ showBuy ? `
@@ -205,20 +207,24 @@ async function doSearch(page=0, byGeo=false){
   let data=null;
   try{ const r=await fetch(`/api/search?${qs(params)}`); data=await r.json(); }catch{}
   const items=(data && data.ok && data.results)||[];
+  updateLiveBanner(items);
 
   const filtered = catVal ? items.filter(e=>(e.category||"")===catVal) : items;
   const box=$("#results"); if(!box) return;
   box.innerHTML="";
 
+  const now = Date.now();
   filtered.forEach(e=>{
     const img=(e.images&&e.images[0])||"https://picsum.photos/600/400";
     const isCoupon = e.offerType==="coupon";
     const showBuy  = isCoupon || (e.offerType==="ticket" && Number(e.price)>0);
     const priceToShow = isCoupon ? 2 : (e.price||0);
+    const isLive = e.start && e.end && (now >= new Date(e.start).getTime() && now <= new Date(e.end).getTime());
 
     const card=el("div","card");
     card.innerHTML=`
       <b>${e.name||"Dogodek"}</b>
+      ${isLive ? `<span class="badge live">🟢 V teku</span>` : ""}
       ${ showBuy ? `
         <div class="buy">
           <span class="price">${euro(priceToShow)}</span>
@@ -312,3 +318,93 @@ $("#btnSubmitEvent")?.addEventListener("click", async ()=>{
 
   await fetch("/api/provider-submit",{method:"POST",headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
 });
+// ===== Živi dogodki: pasica in gumb za zemljevid =====
+let liveEvents = [];
+function updateLiveBanner(items) {
+  const now = Date.now();
+  liveEvents = items.filter(e => e.start && e.end && (now >= new Date(e.start).getTime() && now <= new Date(e.end).getTime()));
+  const liveCount = document.getElementById('liveCount');
+  if (liveCount) liveCount.textContent = liveEvents.length;
+}
+
+document.getElementById('btnShowLiveMap')?.addEventListener('click', () => {
+  showPanel('mapPanel');
+  // Prikaži samo žive dogodke na zemljevidu
+  if (typeof refreshTopMap === 'function') refreshTopMap(liveEvents);
+});
+document.getElementById('liveInfoBtn')?.addEventListener('click', function() {
+  const info = document.getElementById('liveInfoText');
+  if (info) info.style.display = info.style.display === 'none' ? 'block' : 'none';
+});
+// ===== Referral program =====
+import { getReferralCode, getReferralStats } from '../providers/supabase-referral.js';
+
+document.addEventListener('DOMContentLoaded', async function() {
+  const email = localStorage.getItem('user_email');
+  const referralLinkInput = document.getElementById('referralLink');
+  const copyBtn = document.getElementById('copyReferralBtn');
+  const progress = document.getElementById('referralProgress');
+  const rewardMsg = document.getElementById('referralRewardMsg');
+  if (email && referralLinkInput) {
+    const userId = email; // ali user_id, če je na voljo
+    const link = await getReferralCode(userId);
+    referralLinkInput.value = link;
+    copyBtn.onclick = () => {
+      referralLinkInput.select();
+      document.execCommand('copy');
+      rewardMsg.textContent = 'Povezava kopirana!';
+      rewardMsg.style.display = 'block';
+      setTimeout(()=>rewardMsg.style.display='none', 2500);
+    };
+    // Prikaz napredka do nagrade
+    const stats = await getReferralStats(userId);
+    const nextReward = 2 - (stats.successfulReferrals % 2);
+    progress.textContent = `Še ${nextReward} povabilo do brezplačnega Premium meseca.`;
+    // Prikaz obvestila o Flash kuponu
+    // (dobi iz Supabase, če je freeFlashCoupons > 0)
+    // ...
+  } else if (referralLinkInput) {
+    referralLinkInput.value = 'Vpiši e-pošto za referral povezavo.';
+    copyBtn.disabled = true;
+    progress.textContent = '';
+  }
+});
+// ===== Real-time osveževanje dogodkov in referral napredka =====
+let lastSearchParams = null;
+async function refreshEventsRealtime() {
+  if (!lastSearchParams) return;
+  try {
+    const r = await fetch(`/api/search?${qs(lastSearchParams)}`);
+    const data = await r.json();
+    const items = (data && data.ok && data.results) || [];
+    updateLiveBanner(items);
+    // Osveži prikaz dogodkov (po potrebi re-call doSearch ali custom render)
+    // ...
+  } catch {}
+}
+
+// Shrani zadnje parametre ob iskanju
+async function doSearch(page=0, byGeo=false){
+  // ...existing code...
+  const params = { q:qVal, radiuskm:radiusVal, page, size:20 };
+  // ...existing code...
+  lastSearchParams = params;
+  // ...existing code...
+}
+
+setInterval(refreshEventsRealtime, 15000); // osveži vsakih 15s
+
+// ===== Real-time osveževanje referral napredka =====
+async function refreshReferralProgress() {
+  const email = localStorage.getItem('user_email');
+  const progress = document.getElementById('referralProgress');
+  if (email && progress) {
+    const userId = email;
+    const stats = await getReferralStats(userId);
+    const nextReward = 2 - (stats.successfulReferrals % 2);
+    progress.textContent = `Še ${nextReward} povabilo do brezplačnega Premium meseca.`;
+    progress.classList.add('pulse-anim');
+    setTimeout(()=>progress.classList.remove('pulse-anim'), 1200);
+  }
+}
+setInterval(refreshReferralProgress, 20000); // osveži vsakih 20s

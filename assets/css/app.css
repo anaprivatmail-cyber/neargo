@@ -109,3 +109,26 @@ footer{text-align:center; color:var(--muted); margin-top:18px; font-size:14px}
   padding:10px 14px; border-radius:12px; display:none; align-items:center; gap:8px; font-weight:800}
 .toast.ok{border-color:color-mix(in srgb, var(--ok) 65%, var(--chipborder))}
 .toast.bad{border-color:color-mix(in srgb, var(--bad) 65%, var(--chipborder))}
+
+/* ===== LIVE badge ===== */
+.badge.live {
+  display: inline-block;
+  background: #d4edda;
+  color: #155724;
+  font-weight: 900;
+  border-radius: 8px;
+  padding: 2px 10px;
+  margin-left: 8px;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgba(17,166,122,0.08);
+  letter-spacing: 1px;
+}
+
+.pulse-anim {
+  animation: pulseAnim 1.2s cubic-bezier(.4,0,.2,1);
+}
+@keyframes pulseAnim {
+  0% { background:#e6fbf5; color:#05614d; transform:scale(1); opacity:1; }
+  50% { background:#d4edda; color:#11a67a; transform:scale(1.07); opacity:.98; }
+  100% { background:inherit; color:inherit; transform:scale(1); opacity:1; }
+}

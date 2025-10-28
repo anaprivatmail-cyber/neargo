@@ -64,6 +64,17 @@
         </div>
       </div>
     </div>
+    <!-- REFERENČNI PROGRAM -->
+    <div class="card" id="referralCard" style="margin-top:18px;padding:18px 12px;background:#f6fff6;border:1px solid #d4edda;box-shadow:0 2px 12px rgba(17,166,122,.08);">
+      <h2 style="font-size:1.15em;color:#11a67a;margin-bottom:10px;display:flex;align-items:center;gap:8px;">Povabi prijatelje <span style="font-size:1.3em">🤝</span></h2>
+      <p style="color:#155724;font-weight:500;margin-bottom:10px;">Vsak prijatelj, ki se registrira preko tvoje povezave, ti prinese nagrade! Za vsaka 2 povabila prejmeš 1 mesec Premium, vsak nov uporabnik pa dobi Flash kupon.</p>
+      <div class="row" style="gap:8px;align-items:center;">
+        <input id="referralLink" readonly style="flex:1;font-size:15px;padding:8px 10px;border:1px solid #cfe1ee;border-radius:8px;background:#fff;color:#155724;font-weight:700;" value="Pridobivam povezavo ...">
+        <button class="btn mini" id="copyReferralBtn" style="background:#11a67a;color:#fff;">Kopiraj povezavo</button>
+      </div>
+      <div id="referralProgress" style="margin-top:10px;color:#155724;font-size:14px;font-weight:700;"></div>
+      <div id="referralRewardMsg" style="margin-top:8px;color:#0bbbd6;font-size:13px;font-weight:700;display:none;"></div>
+    </div>
   </div>
 
   <script>
@@ -164,6 +175,58 @@
       }
     }
     if (emailInput.value.trim()) load();
+
+    // Referral program logic
+    const referralLinkInput = $("#referralLink");
+    const copyReferralBtn = $("#copyReferralBtn");
+    const referralProgress = $("#referralProgress");
+    const referralRewardMsg = $("#referralRewardMsg");
+
+    async function updateReferralLink() {
+      const em = emailInput.value.trim();
+      if(!em) return;
+      // Simulate API call to get referral link
+      setTimeout(() => {
+        const link = `https://neargo.com/referral/${btoa(em)}`;
+        referralLinkInput.value = link;
+        msg.textContent = "Povezava je pripravljena!";
+      }, 1000);
+    }
+
+    copyReferralBtn.onclick = () => {
+      referralLinkInput.select();
+      document.execCommand("copy");
+      msg.textContent = "Povezava skopirana v odložišče!";
+    };
+
+    // Simulate fetching referral progress
+    async function loadReferralProgress() {
+      const em = emailInput.value.trim();
+      if(!em) return;
+      // Simulate API call
+      setTimeout(() => {
+        const progress = Math.floor(Math.random() * 3);
+        referralProgress.textContent = `Imate ${progress} aktivnih povabil.`;
+        if(progress > 0) {
+          referralRewardMsg.textContent = `Čestitamo! Dosegli ste nagrado za ${progress} povabila!`;
+          referralRewardMsg.style.display = "block";
+        } else {
+          referralRewardMsg.style.display = "none";
+        }
+      }, 1000);
+    }
+
+    emailInput.oninput = () => {
+      const em = emailInput.value.trim();
+      if(em) {
+        updateReferralLink();
+        loadReferralProgress();
+      } else {
+        referralLinkInput.value = "Pridobivam povezavo ...";
+        referralProgress.textContent = "";
+        referralRewardMsg.style.display = "none";
+      }
+    };
   </script>
 </body>
 </html>

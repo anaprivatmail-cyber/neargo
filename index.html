@@ -352,6 +352,12 @@
       <div class="chips">
         <button class="btn" id="btnStart">Začni z iskanjem</button>
       </div>
+      <!-- PASICA ZA ŽIVE DOGODKE -->
+      <div id="liveBanner" style="margin:18px 0 0 0;display:flex;align-items:center;justify-content:center;gap:12px;padding:12px 18px;background:#d4edda;border-radius:999px;box-shadow:0 2px 12px rgba(17,166,122,.10);font-weight:900;color:#155724;font-size:1.08em;">
+        <span style="font-size:22px;">🟢</span>
+        <span>Trenutno v teku: <span id="liveCount">0</span> dogodkov</span>
+        <button class="btn mini link" id="btnShowLiveMap" style="background:#11a67a;color:#fff;">Zemljevid v živo</button>
+      </div>
       <div id="earlyNotifyPromo" style="margin-top:18px;display:flex;align-items:center;justify-content:center;gap:12px;padding:14px 18px;background:linear-gradient(90deg,#0bbbd6 60%,#11a67a 100%);border-radius:999px;box-shadow:0 2px 12px rgba(11,187,214,.12);font-weight:900;color:#fff;font-size:1.15em;animation:slowPulse 2.8s infinite;">
         <span style="font-size:26px;">🔔</span>
         <span>Vklopite predčasna obvestila za Premium in bodite prvi obveščeni!</span>
@@ -416,6 +422,10 @@
         <label class="inline" style="gap:8px; align-items:center">
           <input type="checkbox" id="freeOnly">
           <span>Samo brezplačni</span>
+        </label>
+        <label class="inline" style="gap:8px; align-items:center; margin-left:18px">
+          <input type="checkbox" id="liveOnly">
+          <span>V živo</span>
         </label>
       </div>
 
@@ -491,6 +501,15 @@
         </select>
         <label id="startWrap">Začetek * <input id="start" type="datetime-local"></label>
         <label id="endWrap">Končanje * <input id="end" type="datetime-local"></label>
+        <label class="inline" style="align-items:center;gap:8px;margin-top:8px">
+          <input type="checkbox" id="isLiveEvent">
+          <span>Gre za dogodek/storitev tipa <b>V živo</b></span>
+          <button type="button" id="liveInfoBtn" style="background:none;border:none;color:var(--primary);font-size:16px;cursor:pointer;padding:0 4px">?</button>
+        </label>
+        <div id="liveInfoText" style="display:none;margin-top:6px;color:var(--muted);font-size:13px;background:#f6fff6;padding:8px 12px;border-radius:8px;">
+          <b>Kdaj se šteje za "V živo"?</b><br>
+          Dogodek ali storitev je "V živo", če se odvija v tem trenutku (med začetkom in koncem, ki ju vnesete zgoraj). Uporabniki bodo videli oznako in lahko filtrirajo samo aktualne dogodke.
+        </div>
       </div>
 
       <div class="row row--3">
@@ -1643,10 +1662,6 @@ function detectCategory(e){
     for(var i=0;i<must.length;i++){
       var node=$(must[i]);
       var val=(node && node.value ? node.value.toString().trim() : "");
-      if(!val){ if(orgMsg){ orgMsg.textContent="Izpolni obvezna polja označena z *."; orgMsg.style.color="var(--bad)"; } if(node && node.focus) node.focus(); return; }
-    }
-    if(!isSvc){
-      var st=$("#start"), en=$("#end");
       var sdt = st && st.value ? new Date(st.value) : null;
       var edt = en && en.value ? new Date(en.value) : null;
       if(!(edt>st)){ if(orgMsg){ orgMsg.textContent="Konec mora biti po začetku."; orgMsg.style.color="var(--bad)"; } if(en) en.focus(); return; }

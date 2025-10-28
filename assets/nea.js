@@ -60,6 +60,7 @@ function startSweepTimer(){
     if (!typing && !panelOpen && sweepAllowed() && document.hasFocus() && !recentActivity()) {
       sweep();
       setTimeout(scrollFabIntoView, 100);
+      setTimeout(animateFabFlyIn, 200);
     }
   }, SWEEP_INTERVAL);
 }
@@ -117,6 +118,12 @@ function scrollFabIntoView(){
     fab.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
   }
 }
+function animateFabFlyIn() {
+  let fab = document.querySelector('.nea-fab');
+  if (!fab) return;
+  fab.classList.add('nea-flyin');
+  setTimeout(()=>fab.classList.remove('nea-flyin'), 900);
+}
 function render(){
   let root = document.getElementById('nea-root');
   if (!root) return;
@@ -140,7 +147,7 @@ function render(){
     };
     let suggestion = suggestions[userType][Math.floor(Math.random()*suggestions[userType].length)];
     root.innerHTML = `
-      <button class="nea-fab" aria-label="${t('nea')} – ${t('help')}" tabindex="0" type="button" style="background:${BRAND_COLOR}"><span aria-hidden="true">💬</span></button>
+      <button class="nea-fab" aria-label="${t('nea')} – ${t('help')}" tabindex="0" type="button" style="background:${BRAND_COLOR}"><span aria-hidden="true">👩‍🦰👋</span></button>
       <aside class="nea-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-label="${t('nea')}" tabindex="-1">
         <header><span>${t('nea')} – AI asistentka</span><button class="nea-close" aria-label="${t('close')}" tabindex="0" type="button">✖</button></header>
         <section class="nea-messages" role="log" aria-live="polite"></section>
@@ -174,6 +181,7 @@ function render(){
       if(ta.value==='' && ta.placeholder) ta.value=ta.placeholder;
     });
   setTimeout(scrollFabIntoView, 200);
+  setTimeout(animateFabFlyIn, 300);
 }
 function autoGrow(e){
   let ta = e.target;
@@ -285,6 +293,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   render();
   startSweepTimer();
   setTimeout(scrollFabIntoView, 400);
+  setTimeout(animateFabFlyIn, 500);
   document.addEventListener('keydown',e=>{ if (panelOpen) setActivity(); });
   document.addEventListener('mousedown',e=>{ if (panelOpen) setActivity(); });
 });

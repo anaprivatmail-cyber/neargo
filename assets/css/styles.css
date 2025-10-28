@@ -31,6 +31,14 @@
   60% { box-shadow: 0 0 0 0 #2a7fff, 0 0 24px 12px rgba(42,127,255,0.25); }
   100% { box-shadow: 0 2px 12px rgba(42,127,255,0.18); }
 }
+.nea-fab.nea-flyin {
+  animation: nea-flyin 0.9s cubic-bezier(.4,2,.6,1);
+}
+@keyframes nea-flyin {
+  0% { transform: translateY(120vh) scale(1.2) rotate(-18deg); opacity: 0.2; }
+  60% { transform: translateY(-8px) scale(1.08) rotate(2deg); opacity: 1; }
+  100% { transform: translateY(0) scale(1) rotate(0); opacity: 1; }
+}
 .nea-panel {
   position: fixed;
   right: 0;

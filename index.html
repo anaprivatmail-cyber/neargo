@@ -1917,13 +1917,44 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
       fab.style.display = 'flex';
       setTimeout(flyFab, 600); // Prvi fly-in po nalaganju
       setInterval(flyFab, 30000);
-      // Glasovni vnos (priprava na Web Speech API)
+
+      // Dejansko: glasovni vnos (Web Speech API)
       var mic = document.getElementById('neaMic');
-      if(mic && (window.SpeechRecognition || window.webkitSpeechRecognition)){
+      var input = document.getElementById('neaInput');
+      var form = document.getElementById('neaForm');
+      var recognizing = false;
+      var recognition;
+      if (mic && (window.SpeechRecognition || window.webkitSpeechRecognition)) {
+        recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'sl-SI';
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
         mic.addEventListener('click', function(){
-          // Prikaz demo: v resnici bi tu sprožil SpeechRecognition
-          alert('Glasovni vnos bo na voljo v naslednji verziji.');
+          if (recognizing) {
+            recognition.stop();
+            return;
+          }
+          recognition.start();
         });
+        recognition.onstart = function() {
+          recognizing = true;
+          mic.style.background = '#0bbbd6';
+        };
+        recognition.onend = function() {
+          recognizing = false;
+          mic.style.background = '#e9f7ff';
+          if(input && input.value.trim()) {
+            form.requestSubmit();
+          }
+        };
+        recognition.onerror = function(e){ recognizing = false; mic.style.background = '#e9f7ff'; };
+        recognition.onresult = function(e){
+          var txt = '';
+          for(var i=0;i<e.results.length;i++){
+            txt += e.results[i][0].transcript;
+          }
+          if(input) input.value = txt;
+        };
       }
       // Init
       var mode = (function(){ try { return localStorage.getItem('theme') || 'light'; } catch { return 'light'; } })();

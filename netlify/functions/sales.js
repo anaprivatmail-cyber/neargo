@@ -27,7 +27,8 @@ export const handler = async (event) => {
     const scannerOk   = !!SCANNER_KEY && providedKey === SCANNER_KEY;
 
     let eventFilter = null;
-    let eventIds = []; // <-- DODANO: seznam za UI dropdown
+    let eventIds = []; // seznam za UI dropdown
+    let scope = "global";
 
     if (statsToken) {
       // Organizator prek stats tokena – enolično določa dogodek
@@ -40,9 +41,10 @@ export const handler = async (event) => {
       if (evErr || !ev) return json({ ok:false, error:"invalid_stats_token" },401);
 
       eventFilter = { id: ev.id, meta: { title: ev.title, city: ev.city, start: ev.start } };
-      eventIds = [ev.id]; // <-- DODANO: vsaj en ID za dropdown (profil način)
-
+      eventIds = [ev.id];
+      scope = "event";
       // (eventId v tem načinu ignoriramo)
+
     } else if (scannerOk) {
       // Skener z dovoljenjem
       if (eventIdQ) {
@@ -55,15 +57,17 @@ export const handler = async (event) => {
         if (!ev) return json({ ok:false, error:"unknown_event" },404);
 
         eventFilter = { id: ev.id, meta: { title: ev.title, city: ev.city, start: ev.start } };
+        scope = "event";
       } else {
         // Globalni povzetek za skenerja
         eventFilter = null;
+        scope = "global";
       }
 
-      // <-- DODANO: pripravi seznam zadnjih eventId-jev (za desni select v org-stats)
+      // pripravi seznam zadnjih eventId-jev (za desni select v org-stats)
       eventIds = await getRecentEventIds(50);
-      // poskrbi, da je izbrani eventId (če obstaja) v seznamu
       if (eventFilter?.id && !eventIds.includes(eventFilter.id)) eventIds.unshift(eventFilter.id);
+
     } else {
       return json({ ok:false, error:"unauthorized" },401);
     }
@@ -77,23 +81,29 @@ export const handler = async (event) => {
     // REDEEMED = redeemed
     const redeemed = await countTickets(whereEvent, ["redeemed","REDEEMED"]);
 
-    // Zadnja prodaja (če stolpec created_at obstaja)
+    // Zadnja prodaja: najprej poskusi created_at, nato issued_at
     const lastSale = await getLastSaleAt(whereEvent);
 
     // Po tipu (ticket/coupon), če obstaja stolpec type
     const byType = await breakdownByType(whereEvent);
 
+    // Funnel (ogledi / kliki / nakupi)
+    const funnel = await getFunnel(whereEvent, sold);
+
     return json({
       ok:true,
-      scope: eventFilter?.id ? "event" : "global",
+      scope,
       event: eventFilter?.meta || null,
       sold,
       redeemed,
       lastSale,
       byType,
-      eventIds // <-- DODANO: za desni dropdown v org-stats
+      eventIds,
+      funnel
     });
+
   } catch (e) {
+    // zaradi kompatibilnosti puščamo 200, a vrnemo ok:false (kot je bilo)
     return json({ ok:false, error:String(e?.message||e) },200);
   }
 };
@@ -108,18 +118,28 @@ async function countTickets(whereEvent, allowedStatuses){
 }
 
 async function getLastSaleAt(whereEvent){
-  // Če nimaš created_at na tickets, vrni null
-  let q = supa
+  // največkrat je created_at; če ga ni, fallback na issued_at
+  let q1 = supa
     .from("tickets")
     .select("created_at", { head:false })
     .order("created_at", { ascending:false })
     .limit(1);
+  if (whereEvent) q1 = q1.eq(whereEvent.column, whereEvent.value);
 
-  if (whereEvent) q = q.eq(whereEvent.column, whereEvent.value);
+  const { data: d1 } = await q1;
+  if (d1 && d1.length && d1[0]?.created_at) return d1[0].created_at;
 
-  const { data, error } = await q;
-  if (error || !data || !data.length || !data[0]?.created_at) return null;
-  return data[0].created_at;
+  let q2 = supa
+    .from("tickets")
+    .select("issued_at", { head:false })
+    .order("issued_at", { ascending:false })
+    .limit(1);
+  if (whereEvent) q2 = q2.eq(whereEvent.column, whereEvent.value);
+
+  const { data: d2 } = await q2;
+  if (d2 && d2.length && d2[0]?.issued_at) return d2[0].issued_at;
+
+  return null;
 }
 
 async function breakdownByType(whereEvent){
@@ -150,7 +170,7 @@ async function countTicketsByType(whereEvent, allowedStatuses, typeVal){
   return count || 0;
 }
 
-// DODANO: vrni zadnje eventId-je za dropdown (prilagodi po želji – npr. filtri po organizatorju)
+// vrni zadnje eventId-je za dropdown (po start datumu)
 async function getRecentEventIds(limit = 50){
   try{
     const { data, error } = await supa
@@ -163,6 +183,30 @@ async function getRecentEventIds(limit = 50){
   }catch{
     return [];
   }
+}
+
+/* ===== Funnel (analytics_events) ===== */
+async function getFunnel(whereEvent, soldFallback){
+  // Če nimaš tabele analytics_events, bo try/catch vrnil null → UI pokaže navodila.
+  try{
+    const views  = await countAnalytics(whereEvent, 'impression');
+    const clicks = await countAnalytics(whereEvent, 'click');
+    let purchases = await countAnalytics(whereEvent, 'purchase');
+
+    // fallback: če nimaš ev=purchase, uporabi sold (že izračunan)
+    if (!Number.isFinite(purchases) || purchases === 0) purchases = Number(soldFallback||0);
+
+    return { views, clicks, purchases };
+  }catch{
+    return null;
+  }
+}
+
+async function countAnalytics(whereEvent, kind){
+  let q = supa.from('analytics_events').select('id', { count:'exact', head:true }).eq('kind', kind);
+  if (whereEvent) q = q.eq(whereEvent.column, whereEvent.value);
+  const { count } = await q;
+  return count || 0;
 }
 
 /* ===== infra ===== */

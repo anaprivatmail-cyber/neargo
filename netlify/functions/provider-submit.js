@@ -38,26 +38,86 @@ function escapeHtml(s){
     { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]
   ));
 }
+
+/** Vrne {kind,value,label} iz prvega elementa coupons[] ali null */
+function firstCouponFromArray(p){
+  if (!Array.isArray(p?.coupons) || !p.coupons.length) return null;
+  const c = p.coupons.find(Boolean);
+  if (!c) return null;
+  const kind = String(c.type||'').toUpperCase();
+  if (kind === 'PERCENT' && Number(c.value)>0) return { kind, value:Number(c.value), label:`-${Number(c.value)}%` };
+  if (kind === 'VALUE'   && Number(c.value)>0) return { kind, value:Number(c.value), label:`${Number(c.value).toFixed(2)} €` };
+  if (kind === 'FREEBIE' && String(c.value||'').trim()) return { kind, value:String(c.value).trim(), label:String(c.value).trim() };
+  return null;
+}
+
+// [CHG] requireFields: za storitve ne zahtevamo start/end; stock je obvezen le za dogodke; ticket: cena ali cenik
 function requireFields(p){
   const missing = [];
-  const need = [
-    ['organizer','Ime organizatorja'],['organizerEmail','E-pošta'],['eventName','Naslov dogodka'],
-    ['venue','Lokacija (prizorišče)'],['country','Država'],['start','Začetek'],['end','Konec'],['description','Opis'],['category','Kategorija']
+  const isService = String(p.type || p.entryType || (p?.service ? 'service' : 'event')).toLowerCase() === 'service';
+  const needBaseEvent = [
+    ['organizer','Ime organizatorja'],
+    ['organizerEmail','E-pošta'],
+    ['eventName','Naslov dogodka'],
+    ['venue','Lokacija (prizorišče)'],
+    ['country','Država'],
+    ['description','Opis'],
+    ['category','Kategorija']
   ];
+  const needBaseService = [
+    ['organizer','Ime organizatorja'],
+    ['organizerEmail','E-pošta'],
+    ['eventName','Naslov storitve'],
+    ['venue','Lokacija (salon/prizorišče)'],
+    ['country','Država'],
+    ['description','Opis'],
+    ['category','Kategorija']
+  ];
+
   if (!String(p.city || p.city2 || '').trim()) missing.push('Mesto/kraj');
-  for (const [k, label] of need) if (!String(p[k] ?? '').trim()) missing.push(label);
+  for (const [k, label] of (isService ? needBaseService : needBaseEvent)) {
+    if (!String(p[k] ?? '').trim()) missing.push(label);
+  }
+
+  // čas je obvezen le za DOGODEK
+  if (!isService) {
+    if (!String(p.start || '').trim()) missing.push('Začetek');
+    if (!String(p.end   || '').trim()) missing.push('Konec');
+  } else {
+    // storitev: če je unlimited/pokliči, potrebujemo telefon
+    const avail = p?.service?.availability || 'unlimited';
+    if (String(avail) === 'unlimited') {
+      if (!String(p?.service?.phone || '').trim()) {
+        missing.push('Telefon za rezervacije (storitev – pokliči)');
+      }
+    }
+    // če je scheduled, termine ureja koledar – tu jih ne zahtevamo
+  }
 
   const saleType = p.offerType || p.saleType || 'none';
-  if (saleType === 'ticket' || saleType === 'coupon'){
-    if (saleType === 'ticket' && (p.price == null || p.price === '')) missing.push('Cena');
+
+  // — VSTOPNICE: zahtevaj CENO ali vsaj en element v ticketPrices
+  if (saleType === 'ticket') {
+    const hasBase = !(p.price == null || p.price === '');
+    const hasTiers = Array.isArray(p.ticketPrices) && p.ticketPrices.some(tp => Number(tp?.price) > 0);
+    if (!hasBase && !hasTiers) missing.push('Cena ali cenik vstopnic');
+  }
+
+  // — ZALOGA: je obvezna le za DOGODKE z "ticket" ali "coupon"
+  if (!isService && (saleType === 'ticket' || saleType === 'coupon')) {
     if (p.stock == null || p.stock === '') missing.push('Zaloga');
   }
+
+  // — KUPONI: veljavno je ali top-level polje ali prvi element v coupons[]
   if (saleType === 'coupon'){
-    const k = String(p.couponKind || '').toUpperCase();
-    if (!['PERCENT','VALUE','FREEBIE'].includes(k)) missing.push('Tip kupona');
-    if (k === 'PERCENT' && !(Number(p.couponPercentOff) > 0 && Number(p.couponPercentOff) <= 100)) missing.push('% popusta (1–100)');
-    if (k === 'VALUE'   && !(Number(p.couponValueEur) > 0)) missing.push('Vrednost kupona (€)');
-    if (k === 'FREEBIE' && !String(p.couponFreebieLabel || '').trim()) missing.push('Opis brezplačne ugodnosti');
+    const fromArray = firstCouponFromArray(p);
+    if (!fromArray) {
+      const k = String(p.couponKind || '').toUpperCase();
+      if (!['PERCENT','VALUE','FREEBIE'].includes(k)) missing.push('Tip kupona');
+      if (k === 'PERCENT' && !(Number(p.couponPercentOff) > 0 && Number(p.couponPercentOff) <= 100)) missing.push('% popusta (1–100)');
+      if (k === 'VALUE'   && !(Number(p.couponValueEur) > 0)) missing.push('Vrednost kupona (€)');
+      if (k === 'FREEBIE' && !String(p.couponFreebieLabel || '').trim()) missing.push('Opis brezplačne ugodnosti');
+    }
   }
   return missing;
 }
@@ -98,8 +158,9 @@ export const handler = async (event) => {
   try { payload = JSON.parse(event.body || '{}'); }
   catch { return json({ ok:false, error:'Neveljaven JSON body' }, 400); }
 
+  // [CHG] kupon pri nas stane 2 € (frontend Premium = 0 € rešuje checkout/issue-coupon)
   if ((payload.offerType || payload.saleType) === 'coupon') {
-    payload.price = 2; // prodajna cena pri nas za kupon
+    payload.price = 2;
   }
 
   const missing = requireFields(payload);
@@ -109,8 +170,34 @@ export const handler = async (event) => {
   if (desc.length > 800) return json({ ok:false, error:`Opis je predolg (${desc.length}). Največ 800 znakov.` }, 400);
 
   try{
-    // Kupon normalizacija
-    if ((payload.offerType || payload.saleType) === 'coupon'){
+    // Kupon normalizacija:
+    // 1) če pride iz coupons[], ga privzemi v top-level za konsistentnost (display_benefit, mail)
+    const cArr = firstCouponFromArray(payload);
+    if ((payload.offerType || payload.saleType) === 'coupon' && cArr){
+      if (cArr.kind === 'PERCENT') {
+        payload.couponKind = 'PERCENT';
+        payload.couponPercentOff = Number(cArr.value||0);
+        payload.couponValueEur = null;
+        payload.couponFreebieLabel = null;
+      } else if (cArr.kind === 'VALUE') {
+        payload.couponKind = 'VALUE';
+        payload.couponValueEur = Number(cArr.value||0);
+        payload.couponPercentOff = null;
+        payload.couponFreebieLabel = null;
+      } else if (cArr.kind === 'FREEBIE') {
+        payload.couponKind = 'FREEBIE';
+        payload.couponFreebieLabel = String(cArr.value||'').trim();
+        payload.couponPercentOff = null;
+        payload.couponValueEur = null;
+      }
+      // display label
+      payload.display_benefit = payload.display_benefit || cArr.label;
+      // opis kupona
+      payload.couponDesc = payload.couponDesc || cArr.label;
+    }
+
+    if ((payload.offerType || payload.saleType) === 'coupon' && !cArr){
+      // top-level varianta (ostaja enako)
       payload.couponKind = String(payload.couponKind || '').toUpperCase();
       payload.couponPercentOff   = payload.couponKind==='PERCENT' ? Number(payload.couponPercentOff || 0) : null;
       payload.couponValueEur     = payload.couponKind==='VALUE'   ? Number(payload.couponValueEur || 0)   : null;
@@ -120,7 +207,6 @@ export const handler = async (event) => {
         || (payload.couponKind==='PERCENT' ? `${payload.couponPercentOff||''}%`
            : payload.couponKind==='VALUE'   ? `${payload.couponValueEur||''}€` : '');
 
-      // display_benefit fallback
       if (!payload.display_benefit) {
         const kind = (payload.couponKind || '').toUpperCase();
         if (kind === 'PERCENT') payload.display_benefit = `-${Number(payload.couponPercentOff||0)}%`;
@@ -129,7 +215,7 @@ export const handler = async (event) => {
       }
     }
 
-    // shranimo oddajo (JSON) v Storage
+    // shranimo oddajo (JSON) v Storage — [KEEP]
     const now = new Date();
     const fileName = `${now.toISOString().replace(/[:.]/g,'-')}-${slugify(payload.eventName || 'dogodek')}.json`;
     const path = `${SUBMISSIONS_PREFIX}${fileName}`;
@@ -138,13 +224,17 @@ export const handler = async (event) => {
     const editToken = crypto.randomBytes(24).toString('hex');
     const statsToken = crypto.randomBytes(24).toString('hex');
 
+    // [ADD] stabilen eventId iz poti (za povezavo s service_slots)
+    const eventId = crypto.createHash('sha1').update(path).digest('hex').slice(0, 16);
+
     const bodyObj = {
       ...payload,
       createdAt: now.toISOString(),
       source: 'provider',
       secretEditToken: crypto.randomBytes(24).toString('hex'),
       editToken,
-      statsToken
+      statsToken,
+      eventId // [ADD] v shranjen JSON dodamo identifikator zapisa
     };
 
     const uint8 = Buffer.from(JSON.stringify(bodyObj, null, 2), 'utf8');
@@ -155,7 +245,29 @@ export const handler = async (event) => {
 
     if (uploadError) return json({ ok:false, error:`Napaka pri shranjevanju v Storage: ${uploadError.message}` }, 500);
 
-    // === Potrditveni e-mail organizatorju (glava usklajena z nakupnim mailom) ===
+    // [ADD] Če je storitev s koledarjem → sinhroniziraj termine v service_slots
+    const isService = String(payload.type || payload.entryType || (payload?.service ? 'service' : 'event')).toLowerCase() === 'service';
+    if (isService && payload?.service?.availability === 'scheduled' && Array.isArray(payload?.service?.slots) && payload.service.slots.length) {
+      try {
+        await fetch(`${DOMAIN}/api/service-slots-save`, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({
+            eventId,
+            slots: payload.service.slots.map(s => ({
+              start: s.start,
+              end: s.end || null,
+              quota: Number(s.quota || 1)
+            }))
+          })
+        });
+      } catch (e) {
+        // mehko opozorilo, ne prekinjamo glavnega toka
+        console.warn('[provider-submit] service-slots-save warn:', e?.message || e);
+      }
+    }
+
+    // === Potrditveni e-mail organizatorju/ponudniku (glava usklajena z nakupnim mailom) ===
     try {
       if (BREVO_API_KEY && payload.organizerEmail) {
         const contact   = escapeHtml(payload.organizerFullName || payload.organizer || '');
@@ -167,7 +279,10 @@ export const handler = async (event) => {
         const end       = escapeHtml(payload.end || '');
         const offerType = String(payload.offerType || payload.saleType || 'none');
 
-        // Izpis cen v e-pošti (celoten cenik, če obstaja)
+        // [ADD] dinamičen tip za slovnično sporočilo
+        const noun = isService ? 'storitev' : 'dogodek';
+
+        // Izpis cen v e-pošti (ostane)
         let offerLine = '';
         const hasTicketPrices = Array.isArray(payload.ticketPrices) && payload.ticketPrices.length > 0;
 
@@ -191,11 +306,10 @@ export const handler = async (event) => {
           offerLine = `<li><b>Kupon:</b> ${benefit || 'ugodnost'}</li>`;
         }
 
-        // 🔗 Uredi + Statistika (edit ima tudi key za hiter load)
+        // 🔗 Uredi + Statistika
         const linkEdit  = `${DOMAIN}/edit.html?token=${editToken}&key=${encodeURIComponent(path)}`;
         const linkStats = `${DOMAIN}/org-stats.html?stats=${statsToken}`;
 
-        // === BEL HEADER + ČRN NAPIS + TARČA (enako kot v nakupnem mailu) ===
         const logoTargetSvg = `
           <svg width="36" height="36" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
             <circle cx="16" cy="16" r="13" fill="none" stroke="#0b1b2b" stroke-width="2"/>
@@ -208,23 +322,23 @@ export const handler = async (event) => {
         const html = `
           <div style="font-family:Arial,Helvetica,sans-serif;background:#f6fbfe;padding:0;margin:0">
             <div style="max-width:680px;margin:0 auto;border:1px solid #e3eef7;border-radius:14px;overflow:hidden;background:#fff">
-
-              <!-- Bel header, črn napis + tarča -->
               <div style="padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #e3eef7;background:#fff">
                 <div>${logoTargetSvg}</div>
                 <div style="font-weight:900;font-size:20px;letter-spacing:.2px;color:#0b1b2b">NearGo</div>
               </div>
 
               <div style="padding:20px 22px;color:#0b1b2b">
-                <h2 style="margin:0 0 12px 0;font-size:20px;line-height:1.35">Potrditev oddaje dogodka</h2>
+                <h2 style="margin:0 0 12px 0;font-size:20px;line-height:1.35">Potrditev oddaje ${noun}a</h2>
                 <p style="margin:0 0 8px">Spoštovani <b>${contact}</b>,</p>
-                <p style="margin:0 0 14px">vaša oddaja dogodka <b>${eventName}</b> je bila prejeta.</p>
+                <p style="margin:0 0 14px">vaša oddaja <b>${noun}a "${eventName}"</b> je bila prejeta.</p>
 
                 <div style="border:1px solid #e3eef7;border-radius:12px;padding:12px 14px;margin:10px 0;background:#f9fcff">
                   ${ venue ? `<div style="margin:2px 0"><b>Lokacija:</b> ${venue}${city?(', '+city):''}</div>` : (city?`<div style="margin:2px 0"><b>Mesto:</b> ${city}</div>`:'') }
                   ${ category ? `<div style="margin:2px 0"><b>Kategorija:</b> ${category}</div>` : '' }
-                  ${ start ? `<div style="margin:2px 0"><b>Začetek:</b> ${start}</div>` : '' }
-                  ${ end   ? `<div style="margin:2px 0"><b>Konec:</b> ${end}</div>`     : '' }
+                  ${ !isService && start ? `<div style="margin:2px 0"><b>Začetek:</b> ${start}</div>` : '' }
+                  ${ !isService && end   ? `<div style="margin:2px 0"><b>Konec:</b> ${end}</div>`     : '' }
+                  ${ isService && payload?.service?.availability==='unlimited' && payload?.service?.phone
+                        ? `<div style="margin:2px 0"><b>Telefon za rezervacije:</b> ${escapeHtml(payload.service.phone)}</div>` : '' }
                 </div>
 
                 <div style="border:1px solid #cfe1ee;border-radius:12px;padding:14px 16px;margin:12px 0;background:#fff">
@@ -241,13 +355,18 @@ export const handler = async (event) => {
                           ? `Vstopnice: <b>${Number(payload.price||0).toFixed(2)} €</b>`
                           : `Kupon: <b>${escapeHtml(payload.display_benefit || payload.couponDesc || 'ugodnost')}</b>` )
                   }
+                  ${
+                    isService && payload?.service?.availability==='scheduled'
+                      ? `<div style="margin-top:6px"><b>Koledar terminov:</b> nastavljen – urejanje na portalu.</div>`
+                      : ''
+                  }
                 </div>
 
                 <div style="margin:12px 0 16px">
                   <a href="${linkEdit}"
                      style="display:inline-block;background:${primary};color:#fff;text-decoration:none;
                             padding:10px 14px;border-radius:10px;font-weight:800;margin-right:10px">
-                    Uredi dogodek
+                    Uredi ${noun}
                   </a>
                   <a href="${linkStats}"
                      style="display:inline-block;background:#fff;color:#0b1b2b;text-decoration:none;
@@ -257,8 +376,8 @@ export const handler = async (event) => {
                 </div>
 
                 <p style="color:#5b6b7b;font-size:13px;margin:8px 0 0">
-                  Uredi dogodek tudi <a href="${linkEdit}" style="color:${primary};font-weight:800">tukaj</a>.
-                  Statistika prodaje/unovčitev je dostopna <a href="${linkStats}" style="color:${primary};font-weight:800">tukaj</a>.
+                  Uredite vsebino: <a href="${linkEdit}" style="color:${primary};font-weight:800">tukaj</a>.
+                  Pregled statistike: <a href="${linkStats}" style="color:${primary};font-weight:800">tukaj</a>.
                 </p>
 
                 <div style="margin:16px 0 0;color:#5b6b7b;font-size:13px">
@@ -270,7 +389,7 @@ export const handler = async (event) => {
 
         await sendMailBrevo({
           to: payload.organizerEmail,
-          subject: `NearGo – prijava dogodka prejeta: ${payload.eventName || ''}`,
+          subject: `NearGo – prijava ${isService ? 'storitve' : 'dogodka'} prejeta: ${payload.eventName || ''}`,
           html
         });
       }
@@ -279,7 +398,8 @@ export const handler = async (event) => {
     }
     // === konec pošiljanja e-pošte ===
 
-    return json({ ok:true, key:path, editToken, statsToken });
+    // [CHG] Response: dodamo eventId (ostalo pustimo)
+    return json({ ok:true, key:path, editToken, statsToken, eventId });
   }catch(e){
     console.error("[provider-submit] FATAL:", e?.message || e);
     return json({ ok:false, error:String(e?.message || e) }, 500);

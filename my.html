@@ -5,34 +5,51 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>NearGo – Moje vstopnice & kuponi</title>
   <style>
-    :root{ --bg:#f6fbfe; --card:#fff; --text:#0b1b2b; --muted:#5b6b7b; --border:#e6eef7; --shadow:0 12px 30px rgba(0,0,0,.06); --brand:#0bbbd6; }
-    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    :root{
+      --bg:#f6fbfe; --card:#fff; --text:#0b1b2b; --muted:#5b6b7b; --border:#e6eef7;
+      --shadow:0 12px 30px rgba(0,0,0,.06); --brand:#0bbbd6; --ok:#11a67a; --bad:#d64c4c;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
     .wrap{max-width:980px;margin:22px auto;padding:14px}
     .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:14px}
     h1{margin:6px 0 10px;font-size:22px}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     input,button{font:16px;padding:10px;border-radius:10px;border:1px solid var(--border)}
+    input{min-width:260px}
     button{cursor:pointer}
+    .btn{display:inline-block;background:var(--brand);color:#fff;text-decoration:none;padding:8px 12px;border-radius:10px;font-weight:800;border:0}
+    .btn.link{background:#fff;color:#0b1b2b;border:1px solid var(--border)}
+    .btn.disabled{opacity:.5;pointer-events:none}
     .grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px}
     @media(min-width:720px){ .grid{grid-template-columns:1fr 1fr} }
     .item{display:flex;gap:12px;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#fff}
     .item img{width:120px;height:100%;object-fit:cover}
     .meta{padding:10px;flex:1}
     .muted{color:var(--muted);font-size:13px}
-    .btn{display:inline-block;background:var(--brand);color:#fff;text-decoration:none;padding:8px 12px;border-radius:10px;font-weight:800;border:0}
     .empty{padding:14px;border:1px dashed var(--border);border-radius:12px;color:var(--muted)}
+    .note{margin-top:8px}
+    .ok{color:var(--ok)} .bad{color:var(--bad)}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .tag{display:inline-block;background:#e6f6fb;border:1px solid #cfe9f3;color:#0b1b2b;font-weight:900;border-radius:999px;padding:2px 8px;font-size:12px}
+    .loading{display:inline-flex;gap:8px;align-items:center}
+    .spinner{width:16px;height:16px;border:2px solid #cfe1ee;border-top-color:#0bbbd6;border-radius:50%;animation:sp 0.9s linear infinite}
+    @keyframes sp{to{transform:rotate(360deg)}}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
       <h1>Moje vstopnice & kuponi</h1>
+
       <div class="row">
         <input id="email" placeholder="vnesi e-pošto (za dostavo vstopnic)">
         <button id="save">Shrani</button>
         <button id="load" class="btn" style="border:0">Naloži</button>
       </div>
-      <div id="msg" class="muted" style="margin-top:8px"></div>
+
+      <div id="msg" class="muted note"></div>
+
       <div id="list" class="grid" style="margin-top:12px"></div>
     </div>
   </div>
@@ -40,6 +57,10 @@
   <script>
     const $ = s => document.querySelector(s);
     const msg = $("#msg"), emailInput = $("#email"), list = $("#list");
+    const fmtDate = iso => {
+      try{ return new Date(iso).toLocaleString('sl-SI', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); }
+      catch{ return iso||''; }
+    };
 
     // prefill iz localStorage
     emailInput.value = localStorage.getItem("user_email") || "";
@@ -54,53 +75,66 @@
     $("#load").onclick = load;
 
     async function load(){
-      list.innerHTML = ""; msg.textContent = "";
+      list.innerHTML = "";
+      msg.innerHTML = `<span class="loading"><span class="spinner"></span>Nalaganje…</span>`;
+
       const em = emailInput.value.trim();
-      if(!em){ msg.textContent = "Vnesi e-pošto in klikni Naloži."; return; }
-
-      // Klic funkcije – varianta z email query.
-      let url = `/.netlify/functions/my?email=${encodeURIComponent(em)}`;
-
-      // Če tvoj my.js pričakuje header X-User-Id: odkomentiraj naslednji blok in odstrani ?email
-      // url = '/.netlify/functions/my';
-      const headers = { "accept":"application/json"/*, "x-user-id": "USER_ID_CE_SE_UPORABLJA"*/ };
+      if(!em){ msg.textContent = "Vnesi e-pošto in klikni »Naloži«."; return; }
 
       try{
-        const r = await fetch(url, { headers });
+        const r = await fetch(`/api/purchase-lookup?email=${encodeURIComponent(em)}`, { headers:{ "accept":"application/json" }});
         const data = await r.json().catch(()=> ({}));
-        if(!r.ok || !data || !Array.isArray(data.items||data.results)){
-          msg.textContent = "Ni najdenih vstopnic/kuponov.";
+
+        if(!r.ok || !data || !Array.isArray(data.purchases)){
+          msg.className = "bad note";
+          msg.textContent = (data && data.error) ? data.error : "Napaka pri nalaganju.";
           return;
         }
-        const items = data.items || data.results;
 
+        const items = data.purchases;
         if(!items.length){
+          msg.className = "muted note";
+          msg.textContent = "Ni najdenih vstopnic ali kuponov za ta e-poštni naslov.";
           list.innerHTML = `<div class="empty">Ni najdenih vstopnic ali kuponov.</div>`;
           return;
         }
 
+        msg.className = "ok note";
+        msg.textContent = `Najdenih ${items.length} zapisov.`;
+
         list.innerHTML = items.map(it=>{
-          const img  = it.image || it.images?.[0] || "https://picsum.photos/640/360?blur=2";
-          const name = it.title || it.name || "Dogodek";
-          const when = it.date || it.start || "";
-          const where= it.place || it.venue?.address || "";
-          const kind = (it.kind || it.type) === 'coupon' ? 'Kupon' : 'Vstopnica';
-          const qr   = it.qr || it.qr_url || it.qrCode || it.token ? (`/r/${encodeURIComponent(it.token)}`) : (it.url || "#");
+          // Polja, ki jih lahko dobimo iz backenda (prilagodljivo):
+          const kind  = (it.type === 'coupon') ? 'Kupon' : 'Vstopnica';
+          const title = it.title || it.name || it.event_title || 'Dogodek / Ponudba';
+          const when  = it.issued_at ? fmtDate(it.issued_at) : '';
+          const where = it.venue_address || (it.venue && it.venue.address) || '';
+          const img   = it.image_url || (it.images && it.images[0]) || "https://picsum.photos/640/360?blur=2";
+          const benefit = it.display_benefit || '';
+          const token = it.token || null; // če dodaš v purchase-lookup
+          const qrUrl = token ? `/r/${encodeURIComponent(token)}` : null;
+          const pdfUrl = it.pdf_url || it.invoice_url || null;
 
           return `
             <div class="item">
               <img src="${img}" alt="">
               <div class="meta">
-                <div style="font-weight:900">${name}</div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <div style="font-weight:900">${title}</div>
+                  <span class="tag">${kind}</span>
+                  ${ benefit ? `<span class="tag">${benefit}</span>` : '' }
+                </div>
                 <div class="muted">${[when, where].filter(Boolean).join(" • ")}</div>
-                <div class="muted" style="margin:6px 0">${kind}</div>
-                ${ qr && qr !== "#" ? `<a class="btn" href="${qr}" target="_blank" rel="noopener">Koda / QR</a>` : '' }
+                <div class="actions">
+                  ${ qrUrl ? `<a class="btn" href="${qrUrl}" target="_blank" rel="noopener">QR / koda</a>` : `<a class="btn disabled" title="Koda ni na voljo">QR / koda</a>` }
+                  ${ pdfUrl ? `<a class="btn link" href="${pdfUrl}" target="_blank" rel="noopener">Račun (PDF)</a>` : `` }
+                </div>
               </div>
             </div>
           `;
         }).join("");
 
       }catch(e){
+        msg.className = "bad note";
         msg.textContent = "Napaka pri nalaganju.";
       }
     }

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NearGo – Koledar terminov</title>
+  <style>
+    :root{ --brand:#0bbbd6; --muted:#5b6b7b; --chip:#fff; --chipborder:#cfe1ee; --card:#fff; --shadow:0 10px 30px rgba(0,0,0,.08); --radius:14px; }
+    body{ margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:#f6fbff; color:#0b1b2b; }
+    main{ max-width:960px; margin:0 auto; padding:16px; }
+    .card{ background:var(--card); border:1px solid var(--chipborder); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; }
+    h1{ margin:0 0 10px 0 }
+    .row{ display:grid; grid-template-columns:1fr; gap:12px; }
+    @media(min-width:760px){ .row--3{grid-template-columns:repeat(3,1fr)} .row--2{grid-template-columns:repeat(2,1fr)} }
+    label{ display:flex; flex-direction:column; gap:6px; font-weight:800; font-size:13px; }
+    input,select{ width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--chipborder); background:#fff; outline:none; min-height:40px; font-size:15px; }
+    input:focus,select:focus{ border-color:#0bbbd6; box-shadow:0 0 0 4px #bfeef6 }
+    .chips{ display:flex; gap:8px; flex-wrap:wrap }
+    .chip{ border:1px solid var(--chipborder); background:var(--chip); border-radius:999px; padding:8px 12px; font-weight:800; color:#415466; cursor:pointer }
+    .chip.active{ background:#0bbbd6; color:#fff; border-color:transparent }
+    .btn{ background:#0bbbd6; color:#fff; border:none; padding:10px 16px; border-radius:12px; font-weight:900; cursor:pointer; }
+    .btn.link{ background:#fff; color:#000; border:1px solid var(--chipborder) }
+    .list{ margin-top:10px; max-height:420px; overflow:auto; border:1px solid var(--chipborder); border-radius:12px; }
+    .slot{ display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-bottom:1px dashed #e2eef7; }
+    .slot:last-child{ border-bottom:none }
+    .muted{ color:var(--muted) }
+    .spacer{ height:10px }
+    .topbar{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="topbar">
+      <h1>Koledar terminov</h1>
+      <div class="muted" id="keyLbl"></div>
+    </div>
+
+    <div class="card">
+      <p class="muted" style="margin-top:0">Označi proste termine (lahko jih generiraš serijsko ali dodajaš/odstranjuješ ročno). Ob <b>“Shrani & zapri”</b> se termini shranijo v ta app in vrnejo nazaj v obrazec.</p>
+
+      <div class="row row--3">
+        <label>Od <input id="from" type="date"></label>
+        <label>Do <input id="to" type="date"></label>
+        <label>Dolžina termina (min) <input id="dur" type="number" min="5" max="480" step="5" value="60"></label>
+      </div>
+
+      <div class="row row--3">
+        <label>Začetek dneva <input id="dayStart" type="time" value="09:00"></label>
+        <label>Konec dneva <input id="dayEnd" type="time" value="17:00"></label>
+        <label>Kvota (mesta) <input id="quota" type="number" min="1" step="1" value="1"></label>
+      </div>
+
+      <div class="chips" id="days">
+        <button class="chip" data-dow="1">Pon</button>
+        <button class="chip" data-dow="2">Tor</button>
+        <button class="chip" data-dow="3">Sre</button>
+        <button class="chip" data-dow="4">Čet</button>
+        <button class="chip" data-dow="5">Pet</button>
+        <button class="chip" data-dow="6">Sob</button>
+        <button class="chip" data-dow="0">Ned</button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        <button class="btn" id="gen">+ Generiraj termine</button>
+        <button class="btn link" id="addOne">+ Dodaj en termin</button>
+        <button class="btn link" id="clearAll">Počisti vse</button>
+        <button class="btn link" id="exportIcs">Izvozi ICS</button>
+      </div>
+
+      <div class="list" id="list"></div>
+
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
+        <button class="btn" id="saveClose">Shrani & zapri</button>
+        <span class="muted" id="msg"></span>
+      </div>
+    </div>
+  </main>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const qs=o=>new URLSearchParams(o).toString();
+const byId=id=>document.getElementById(id);
+const toLocalDT=(d)=>{const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;};
+const fromParam=(name)=>new URL(location.href).searchParams.get(name)||"";
+const key=fromParam("key")||`svc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
+byId("keyLbl").textContent=`Ključ: ${key}`;
+let slots=[];
+
+function saveLocal(){ try{ localStorage.setItem("svc-cal-"+key, JSON.stringify(slots)); }catch{} }
+function loadLocal(){ try{ slots=JSON.parse(localStorage.getItem("svc-cal-"+key)||"[]"); }catch{ slots=[]; } render(); }
+
+function render(){
+  const box=$("#list"); box.innerHTML="";
+  if(!slots.length){ box.innerHTML=`<div class="slot muted">Ni terminov.</div>`; return; }
+  slots.sort((a,b)=> new Date(a.start) - new Date(b.start));
+  slots.forEach((s,i)=>{
+    const a=new Date(s.start); const b=s.end?new Date(s.end):null;
+    const D=new Intl.DateTimeFormat("sl-SI",{day:"2-digit",month:"2-digit",year:"numeric"}).format(a);
+    const T=new Intl.DateTimeFormat("sl-SI",{hour:"2-digit",minute:"2-digit"}).format(a);
+    const Te=b?new Intl.DateTimeFormat("sl-SI",{hour:"2-digit",minute:"2-digit"}).format(b):"";
+    const row=document.createElement("div"); row.className="slot";
+    row.innerHTML=`<div><b>${D}</b> ${T}${Te?("–"+Te):""} &nbsp; <span class="muted">kvota: ${s.quota||1}</span></div>
+                   <div style="display:flex;gap:8px">
+                     <button class="btn link" data-edit="${i}">Uredi</button>
+                     <button class="btn link" data-del="${i}">Odstrani</button>
+                   </div>`;
+    box.appendChild(row);
+  });
+}
+
+function addSlot(start,end,quota){ slots.push({start,end,quota}); saveLocal(); render(); }
+
+function gen(){
+  const from=byId("from").value, to=byId("to").value;
+  const dur=+(byId("dur").value||60), q=+(byId("quota").value||1);
+  const dS=byId("dayStart").value||"09:00", dE=byId("dayEnd").value||"17:00";
+  if(!from || !to){ byId("msg").textContent="Nastavi od/do."; return; }
+  const selected=new Set([...document.querySelectorAll("#days .chip.active")].map(b=>+b.dataset.dow));
+  if(!selected.size){ byId("msg").textContent="Izberi dneve v tednu."; return; }
+  byId("msg").textContent="";
+  const d0=new Date(from), d1=new Date(to);
+  for(let d=new Date(d0); d<=d1; d.setDate(d.getDate()+1)){
+    if(!selected.has(d.getDay())) continue;
+    const [sh,sm]=dS.split(":").map(Number), [eh,em]=dE.split(":").map(Number);
+    const start=new Date(d.getFullYear(), d.getMonth(), d.getDate(), sh, sm);
+    const endDay=new Date(d.getFullYear(), d.getMonth(), d.getDate(), eh, em);
+    for(let t=new Date(start); t<endDay; t=new Date(t.getTime()+dur*60000)){
+      const t2=new Date(t.getTime()+dur*60000);
+      addSlot(toLocalDT(t), toLocalDT(t2), q);
+    }
+  }
+}
+
+document.querySelectorAll("#days .chip").forEach(b=>{
+  b.addEventListener("click",()=> b.classList.toggle("active"));
+});
+
+$("#gen").addEventListener("click", gen);
+$("#clearAll").addEventListener("click", ()=>{ slots=[]; saveLocal(); render(); });
+$("#addOne").addEventListener("click", ()=>{
+  const now=new Date(); const end=new Date(now.getTime()+60*60000);
+  addSlot(toLocalDT(now), toLocalDT(end), 1);
+});
+
+$("#list").addEventListener("click",(e)=>{
+  const i= e.target.getAttribute("data-del");
+  if(i!==null){ slots.splice(+i,1); saveLocal(); render(); return; }
+  const j= e.target.getAttribute("data-edit");
+  if(j!==null){
+    const s=slots[+j];
+    const ns=prompt("Začetek (YYYY-MM-DDTHH:MM):", s.start)||s.start;
+    const ne=prompt("Konec (YYYY-MM-DDTHH:MM) – opcijsko:", s.end||"")||s.end;
+    const nq=+(prompt("Kvota (mesta):", s.quota||1)||s.quota||1);
+    slots[+j]={start:ns,end:ne,quota:nq}; saveLocal(); render();
+  }
+});
+
+function icsExport(){
+  const dt=(x)=>new Date(x).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
+  let ics=`BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//NearGo//sl
+`;
+  slots.forEach(s=>{
+    ics+=`BEGIN:VEVENT
+DTSTART:${dt(s.start)}
+${s.end?`DTEND:${dt(s.end)}\n`:''}SUMMARY:Termin NearGo
+END:VEVENT
+`;
+  });
+  ics+=`END:VCALENDAR`;
+  const blob=new Blob([ics.replace(/\n/g,"\r\n")],{type:"text/calendar"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="neargo-termini.ics"; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),0);
+}
+$("#exportIcs").addEventListener("click", icsExport);
+
+$("#saveClose").addEventListener("click", ()=>{
+  saveLocal();
+  try{
+    if(window.opener){
+      window.opener.postMessage({type:"svc-calendar-save", key, slots}, location.origin);
+    }
+  }catch{}
+  byId("msg").textContent="Shranjeno. Okno se lahko zapre.";
+  setTimeout(()=>window.close(), 400);
+});
+
+loadLocal();
+</script>
+</body>
+</html>

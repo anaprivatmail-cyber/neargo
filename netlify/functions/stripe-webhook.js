@@ -79,6 +79,83 @@ async function nextInvoiceNo() {
   return { seq: `${year}-${String(data).padStart(6,"0")}`, year };
 }
 
+// ——— DODANO: potrditev rezervacije termina ————————————————
+/**
+ * @param {string|null} holdId  ID vrstice v slot_holds (če obstaja).
+ * @param {string|null} eventId ID dogodka/storitve (za varnostne poizvedbe).
+ * @param {string|null} slotStart ISO začetka termina (fallback, če holda ni).
+ * @param {string|null} slotEnd   ISO konca termina (opcijsko).
+ */
+async function confirmSlotReservation({ holdId, eventId, slotStart, slotEnd }) {
+  try {
+    // 1) Če imamo hold, poskusimo atomarno preko RPC; sicer fallback.
+    if (holdId) {
+      // Najprej poskusi RPC, če obstaja
+      try {
+        const { error: rpcErr } = await supa.rpc("confirm_slot_reservation", { p_hold_id: holdId });
+        if (!rpcErr) return true; // uspeh
+      } catch (_) { /* pade na fallback */ }
+
+      // Fallback: preberi hold + slot, preveri status in kapaciteto, nato potrdi.
+      const { data: hold, error: eH } = await supa
+        .from("slot_holds").select("id, slot_id, qty, status").eq("id", holdId).single();
+      if (eH || !hold || hold.status !== "held") return false;
+
+      const { data: slot, error: eS } = await supa
+        .from("service_slots").select("id, capacity, reserved").eq("id", hold.slot_id).single();
+      if (eS || !slot) return false;
+
+      const free = (slot.capacity||0) - (slot.reserved||0);
+      if (free < (hold.qty||1)) return false;
+
+      // posodobi rezerviranost (ni 100% atomsko brez RPC, a varno v večini primerov)
+      const newReserved = (slot.reserved||0) + (hold.qty||1);
+      const { error: upd1 } = await supa
+        .from("service_slots").update({ reserved: newReserved }).eq("id", hold.slot_id);
+      if (upd1) return false;
+
+      const { error: upd2 } = await supa
+        .from("slot_holds").update({ status: "confirmed" }).eq("id", hold.id).eq("status","held");
+      if (upd2) {
+        // poskusi razveljaviti rezervacijo, če potrditev falla
+        await supa.from("service_slots").update({ reserved: slot.reserved }).eq("id", hold.slot_id);
+        return false;
+      }
+      return true;
+    }
+
+    // 2) Če holda ni, a dobimo slot_start, poskusi najti slot in rezervirati 1 mesto (kupon).
+    if (slotStart && eventId) {
+      const { data: candidate, error: findErr } = await supa
+        .from("service_slots")
+        .select("id, capacity, reserved")
+        .eq("event_id", eventId)
+        .eq("start_ts", slotStart)
+        .maybeSingle();
+      if (findErr || !candidate) return false;
+
+      // RPC za inkrement rezerviranosti, če obstaja
+      try {
+        const { error: rpcInc } = await supa.rpc("inc_slot_reserved", { p_slot_id: candidate.id, p_qty: 1 });
+        if (!rpcInc) return true;
+      } catch (_) { /* fallback */ }
+
+      const free = (candidate.capacity||0) - (candidate.reserved||0);
+      if (free < 1) return false;
+
+      const { error: upd } = await supa
+        .from("service_slots").update({ reserved: (candidate.reserved||0)+1 }).eq("id", candidate.id);
+      if (upd) return false;
+      return true;
+    }
+
+    return true; // nič za potrdit – npr. vstopnica
+  } catch (e) {
+    console.error("[webhook] confirmSlotReservation error:", e?.message || e);
+    return false;
+  }
+}
+
 // ——— PDF ——————————————————————————————————————————————————————————————
 async function createInvoicePdf({ seqNo, buyer, totalGross, base, tax, paidAt, sessionId, type }) {
   const pdf = await PDFDocument.create();
@@ -182,8 +259,14 @@ export const handler = async (event) => {
     const freebieText    = md.freebie_text  || null;
     const imageUrl       = md.image_url     || null;
     const venueText      = (md.event_venue || "").toString();
-    const startIso       = (md.event_start_iso || "").toString();
+    // DODANO: če je storitev, prevzemi tudi metadata.slot_start
+    const startIso       = (md.event_start_iso || md.slot_start || "").toString();
     const customerEmail  = (s.customer_details && s.customer_details.email) || s.customer_email || null;
+
+    // DODANO: identifikatorji termina
+    const holdId   = md.hold_id || md.holdId || null;
+    const slotStart= md.slot_start || null;
+    const slotEnd  = md.slot_end || null;
 
     const token     = (crypto.randomUUID && crypto.randomUUID()) || crypto.randomBytes(16).toString("hex");
     const redeemUrl = `${PUBLIC_BASE_URL}/r/${token}`; // ostane za QR in PDF, ni linka v mailu
@@ -217,6 +300,9 @@ export const handler = async (event) => {
       console.error("[webhook] insert tickets error:", insErr);
       return { statusCode:200, headers:cors(), body: JSON.stringify({ received:true, db:"error" }) };
     }
+
+    // ——— DODANO: potrditev rezervacije termina ———
+    await confirmSlotReservation({ holdId, eventId, slotStart, slotEnd });
 
     const totalGross = Number(type === "coupon" ? 200 : (s.amount_total || 0));
     const base = Math.round(totalGross / (1 + TAX_RATE/100));
@@ -270,7 +356,7 @@ export const handler = async (event) => {
       pdf_url: pdfUrl
     });
 
-    // ——— EMAIL (profil: bel header + črn napis + tarča) ———
+    // ——— EMAIL (bel header + črn napis + tarča) ———
     if (process.env.BREVO_API_KEY && customerEmail) {
       const logoTargetSvg = `
         <svg width="36" height="36" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
@@ -282,24 +368,18 @@ export const handler = async (event) => {
       const whenText  = startIso ? new Date(startIso).toLocaleString() : "";
       const imgInMail = imageUrl || null;
 
-      // LABEL za znesek: za kupon -> "Cena kupona", sicer "Skupaj"
       const priceLabel = (type === 'coupon') ? 'Cena kupona' : 'Skupaj';
-      // LABEL za prikaz ugodnosti kupona
       const benefitLabel = (type === 'coupon') ? 'Vrednost kupona' : 'Vstopnica';
 
       const html = `
         <div style="font-family:Arial,Helvetica,sans-serif;background:#f6fbfe;padding:0;margin:0">
           <div style="max-width:680px;margin:0 auto;border:1px solid #e3eef7;border-radius:14px;overflow:hidden;background:#fff">
-
-            <!-- Bel header, črn napis + tarča -->
             <div style="padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #e3eef7;background:#fff">
               <div>${logoTargetSvg}</div>
               <div style="font-weight:900;font-size:20px;letter-spacing:.2px;color:#0b1b2b">NearGo</div>
             </div>
-
             <div style="padding:20px 22px;color:#0b1b2b">
               <h2 style="margin:0 0 12px 0;font-size:20px;line-height:1.35">${escapeHtml(mailIntro)}</h2>
-
               ${(venueText || whenText) ? `
                 <div style="border:1px solid #e3eef7;border-radius:12px;padding:12px 14px;margin:10px 0;background:#f9fcff">
                   ${ venueText ? `<div style="margin:2px 0"><b>Lokacija:</b> ${escapeHtml(venueText)}</div>` : '' }
@@ -321,7 +401,7 @@ export const handler = async (event) => {
               </div>
 
               <p style="margin:12px 0">
-                ${type==="coupon" ? "QR koda kupona" : "QR koda vstopnice"} je priložena (<i>qr.png</i>), račun pa kot PDF (<i>Racun-${seq}.pdf</i>).
+                ${type==="coupon" ? "QR koda kupona" : "QR koda vstopnice"} je priložena (<i>qr.png</i>), račun pa kot PDF (<i>Racun-${escapeHtml(seq)}</i>).
                 <br><b>Vstopnica/kupon je shranjena tudi v razdelku “Moje” v aplikaciji NearGo.</b>
                 <br><span style="opacity:.8">Št. kode:</span> <code style="font-weight:700">${escapeHtml(token)}</code>
               </p>

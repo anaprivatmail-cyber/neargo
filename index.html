@@ -335,7 +335,7 @@
       <div class="nav-row row2">
         <button class="mode active" data-mode="events">Dogodki</button>
         <button class="mode" data-mode="services">Storitve</button>
-        <a class="pill" id="btnPremiumTop" href="#premiumPanel">Premium</a>
+        <a class="pill" id="btnPremiumTop" href="/premium.html">Premium</a>
         <a class="pill" id="btnMine" href="/my.html" title="Moje vstopnice & kuponi">Moje <span id="pointsBadge" class="badge" style="margin-left:6px;display:none">0</span></a>
       </div>
     </div>
@@ -643,25 +643,7 @@
       </div>
     </section>
 
-    <!-- PREMIUM -->
-    <section class="card panel" id="premiumPanel" style="display:none">
-      <div class="title" style="display:flex;justify-content:space-between;align-items:center">
-        <span>Premium</span>
-        <button class="btn mini link" id="btnClosePremium">Zapri</button>
-      </div>
-      <div class="row">
-        <p><b>Premium = 5 € / mesec</b></p>
-        <ul style="margin:0 0 0 18px; color:var(--muted); line-height:1.6">
-          <li><b>Brezplačni kuponi</b> (izdaja 0 € namesto 2 €).</li>
-          <li><b>Prednostna obvestila</b> o novih ponudbah v bližini.</li>
-          <li><b>Ekskluzivne akcije</b> in “happy hour” termini storitev.</li>
-        </ul>
-        <div style="margin-top:8px">
-          <button class="btn" id="btnGoPremium">Naroči Premium</button>
-          <span class="muted" id="premMsg" style="margin-left:10px"></span>
-        </div>
-      </div>
-    </section>
+    <!-- PREMIUM section moved to /premium.html -->
 
     <!-- Zakaj NearGo (uporabniki) -->
     <section class="card" id="benefitsUser">
@@ -876,7 +858,7 @@ function scrollToEl(node){
   window.scrollTo({top:y, behavior:"smooth"});
 }
 function showPanel(id){
-  var ids=["mapPanel","orgPanel","providerTermsPanel","orgHub","premiumPanel","benefitsOrg"];
+  var ids=["mapPanel","orgPanel","providerTermsPanel","orgHub","benefitsOrg"];
   for(var i=0;i<ids.length;i++){ var n=$("#"+ids[i]); if(n){ n.classList.remove("show"); n.style.display="none"; } }
   if(id==="orgHub" || id==="orgPanel"){ var bu=$("#benefitsUser"), bo=$("#benefitsOrg"); if(bu) bu.style.display="none"; if(bo) bo.style.display="block"; }
   else { var bu2=$("#benefitsUser"), bo2=$("#benefitsOrg"); if(bu2) bu2.style.display="block"; if(bo2) bo2.style.display="none"; }
@@ -885,8 +867,8 @@ function showPanel(id){
 var btnStart=$("#btnStart"); if(btnStart) btnStart.addEventListener("click",function(){ scrollToEl($("#searchPanel")); });
 // btnOrganizersTop sedaj kaže na /organizers.html - ne potrebuje JavaScript
 var hubPublish=$("#hubPublish"); if(hubPublish) hubPublish.addEventListener("click",function(){ showPanel('orgPanel'); });
-var btnPrem=$("#btnPremiumTop"); if(btnPrem) btnPrem.addEventListener("click",function(ev){ ev.preventDefault(); showPanel('premiumPanel'); });
-var btnPremClose=$("#btnClosePremium"); if(btnPremClose) btnPremClose.addEventListener("click",function(){ scrollToEl($("#hero")); });
+// Premium button now links to /premium.html directly
+// Premium close button removed - now on separate page
 var btnCloseMap=$("#btnCloseMap"); if(btnCloseMap) btnCloseMap.addEventListener("click",function(){ scrollToEl($("#searchPanel")); });
 
 /* Lokacijski gumbi (aktivni) */
@@ -1816,17 +1798,7 @@ function detectCategory(e){
 })();
 
 /* ====== PREMIUM / IAP ====== */
-var btnGoPremium=$("#btnGoPremium"); if(btnGoPremium) btnGoPremium.addEventListener("click", function(){
-  var m=$("#premMsg"); if(m) m.textContent="Povezujem plačilo…";
-  fetch("/api/iap/start",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify({plan:"premium5"})})
-    .then(function(x){return x.json();})
-    .then(function(r){
-      if(r && r.ok && r.url){ location.href=r.url; }
-      else if(r && r.fallback==='stripe' && r.url){ location.href=r.url; }
-      else { if(m) m.textContent="Plačilo ni uspelo."; }
-    })
-    .catch(function(){ if(m) m.textContent="Napaka pri plačilu."; });
-});
+// Premium functionality moved to /premium.html
 var hubBoost=$("#hubBoost"); if(hubBoost) hubBoost.addEventListener("click", function(){
   fetch("/api/iap/boost-start",{method:"POST"})
     .then(function(x){return x.json();})

@@ -1870,7 +1870,7 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
 
   <!-- Lebdeči gumb za Neo (FAB, spodaj desno, samostojna ikona) -->
   <button id="neaFab" class="nea-fab" title="Pogovor z Nea" style="display:none;">
-    <img src="assets/nea-avatar.svg" alt="Nea" />
+  <img src="assets/nea-avatar.svg" alt="Nea" />
   </button>
   <script src="assets/app-logic.js"></script>
 
@@ -1890,24 +1890,22 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
   <script>
     // Prikaz/skrivanje modala Nea
     (function(){
-      var btn = document.getElementById('neaBtn');
+      var fab = document.getElementById('neaFab');
       var modal = document.getElementById('neaModal');
       var close = document.getElementById('neaClose');
-      if(btn && modal) btn.addEventListener('click', function(){ modal.style.display = 'block'; });
+      if(fab && modal) fab.addEventListener('click', function(){ modal.style.display = 'block'; fab.classList.remove('nea-fab-pulse'); });
       if(close && modal) close.addEventListener('click', function(){ modal.style.display = 'none'; });
       // Zapri modal na Escape
       document.addEventListener('keydown', function(e){ if(e.key==='Escape' && modal && modal.style.display==='block'){ modal.style.display='none'; } });
-    })();
-  </script>
-  <script>
-    (function(){
-      var btn = document.getElementById('btnThemeToggle');
-      var icon = document.getElementById('themeIcon');
-      function applyTheme(mode) {
-        document.body.classList.toggle('dark', mode === 'dark');
-        try { localStorage.setItem('theme', mode); } catch {}
-        if (icon) icon.textContent = mode === 'dark' ? '☀️' : '🌙';
+      // FAB je vedno viden, pulse animacija ob odprtju in vsakih 30s
+      function pulseFab(){
+        if(modal && modal.style.display==='block') return;
+        fab.classList.add('nea-fab-pulse');
+        setTimeout(function(){ fab.classList.remove('nea-fab-pulse'); }, 1200);
       }
+      fab.style.display = 'flex';
+      setTimeout(pulseFab, 900); // Prvi pulse po nalaganju
+      setInterval(pulseFab, 30000);
       // Init
       var mode = (function(){ try { return localStorage.getItem('theme') || 'light'; } catch { return 'light'; } })();
       applyTheme(mode);

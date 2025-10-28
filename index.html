@@ -325,11 +325,7 @@
             <span id="themeIcon" aria-label="Preklopi temo" style="font-size:20px;">🌙</span>
           </button>
           <!-- AI asistentka Nea: lebdeč avatar gumb -->
-          <!-- Nea avatar gumb je zdaj lebdeč, spodaj desno -->
-  <!-- Lebdeči gumb za Neo (spodaj desno, samostojna ikona) -->
-  <button id="neaFab" class="nea-fab" title="Pogovor z Nea">
-    <img src="assets/nea-avatar.svg" alt="Nea" />
-  </button>
+          <!-- Nea avatar gumb je odstranjen iz headerja -->
           <div class="pill lang" id="langWrap">
             <span class="label"><span id="langLabel">SL</span><span class="chev">▼</span></span>
             <select id="lang" aria-label="Jezik"></select>
@@ -1871,6 +1867,11 @@ var showPT=$("#showProviderTerms"); if(showPT) showPT.addEventListener("click",f
 var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("click",function(){ scrollToEl($("#orgPanel")); });
 
   </script>
+
+  <!-- Lebdeči gumb za Neo (FAB, spodaj desno, samostojna ikona) -->
+  <button id="neaFab" class="nea-fab" title="Pogovor z Nea" style="display:none;">
+    <img src="assets/nea-avatar.svg" alt="Nea" />
+  </button>
   <script src="assets/app-logic.js"></script>
 
   <!-- Modal za pogovor z Nea -->

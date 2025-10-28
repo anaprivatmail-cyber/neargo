@@ -6,8 +6,20 @@
 	<link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
-	<h1>Premium funkcionalnosti</h1>
-	<section id="earlyNotifySection">
+	<div class="card" style="max-width:500px;margin:32px auto 24px auto;padding:32px 24px;text-align:center;box-shadow:0 8px 32px rgba(11,187,214,.08);border-radius:18px;">
+		<h1 style="font-size:2em;margin-bottom:10px;">Premium NearGo</h1>
+		<p style="font-size:1.1em;margin-bottom:18px;">Nadgradite na Premium in pridobite:
+			<ul style="text-align:left;max-width:340px;margin:0 auto 18px auto;">
+				<li>Predčasna obvestila o novih dogodkih in storitvah</li>
+				<li>Ekskluzivne ponudbe in popuste</li>
+				<li>Napredne filtre in iskanje</li>
+				<li>Brez oglasov</li>
+			</ul>
+		</p>
+		<button id="btnUpgradePremium" style="background:linear-gradient(90deg,#0bbbd6,#11a67a);color:#fff;font-weight:900;font-size:1.2em;padding:14px 38px;border:none;border-radius:999px;box-shadow:0 2px 12px rgba(11,187,214,.12);cursor:pointer;transition:background .2s;">Nadgradi na Premium</button>
+	</div>
+
+	<section id="earlyNotifySection" style="max-width:500px;margin:0 auto 24px auto;">
 		<h2>Predčasna obvestila</h2>
 		<p>Izberite kategorije ali tipe ponudb, za katere želite prejemati predčasna obvestila:</p>
 		<form id="earlyNotifyForm">
@@ -16,7 +28,9 @@
 			<label><input type="checkbox" name="category" value="sport"> Šport</label><br>
 			<label><input type="checkbox" name="category" value="dogodki"> Dogodki</label><br>
 			<label><input type="checkbox" name="category" value="storitve"> Storitve</label><br>
-			<button type="submit">Shrani nastavitve</button>
+			<label style="margin-top:10px;display:block;">Lokacija (kraj): <input type="text" name="location" id="earlyNotifyLocation" placeholder="npr. Ljubljana"></label>
+			<label style="margin-top:6px;display:block;">Radij (km): <input type="number" name="radius" id="earlyNotifyRadius" min="1" max="400" value="30" style="width:80px;"></label>
+			<button type="submit" style="margin-top:14px;">Shrani nastavitve</button>
 		</form>
 		<div id="earlyNotifyConfirmation" style="display:none; color:green; margin-top:10px;"></div>
 	</section>

@@ -29,21 +29,31 @@ document.addEventListener("DOMContentLoaded", function() {
       e.preventDefault();
       const checked = Array.from(form.querySelectorAll("input[type=checkbox]:checked"))
         .map(cb => cb.value);
-      localStorage.setItem("ng_early_notify_categories", JSON.stringify(checked));
+      const location = document.getElementById("earlyNotifyLocation")?.value?.trim() || "";
+      const radius = Number(document.getElementById("earlyNotifyRadius")?.value || 30);
+      localStorage.setItem("ng_early_notify_categories", JSON.stringify({categories: checked, location, radius}));
       if (confirmation) {
-        confirmation.textContent = "Predčasna obvestila so vključena za izbrane kategorije.";
+        confirmation.textContent = "Predčasna obvestila so vključena za izbrane kategorije in lokacijo.";
         confirmation.style.display = "block";
         setTimeout(() => { confirmation.style.display = "none"; }, 4000);
       }
     });
-    // Ob nalaganju strani označi že izbrane kategorije
+    // Ob nalaganju strani označi že izbrane kategorije, lokacijo in radij
     const saved = localStorage.getItem("ng_early_notify_categories");
     if (saved) {
       try {
-        const arr = JSON.parse(saved);
-        form.querySelectorAll("input[type=checkbox]").forEach(cb => {
-          cb.checked = arr.includes(cb.value);
-        });
+        const obj = JSON.parse(saved);
+        if (obj.categories) {
+          form.querySelectorAll("input[type=checkbox]").forEach(cb => {
+            cb.checked = obj.categories.includes(cb.value);
+          });
+        }
+        if (obj.location) {
+          document.getElementById("earlyNotifyLocation").value = obj.location;
+        }
+        if (obj.radius) {
+          document.getElementById("earlyNotifyRadius").value = obj.radius;
+        }
       } catch {}
     }
   }

@@ -28,9 +28,10 @@
     <div class="card">
       <h1>Moje vstopnice & kuponi</h1>
       <div class="row">
-        <input id="email" placeholder="vnesi e-pošto (za dostavo vstopnic)">
-        <button id="save">Shrani</button>
-        <button id="load" class="btn" style="border:0">Naloži</button>
+  <input id="email" placeholder="vnesi e-pošto (za dostavo vstopnic)">
+  <button id="save">Shrani</button>
+  <button id="load" class="btn" style="border:0">Naloži</button>
+  <button id="editEarlyNotify" class="btn" style="background:#11a67a;color:#fff;border:0;">Uredi predhodna obvestila</button>
       </div>
       <div id="msg" class="muted" style="margin-top:8px"></div>
       <div id="list" class="grid" style="margin-top:12px"></div>
@@ -53,11 +54,28 @@
 
     $("#load").onclick = load;
 
+    // Omejitev urejanja predhodnih obvestil na 5x na mesec
+    $("#editEarlyNotify").onclick = ()=>{
+      const em = emailInput.value.trim();
+      if(!em){ msg.textContent = "Vnesi e-pošto za urejanje obvestil."; return; }
+      let edits = JSON.parse(localStorage.getItem("ng_early_notify_edits") || "{}");
+      const month = new Date().getMonth();
+      if (!edits[em] || edits[em].month !== month) {
+        edits[em] = { month, count: 0 };
+      }
+      if (edits[em].count >= 5) {
+        msg.textContent = "Obvestila lahko spreminjate največ 5x na mesec.";
+        return;
+      }
+      edits[em].count++;
+      localStorage.setItem("ng_early_notify_edits", JSON.stringify(edits));
+      window.location.href = "/premium.html#earlyNotifySection";
+    };
+
     async function load(){
       list.innerHTML = ""; msg.textContent = "";
       const em = emailInput.value.trim();
       if(!em){ msg.textContent = "Vnesi e-pošto in klikni Naloži."; return; }
-
       // Klic funkcije – varianta z email query.
       let url = `/.netlify/functions/my?email=${encodeURIComponent(em)}`;
 

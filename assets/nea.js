@@ -147,7 +147,7 @@ function render(){
     };
     let suggestion = suggestions[userType][Math.floor(Math.random()*suggestions[userType].length)];
     root.innerHTML = `
-      <button class="nea-fab" aria-label="${t('nea')} – ${t('help')}" tabindex="0" type="button" style="background:${BRAND_COLOR}"><span aria-hidden="true">👩‍🦰👋</span></button>
+      <button class="nea-fab" aria-label="${t('nea')} – ${t('help')}" tabindex="0" type="button" style="background:${BRAND_COLOR}"><span aria-hidden="true">🧑‍💻</span></button>
       <aside class="nea-panel" aria-hidden="true" role="dialog" aria-modal="true" aria-label="${t('nea')}" tabindex="-1">
         <header><span>${t('nea')} – AI asistentka</span><button class="nea-close" aria-label="${t('close')}" tabindex="0" type="button">✖</button></header>
         <section class="nea-messages" role="log" aria-live="polite"></section>

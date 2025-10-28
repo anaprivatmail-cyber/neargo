@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-	<title>NearGo – najdi dogodke in storitve blizu</title>
-  <link rel="stylesheet" href="assets/css/styles.css">
+  <title>NearGo – najdi dogodke in storitve blizu</title>
 
   <!-- PWA -->
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -352,6 +351,10 @@
       <p id="heroLead">Vtipkaj, izberi kraj ali radij in dobiš dogodke v izbrani okolici — kupi vstopnico ali kupon, dodaj v koledar, povabi prijatelje.</p>
       <div class="chips">
         <button class="btn" id="btnStart">Začni z iskanjem</button>
+      </div>
+      <div id="earlyNotifyPromo" style="margin-top:10px;display:flex;align-items:center;gap:8px;font-weight:700;color:#0bbbd6;">
+        <span style="font-size:20px;">🔔</span>
+        <span>Vklopite predčasna obvestila za Premium!</span>
       </div>
     </section>
 
@@ -1865,6 +1868,4 @@ var showPT=$("#showProviderTerms"); if(showPT) showPT.addEventListener("click",f
 var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("click",function(){ scrollToEl($("#orgPanel")); });
 
   </script>
-	<script src="assets/app-logic.js"></script>
-  <div id="nea-root"></div>
-  <script src="assets/nea.js"></script>
+  <script src="assets/app-logic.js"></script>

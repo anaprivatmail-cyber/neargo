@@ -1,3 +1,24 @@
+// ===== Hero sekcija: štetje odprtij in skrivanje =====
+document.addEventListener("DOMContentLoaded", function() {
+  const hero = document.getElementById("hero");
+  const btnPremium = document.getElementById("btnPremiumTop");
+  // Števec odprtij aplikacije
+  let openCount = Number(localStorage.getItem("ng_app_open_count") || 0) + 1;
+  localStorage.setItem("ng_app_open_count", openCount);
+  if (hero) {
+    // Skrij hero sekcijo, če je uporabnik odprl app vsaj 5x
+    if (openCount >= 5) {
+      hero.style.display = "none";
+    } else {
+      // Skrij po 5 sekundah
+      setTimeout(() => { hero.style.display = "none"; }, 5000);
+    }
+    // Skrij takoj ob kliku na Premium
+    if (btnPremium) {
+      btnPremium.addEventListener("click", () => { hero.style.display = "none"; });
+    }
+  }
+});
 // ===== Predčasna obvestila za Premium uporabnike =====
 document.addEventListener("DOMContentLoaded", function() {
   const form = document.getElementById("earlyNotifyForm");

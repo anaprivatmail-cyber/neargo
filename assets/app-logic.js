@@ -1,70 +1,64 @@
 // assets/app-logic.js
-(function(){
-  "use strict";
 
-  /* ===== UTIL ===== */
-  function $(s){ return document.querySelector(s); }
-  function el(t,c){ var x=document.createElement(t); if(c) x.className=c; return x; }
-  function qs(o){ return new URLSearchParams(o).toString(); }
-  function euro(v){ return isFinite(+v)?new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR'}).format(+v):''; }
-  function debounce(fn,ms){ var t; return function(){ var a=arguments; clearTimeout(t); t=setTimeout(function(){ fn.apply(null,a); }, ms||350); }; }
-  function isExternalAPI(e){ var u=(e && e.url ? e.url : "").toLowerCase(); return u.indexOf("ticketmaster")>-1 || u.indexOf("eventbrite")>-1; }
+// ===== UTIL =====
+function $(s){ return document.querySelector(s); }
+function el(t,c){ var x=document.createElement(t); if(c) x.className=c; return x; }
+function qs(o){ return new URLSearchParams(o).toString(); }
+function euro(v){ return isFinite(+v)?new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR'}).format(+v):''; }
+function debounce(fn,ms){ var t; return function(){ var a=arguments; clearTimeout(t); t=setTimeout(function(){ fn.apply(null,a); }, ms||350); }; }
+function isExternalAPI(e){ var u=(e && e.url ? e.url : "").toLowerCase(); return u.indexOf("ticketmaster")>-1 || u.indexOf("eventbrite")>-1; }
 
-  // Stabilen ID za kartico
-  const hashId = e => {
-    if(e.id) return `ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}`;
-    const n=(e.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,40);
-    const t=(e.start||'').replace(/[^0-9]/g,'').slice(0,14);
-    return `ev-${n}-${t}`;
-  };
+// Stabilen ID za kartico
+const hashId = e => {
+  if(e.id) return `ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}`;
+  const n=(e.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,40);
+  const t=(e.start||'').replace(/[^0-9]/g,'').slice(0,14);
+  return `ev-${n}-${t}`;
+};
 
-  /* ===== STATE ===== */
-  let GEO=null, currentPage=0, quickMode="";
-  let mapSearch=null, markersSearch=[];
-  let topMap=null, topMarkers=[];
+// ===== STATE =====
+let GEO=null, currentPage=0, quickMode="";
+let mapSearch=null, markersSearch=[];
+let topMap=null, topMarkers=[];
 
-  /* ===== Datumi ===== */
-  function formatDateRange(start,end){
-    if(!start) return "";
-    const s=new Date(start); if(Number.isNaN(s.getTime())) return "";
-    const dFmt=new Intl.DateTimeFormat("sl-SI",{day:"2-digit",month:"2-digit",year:"numeric"});
-    const tFmt=new Intl.DateTimeFormat("sl-SI",{hour:"2-digit",minute:"2-digit"});
-    if(end){
-      const e=new Date(end); if(!Number.isNaN(e.getTime())){
-        const same=s.toDateString()===e.toDateString();
-        return same?`${dFmt.format(s)} ${tFmt.format(s)}–${tFmt.format(e)}`:`${dFmt.format(s)} ${tFmt.format(s)} — ${dFmt.format(e)} ${tFmt.format(e)}`;
-      }
+// ===== Datumi =====
+function formatDateRange(start,end){
+  if(!start) return "";
+  const s=new Date(start); if(Number.isNaN(s.getTime())) return "";
+  const dFmt=new Intl.DateTimeFormat("sl-SI",{day:"2-digit",month:"2-digit",year:"numeric"});
+  const tFmt=new Intl.DateTimeFormat("sl-SI",{hour:"2-digit",minute:"2-digit"});
+  if(end){
+    const e=new Date(end); if(!Number.isNaN(e.getTime())){
+      const same=s.toDateString()===e.toDateString();
+      return same?`${dFmt.format(s)} ${tFmt.format(s)}–${tFmt.format(e)}`:`${dFmt.format(s)} ${tFmt.format(s)} — ${dFmt.format(e)} ${tFmt.format(e)}`;
     }
-    return `${dFmt.format(s)} ${tFmt.format(s)}`;
   }
+  return `${dFmt.format(s)} ${tFmt.format(s)}`;
+}
 
-  /* ===== Tema ===== */
-  function initThemeToggle() {
-    const btn = $("#btnThemeToggle"), icon = btn ? btn.querySelector('#themeIcon') : null;
-    function apply(mode) {
-      document.body.classList.toggle('dark', mode === 'dark');
-      try { localStorage.setItem('theme', mode); } catch {}
-      if (icon) icon.textContent = mode === 'dark' ? '☀️' : '🌙';
-    }
-    apply(localStorage.getItem('theme') || 'light');
-    if (btn) btn.addEventListener('click', function() {
-      apply(document.body.classList.contains('dark') ? 'light' : 'dark');
-    }, { passive: true });
+// ===== DOMContentLoaded: VSA inicializacija =====
+document.addEventListener('DOMContentLoaded', function() {
+  // Tema (noč/dan)
+  const btn = $("#btnThemeToggle"), icon = btn ? btn.querySelector('#themeIcon') : null;
+  function applyTheme(mode) {
+    document.body.classList.toggle('dark', mode === 'dark');
+    try { localStorage.setItem('theme', mode); } catch {}
+    if (icon) icon.textContent = mode === 'dark' ? '☀️' : '🌙';
   }
+  applyTheme(localStorage.getItem('theme') || 'light');
+  if (btn) btn.addEventListener('click', function() {
+    applyTheme(document.body.classList.contains('dark') ? 'light' : 'dark');
+  }, { passive: true });
 
-  document.addEventListener('DOMContentLoaded', function() {
-    initThemeToggle();
-    // ...obstoječa inicializacija ostane nespremenjena...
-  }, { once: true });
+  // ...obstoječa inicializacija (paneli, toast, iskanje, mape, itd.)...
 
-  /* ===== Toast ===== */
-  (function(){
-    const t=$("#toast");
-    const show=(msg,ok=true)=>{ if(!t) return; t.textContent=msg; t.className="toast "+(ok?"ok":"bad"); t.style.display="flex"; setTimeout(()=>t.style.display="none",4000); };
-    if(location.hash==="#success"){ show("Plačilo uspešno ✅", true); history.replaceState(null,"",location.pathname+location.search); }
-    if(location.hash==="#cancel"){  show("Plačilo preklicano ❌", false); history.replaceState(null,"",location.pathname+location.search); }
-    window._toast=show;
-  })();
+
+  // ===== Toast =====
+  const tToast = $("#toast");
+  const showToast = (msg, ok = true) => { if (!tToast) return; tToast.textContent = msg; tToast.className = "toast " + (ok ? "ok" : "bad"); tToast.style.display = "flex"; setTimeout(() => tToast.style.display = "none", 4000); };
+  if (location.hash === "#success") { showToast("Plačilo uspešno ✅", true); history.replaceState(null, "", location.pathname + location.search); }
+  if (location.hash === "#cancel") { showToast("Plačilo preklicano ❌", false); history.replaceState(null, "", location.pathname + location.search); }
+  window._toast = showToast;
 
   /* ===== Paneli ===== */
   function showPanel(id){
@@ -164,12 +158,9 @@
   }
 
   /* ====== Init featured ====== */
-  document.addEventListener('DOMContentLoaded', ()=>{
-    navigator.geolocation.getCurrentPosition(
-      p=>{ GEO=`${p.coords.latitude},${p.coords.longitude}`; loadAllForTopMap(); },
-      ()=>{ loadAllForTopMap(); },
-      { enableHighAccuracy:true, timeout:8000 }
-    );
-  });
-
-})();
+  // ===== Ostala inicializacija =====
+  navigator.geolocation.getCurrentPosition(
+    p => { GEO = `${p.coords.latitude},${p.coords.longitude}`; loadAllForTopMap(); },
+    () => { loadAllForTopMap(); },
+    { enableHighAccuracy: true, timeout: 8000 }
+  );

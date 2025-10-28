@@ -1,3 +1,19 @@
+// ===== PREMIUM / PROVIDER PLAN CHECKS =====
+function checkPremiumAccess() {
+  if (typeof IS_PREMIUM !== 'undefined' && !IS_PREMIUM) {
+    window.location.href = '/premium.html';
+    return false;
+  }
+  return true;
+}
+function checkProviderPlan(requiredPlan) {
+  var plan = window.PROVIDER_PLAN || localStorage.getItem('ng_provider_plan') || 'free';
+  if (plan === 'free' && requiredPlan !== 'free') {
+    window.location.href = '/providers.html#plans';
+    return false;
+  }
+  return true;
+}
 // ===== Points badge (osveževanje) =====
 import { getUserPoints } from '../../providers/supabase-points.js';
 async function refreshPointsBadge() {
@@ -35,8 +51,11 @@ document.addEventListener("DOMContentLoaded", function() {
   const form = document.getElementById("earlyNotifyForm");
   const confirmation = document.getElementById("earlyNotifyConfirmation");
   if (form) {
-    // Ob submit shrani izbrane kategorije v localStorage
     form.addEventListener("submit", function(e) {
+      if (!checkPremiumAccess()) {
+        e.preventDefault();
+        return;
+      }
       e.preventDefault();
       const checked = Array.from(form.querySelectorAll("input[type=checkbox]:checked"))
         .map(cb => cb.value);
@@ -68,6 +87,27 @@ document.addEventListener("DOMContentLoaded", function() {
       } catch {}
     }
   }
+// ===== Analitika in Boost izpostavitev (Provider plan) =====
+document.addEventListener('DOMContentLoaded', function() {
+  var hubStats = document.getElementById('hubStats');
+  if (hubStats) {
+    hubStats.addEventListener('click', function(e) {
+      if (!checkProviderPlan('grow')) {
+        e.preventDefault();
+        return;
+      }
+    });
+  }
+  var hubBoost = document.getElementById('hubBoost');
+  if (hubBoost) {
+    hubBoost.addEventListener('click', function(e) {
+      if (!checkProviderPlan('grow')) {
+        e.preventDefault();
+        return;
+      }
+    });
+  }
+});
 });
 "use strict";
 

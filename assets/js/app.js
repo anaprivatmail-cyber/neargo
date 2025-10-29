@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
 "use strict";
 
 /* ===== Helpers ===== */
-// ===== Kategorije z ikonami =====
+/* ===== Kategorije z ikonami ===== */
 const CATEGORY_EMOJI = {
   'Dogodki': '🎫',
   'Koncerti': '🎵',
@@ -135,33 +135,86 @@ const CATEGORY_EMOJI = {
   'Ostalo storitve': '🌈'
 };
 
+// Mapping category slug (value used in selects, detectCategory, backend) -> emoji
+const SLUG_EMOJI = {
+  'koncert': '🎵',
+  'kultura': '🎭',
+  'otroci': '👨‍👩‍👧',
+  'hrana': '🍴',
+  'narava': '🌲',
+  'sport': '🏃‍♀️',
+  'zabava': '✨',
+  'za-podjetja': '🏢',
+  'frizer': '💇‍♀️',
+  'wellness': '🌿',
+  'zdravje': '❤️',
+  'kozmetika': '💄',
+  'fitnes': '🏋️‍♂️',
+  'avto-moto': '🚗',
+  'turizem': '🧳',
+  'gospodinjske': '🏡',
+  'ostalo': '🌈'
+};
+
 function renderCategoryChips() {
   const cats = document.getElementById('cats');
   if (!cats) return;
   cats.innerHTML = '';
-  Object.entries(CATEGORY_EMOJI).forEach(([cat, emoji]) => {
-    const btn = document.createElement('button');
-    btn.className = 'chip';
-    btn.setAttribute('data-cat', cat);
-    btn.setAttribute('aria-label', cat);
-    btn.innerHTML = `<span class="cat-emoji" style="font-size:2em;">${emoji}</span><span class="cat-label" style="display:none">${cat}</span>`;
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('#cats .chip').forEach(b => {
-        b.classList.remove('active');
-        b.querySelector('.cat-label').style.display = 'none';
+  // Prefer the options in the #category <select> if present (keeps a single source-of-truth with the form)
+  const sel = document.getElementById('category');
+  if (sel && sel.options && sel.options.length > 1) {
+    // build from select options (skip first "(izberi)")
+    Array.from(sel.options).forEach((opt, idx) => {
+      if (!opt.value) return; // skip empty
+      const slug = opt.value;
+      const label = opt.textContent || opt.innerText || slug;
+      const emoji = SLUG_EMOJI[slug] || CATEGORY_EMOJI[label] || '❓';
+      const btn = document.createElement('button');
+      btn.className = 'chip';
+      btn.setAttribute('data-cat', slug);
+      btn.setAttribute('aria-label', label);
+      btn.innerHTML = `<span class="cat-emoji" style="font-size:2em;">${emoji}</span><span class="cat-label" style="display:none">${label}</span>`;
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#cats .chip').forEach(b => {
+          b.classList.remove('active');
+          b.querySelector('.cat-label').style.display = 'none';
+        });
+        btn.classList.add('active');
+        btn.querySelector('.cat-label').style.display = 'inline-block';
+        btn.querySelector('.cat-emoji').style.marginRight = '8px';
+        const searchTitle = document.getElementById('searchTitle');
+        if (searchTitle) {
+          searchTitle.innerHTML = `${emoji} <span style='font-size:1em;'>${label}</span>`;
+        }
+        doSearch(0);
       });
-      btn.classList.add('active');
-      btn.querySelector('.cat-label').style.display = 'inline-block';
-      btn.querySelector('.cat-emoji').style.marginRight = '8px';
-      // Prikaz izbrane kategorije z emoji in besedilom
-      const searchTitle = document.getElementById('searchTitle');
-      if (searchTitle) {
-        searchTitle.innerHTML = `${emoji} <span style='font-size:1em;'>${cat}</span>`;
-      }
-      doSearch(0);
+      cats.appendChild(btn);
     });
-    cats.appendChild(btn);
-  });
+  } else {
+    // fallback: use human-readable CATEGORY_EMOJI keys
+    Object.entries(CATEGORY_EMOJI).forEach(([cat, emoji]) => {
+      const btn = document.createElement('button');
+      btn.className = 'chip';
+      btn.setAttribute('data-cat', cat);
+      btn.setAttribute('aria-label', cat);
+      btn.innerHTML = `<span class="cat-emoji" style="font-size:2em;">${emoji}</span><span class="cat-label" style="display:none">${cat}</span>`;
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('#cats .chip').forEach(b => {
+          b.classList.remove('active');
+          b.querySelector('.cat-label').style.display = 'none';
+        });
+        btn.classList.add('active');
+        btn.querySelector('.cat-label').style.display = 'inline-block';
+        btn.querySelector('.cat-emoji').style.marginRight = '8px';
+        const searchTitle = document.getElementById('searchTitle');
+        if (searchTitle) {
+          searchTitle.innerHTML = `${emoji} <span style='font-size:1em;'>${cat}</span>`;
+        }
+        doSearch(0);
+      });
+      cats.appendChild(btn);
+    });
+  }
 }
 document.addEventListener('DOMContentLoaded', renderCategoryChips);
 const $  = s => document.querySelector(s);
@@ -530,7 +583,13 @@ async function doSearch(page=0, byGeo=false){
         btn.classList.add('active');
         btn.querySelector('.cat-label').style.display = 'inline-block';
         btn.querySelector('.cat-emoji').style.marginRight = '8px';
-        sel.value = cat;
+        // select in the form uses slug values – try to find the matching option by label
+        try {
+          const match = Array.from(sel.options).find(o => (o.textContent || o.innerText || '').trim() === (cat || '').trim());
+          if (match) sel.value = match.value; else sel.value = cat;
+        } catch (e) {
+          sel.value = cat;
+        }
         sel.dispatchEvent(new Event('change'));
       });
       catsContainer.appendChild(btn);

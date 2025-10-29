@@ -32,9 +32,29 @@
 		</div>
 		<form id="premiumEmailForm" style="margin-bottom:18px;">
 			<input type="email" id="premiumEmail" placeholder="Vpišite svoj email" required style="padding:10px 16px;border-radius:999px;border:1px solid #0bbbd6;font-size:1em;width:80%;max-width:320px;margin-bottom:8px;">
-			<button type="submit" style="background:linear-gradient(90deg,#0bbbd6,#11a67a);color:#fff;font-weight:900;font-size:1.15em;padding:12px 34px;border:none;border-radius:999px;box-shadow:0 2px 12px rgba(11,187,214,.12);cursor:pointer;transition:background .2s;">Nadgradi v Premium</button>
+			<button type="submit" id="btnBuyPremium" style="background:linear-gradient(90deg,#0bbbd6,#11a67a);color:#fff;font-weight:900;font-size:1.15em;padding:12px 34px;border:none;border-radius:999px;box-shadow:0 2px 12px rgba(11,187,214,.12);cursor:pointer;transition:background .2s;">Nadgradi v Premium</button>
 		</form>
 		<div id="premiumEmailConfirmation" style="display:none;color:#11a67a;font-weight:700;margin-bottom:8px;"></div>
+		<script>
+		function isMobileStore() {
+			const ua = navigator.userAgent || navigator.vendor || window.opera;
+			// Google Play WebView
+			if (/Android/.test(ua) && (/wv/.test(ua) || /Version\/\d+\.\d+/.test(ua))) return true;
+			// iOS App Store WebView
+			if (/iPhone|iPad|iPod/.test(ua) && /AppleWebKit/.test(ua) && !/Safari/.test(ua)) return true;
+			// Capacitor/Cordova/ReactNative
+			if (window.Capacitor || window.cordova || window.ReactNativeWebView) return true;
+			return false;
+		}
+		document.addEventListener('DOMContentLoaded', function() {
+			if (isMobileStore()) {
+				document.getElementById('premiumEmailForm').style.display = 'none';
+				document.getElementById('premiumEmailConfirmation').style.display = 'block';
+				document.getElementById('premiumEmailConfirmation').textContent = 'Nakup Premium v mobilni aplikaciji poteka preko Google Play ali Apple Store.';
+				document.getElementById('premiumEmailConfirmation').style.color = '#d64c4c';
+			}
+		});
+		</script>
 	</div>
 
 	<section id="earlyNotifySection" style="max-width:500px;margin:0 auto 24px auto;">
@@ -53,5 +73,43 @@
 		<div id="earlyNotifyConfirmation" style="display:none; color:green; margin-top:10px;"></div>
 	</section>
 	<script src="assets/js/app.js"></script>
+<script>
+document.getElementById('premiumEmailForm')?.addEventListener('submit', async function(e) {
+	e.preventDefault();
+	const email = document.getElementById('premiumEmail')?.value?.trim();
+	const confirmation = document.getElementById('premiumEmailConfirmation');
+	if (!email) {
+		confirmation.textContent = 'Vpišite email.';
+		confirmation.style.display = 'block';
+		confirmation.style.color = 'red';
+		return;
+	}
+	// Stripe Checkout za Premium
+	try {
+		const payload = {
+			type: 'premium',
+			email,
+			successUrl: `${location.origin}/premium.html#success`,
+			cancelUrl: `${location.origin}/premium.html#cancel`
+		};
+		const r = await fetch('/api/checkout', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(payload)
+		}).then(x => x.json());
+		if (r && r.ok && r.url) {
+			location.href = r.url;
+		} else {
+			confirmation.textContent = 'Nakup Premium ni uspel.';
+			confirmation.style.display = 'block';
+			confirmation.style.color = 'red';
+		}
+	} catch {
+		confirmation.textContent = 'Napaka pri nakupu Premium.';
+		confirmation.style.display = 'block';
+		confirmation.style.color = 'red';
+	}
+});
+</script>
 </body>
 </html>

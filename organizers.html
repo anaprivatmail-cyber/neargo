@@ -136,6 +136,39 @@
         <button class="btn link" id="hubBoost">Boost izpostavitev</button>
       </div>
     </section>
+    
+      <!-- PAKETI ZA PONUDNIKE -->
+      <section class="card" id="providerPlans">
+        <div class="title">Paketi za ponudnike</div>
+        <ul style="margin-bottom:12px; font-size:15px; color:var(--muted)">
+          <li><b>Grow</b>: Analitika, izpostavitve, predčasna obvestila, večja vidnost</li>
+          <li><b>Pro</b>: Vse iz Grow + napredna statistika, prioritetna podpora, ekskluzivne funkcije</li>
+          <li>Možnost mesečne ali letne naročnine. Prek Stripe Checkout (samo v web aplikaciji).</li>
+        </ul>
+        <div id="providerPlanButtons" style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:8px">
+          <button class="btn mini" id="buyGrowMonthly">Grow paket – 15 €/mesec</button>
+          <button class="btn mini" id="buyGrowYearly">Grow paket – 150 €/leto</button>
+          <button class="btn mini" id="buyProMonthly">Pro paket – 35 €/mesec</button>
+          <button class="btn mini" id="buyProYearly">Pro paket – 350 €/leto</button>
+        </div>
+        <div class="muted" id="providerPlanInfo" style="font-size:13px; margin-top:8px">Po nakupu prejmete potrditveni email in dostop do portala za ponudnike.</div>
+        <script>
+        function isMobileStore() {
+          const ua = navigator.userAgent || navigator.vendor || window.opera;
+          if (/Android/.test(ua) && (/wv/.test(ua) || /Version\/\d+\.\d+/.test(ua))) return true;
+          if (/iPhone|iPad|iPod/.test(ua) && /AppleWebKit/.test(ua) && !/Safari/.test(ua)) return true;
+          if (window.Capacitor || window.cordova || window.ReactNativeWebView) return true;
+          return false;
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+          if (isMobileStore()) {
+            document.getElementById('providerPlanButtons').style.display = 'none';
+            document.getElementById('providerPlanInfo').textContent = 'Nakup paketov v mobilni aplikaciji poteka preko Google Play ali Apple Store.';
+            document.getElementById('providerPlanInfo').style.color = '#d64c4c';
+          }
+        });
+        </script>
+      </section>
 
     <!-- OBRAZEC ZA OBJAVO - prikaže se na klik -->
     <section class="card" id="orgPanel" style="display:none">
@@ -270,6 +303,34 @@
     const $ = s => document.querySelector(s);
     const qs = o => new URLSearchParams(o).toString();
 
+      // Stripe Checkout za pakete Grow/Pro
+      async function buyProviderPlan(plan, interval) {
+        try {
+          const payload = {
+            type: "provider-plan",
+            plan,
+            interval,
+            successUrl: `${location.origin}/organizers.html#success`,
+            cancelUrl: `${location.origin}/organizers.html#cancel`
+          };
+          const r = await fetch("/api/checkout", {
+            method: "POST",
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }).then(x => x.json());
+          if (r && r.ok && r.url) {
+            location.href = r.url;
+          } else {
+            showToast("Nakup paketa ni uspel.", false);
+          }
+        } catch {
+          showToast("Napaka pri nakupu paketa.", false);
+        }
+      }
+      $("#buyGrowMonthly")?.addEventListener("click", () => buyProviderPlan("grow", "monthly"));
+      $("#buyGrowYearly")?.addEventListener("click", () => buyProviderPlan("grow", "yearly"));
+      $("#buyProMonthly")?.addEventListener("click", () => buyProviderPlan("pro", "monthly"));
+      $("#buyProYearly")?.addEventListener("click", () => buyProviderPlan("pro", "yearly"));
     /* Toast */
     function showToast(msg, ok = true) {
       const t = $("#toast");

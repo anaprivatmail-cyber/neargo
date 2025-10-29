@@ -156,72 +156,97 @@ const SLUG_EMOJI = {
   'ostalo': '🌈'
 };
 
+// ===== Centralni seznam kategorij =====
+const CATEGORIES = [
+  { slug: 'koncert', label: 'Koncerti', emoji: '🎵' },
+  { slug: 'kultura', label: 'Kultura', emoji: '🎭' },
+  { slug: 'otroci', label: 'Družina & otroci', emoji: '👨‍👩‍👧' },
+  { slug: 'hrana', label: 'Kulinarika', emoji: '🍴' },
+  { slug: 'narava', label: 'Narava', emoji: '🌲' },
+  { slug: 'sport', label: 'Šport', emoji: '🏃‍♀️' },
+  { slug: 'zabava', label: 'Zabava', emoji: '✨' },
+  { slug: 'za-podjetja', label: 'Za podjetja', emoji: '🏢' },
+  { slug: 'frizer', label: 'Frizer', emoji: '💇‍♀️' },
+  { slug: 'wellness', label: 'Wellness', emoji: '🌿' },
+  { slug: 'zdravje', label: 'Zdravje', emoji: '❤️' },
+  { slug: 'kozmetika', label: 'Kozmetika', emoji: '💄' },
+  { slug: 'fitnes', label: 'Fitnes', emoji: '🏋️‍♂️' },
+  { slug: 'avto-moto', label: 'Avto-moto', emoji: '🚗' },
+  { slug: 'turizem', label: 'Turizem', emoji: '🧳' },
+  { slug: 'gospodinjske', label: 'Gospodinjske', emoji: '🏡' },
+  { slug: 'ostalo', label: 'Ostalo', emoji: '🌈' }
+};
+
+function populateCategorySelect() {
+  const sel = document.getElementById('category');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">(izberi)</option>';
+  CATEGORIES.forEach(cat => {
+    sel.innerHTML += `<option value="${cat.slug}">${cat.label}</option>`;
+  });
+}
+document.addEventListener('DOMContentLoaded', populateCategorySelect);
+
 function renderCategoryChips() {
   const cats = document.getElementById('cats');
   if (!cats) return;
   cats.innerHTML = '';
-  // Prefer the options in the #category <select> if present (keeps a single source-of-truth with the form)
-  const sel = document.getElementById('category');
-  if (sel && sel.options && sel.options.length > 1) {
-    // build from select options (skip first "(izberi)")
-    Array.from(sel.options).forEach((opt, idx) => {
-      if (!opt.value) return; // skip empty
-      const slug = opt.value;
-      const label = opt.textContent || opt.innerText || slug;
-      const emoji = SLUG_EMOJI[slug] || CATEGORY_EMOJI[label] || '❓';
-      const btn = document.createElement('button');
-      btn.className = 'chip';
-      btn.setAttribute('data-cat', slug);
-      btn.setAttribute('aria-label', label);
-      btn.innerHTML = `<span class="cat-emoji" style="font-size:2em;">${emoji}</span><span class="cat-label" style="display:none">${label}</span>`;
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('#cats .chip').forEach(b => {
-          b.classList.remove('active');
-          b.querySelector('.cat-label').style.display = 'none';
-        });
-        btn.classList.add('active');
-        btn.querySelector('.cat-label').style.display = 'inline-block';
-        btn.querySelector('.cat-emoji').style.marginRight = '8px';
-        const searchTitle = document.getElementById('searchTitle');
-        if (searchTitle) {
-          searchTitle.innerHTML = `${emoji} <span style='font-size:1em;'>${label}</span>`;
-        }
-        doSearch(0);
+  CATEGORIES.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.setAttribute('data-cat', cat.slug);
+    btn.setAttribute('aria-label', cat.label);
+    btn.innerHTML = `<span class="cat-emoji" style="font-size:2em;">${cat.emoji}</span><span class="cat-label" style="display:none">${cat.label}</span>`;
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('#cats .chip').forEach(b => {
+        b.classList.remove('active');
+        b.querySelector('.cat-label').style.display = 'none';
       });
-      cats.appendChild(btn);
+      btn.classList.add('active');
+      btn.querySelector('.cat-label').style.display = 'inline-block';
+      btn.querySelector('.cat-emoji').style.marginRight = '8px';
+      const searchTitle = document.getElementById('searchTitle');
+      if (searchTitle) {
+        searchTitle.innerHTML = `${cat.emoji} <span style='font-size:1em;'>${cat.label}</span>`;
+      }
+      doSearch(0);
     });
-  } else {
-    // fallback: use human-readable CATEGORY_EMOJI keys
-    Object.entries(CATEGORY_EMOJI).forEach(([cat, emoji]) => {
-      const btn = document.createElement('button');
-      btn.className = 'chip';
-      btn.setAttribute('data-cat', cat);
-      btn.setAttribute('aria-label', cat);
-      btn.innerHTML = `<span class="cat-emoji" style="font-size:2em;">${emoji}</span><span class="cat-label" style="display:none">${cat}</span>`;
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('#cats .chip').forEach(b => {
-          b.classList.remove('active');
-          b.querySelector('.cat-label').style.display = 'none';
-        });
-        btn.classList.add('active');
-        btn.querySelector('.cat-label').style.display = 'inline-block';
-        btn.querySelector('.cat-emoji').style.marginRight = '8px';
-        const searchTitle = document.getElementById('searchTitle');
-        if (searchTitle) {
-          searchTitle.innerHTML = `${emoji} <span style='font-size:1em;'>${cat}</span>`;
-        }
-        doSearch(0);
-      });
-      cats.appendChild(btn);
-    });
-  }
+    cats.appendChild(btn);
+  });
 }
 document.addEventListener('DOMContentLoaded', renderCategoryChips);
-const $  = s => document.querySelector(s);
-const el = (t,c)=>{const x=document.createElement(t); if(c) x.className=c; return x;};
-const qs = o => new URLSearchParams(o).toString();
-const euro = v => Number.isFinite(+v) ? new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR'}).format(+v) : '';
-const priceCents = v => Math.round(Number(v||0)*100);
+
+function renderFormCategoryIcons() {
+  const catsContainer = document.getElementById('formCatsIcons');
+  const sel = document.getElementById('category');
+  if (!catsContainer || !sel) return;
+  catsContainer.innerHTML = '';
+  sel.style.display = 'none';
+  CATEGORIES.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.setAttribute('type', 'button');
+    btn.setAttribute('data-cat', cat.slug);
+    btn.setAttribute('aria-label', cat.label);
+    btn.innerHTML = `<span class="cat-emoji" style="font-size:2em;">${cat.emoji}</span><span class="cat-label" style="display:none">${cat.label}</span>`;
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('#formCatsIcons .chip').forEach(b => {
+        b.classList.remove('active');
+        b.querySelector('.cat-label').style.display = 'none';
+      });
+      btn.classList.add('active');
+      btn.querySelector('.cat-label').style.display = 'inline-block';
+      btn.querySelector('.cat-emoji').style.marginRight = '8px';
+      sel.value = cat.slug;
+      sel.dispatchEvent(new Event('change'));
+    });
+    catsContainer.appendChild(btn);
+  });
+}
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('formCatsIcons')) renderFormCategoryIcons();
+  document.getElementById('entryType')?.addEventListener('change', renderFormCategoryIcons);
+});
 
 /* ===== Tema ===== */
 const theme=$("#theme");

@@ -113,41 +113,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* ===== Helpers ===== */
 // ===== Kategorije z ikonami =====
-const CATEGORY_ICONS = {
-  'Koncerti': 'guitar.svg',
-  'Kulinarika': 'food.svg',
-  'Družina & otroci': 'family.svg',
-  'Šport': 'sport.svg',
-  'Kultura': 'culture.svg',
-  'Sejmi': 'fair.svg',
-  'Lepota': 'beauty.svg',
-  'Zdravje': 'health.svg',
-  'Wellness': 'wellness.svg',
-  'Šport & fit': 'fit.svg',
-  'Avto': 'car.svg',
-  'Dom & vrt': 'home-garden.svg',
-  'Servis': 'service.svg',
-  'Učenje': 'learn.svg',
-  'Ostalo': 'other.svg',
+const CATEGORY_EMOJI = {
+  'Dogodki': '🎫',
+  'Koncerti': '🎵',
+  'Kulinarika': '🍴',
+  'Družina & otroci': '👨‍👩‍👧',
+  'Šport': '🏃‍♀️',
+  'Kultura': '🎭',
+  'Sejmi': '🏕️',
+  'Ostalo': '✨',
+  'Storitve': '🧰',
+  'Lepota': '💄',
+  'Zdravje': '❤️',
+  'Wellness': '🌿',
+  'Šport & fit': '🏋️‍♂️',
+  'Kulinarika storitve': '👨‍🍳',
+  'Avto': '🚗',
+  'Dom & vrt': '🏡',
+  'Servis': '🔧',
+  'Učenje': '📚',
+  'Ostalo storitve': '🌈'
 };
 
 function renderCategoryChips() {
   const cats = document.getElementById('cats');
   if (!cats) return;
   cats.innerHTML = '';
-  Object.entries(CATEGORY_ICONS).forEach(([cat, icon]) => {
+  Object.entries(CATEGORY_EMOJI).forEach(([cat, emoji]) => {
     const btn = document.createElement('button');
     btn.className = 'chip';
     btn.setAttribute('data-cat', cat);
     btn.setAttribute('aria-label', cat);
-    btn.innerHTML = `<img src="assets/icons/${icon}" alt="${cat}" class="cat-icon" style="width:32px;height:32px;display:block;margin:0 auto;"/><span class="cat-label" style="display:none">${cat}</span>`;
+    btn.innerHTML = `<span class="cat-emoji" style="font-size:2em;">${emoji}</span><span class="cat-label" style="display:none">${cat}</span>`;
     btn.addEventListener('click', function() {
       document.querySelectorAll('#cats .chip').forEach(b => {
         b.classList.remove('active');
         b.querySelector('.cat-label').style.display = 'none';
       });
       btn.classList.add('active');
-      btn.querySelector('.cat-label').style.display = 'block';
+      btn.querySelector('.cat-label').style.display = 'inline-block';
+      btn.querySelector('.cat-emoji').style.marginRight = '8px';
+      // Prikaz izbrane kategorije z emoji in besedilom
+      const searchTitle = document.getElementById('searchTitle');
+      if (searchTitle) {
+        searchTitle.innerHTML = `${emoji} <span style='font-size:1em;'>${cat}</span>`;
+      }
       doSearch(0);
     });
     cats.appendChild(btn);
@@ -505,19 +515,21 @@ async function doSearch(page=0, byGeo=false){
     sel.style.display = 'none';
     const cats = (entryType?.value === 'service') ? FORM_SERVICE_CATS : FORM_EVENT_CATS;
     Object.entries(cats).forEach(([cat, icon]) => {
+      const emoji = CATEGORY_EMOJI[cat] || '❓';
       const btn = document.createElement('button');
       btn.className = 'chip';
       btn.setAttribute('type', 'button');
       btn.setAttribute('data-cat', cat);
       btn.setAttribute('aria-label', cat);
-      btn.innerHTML = `<img src="assets/icons/${icon}" alt="${cat}" class="cat-icon"/><span class="cat-label" style="display:none">${cat}</span>`;
+      btn.innerHTML = `<span class="cat-emoji" style="font-size:2em;">${emoji}</span><span class="cat-label" style="display:none">${cat}</span>`;
       btn.addEventListener('click', function() {
         document.querySelectorAll('#formCatsIcons .chip').forEach(b => {
           b.classList.remove('active');
           b.querySelector('.cat-label').style.display = 'none';
         });
         btn.classList.add('active');
-        btn.querySelector('.cat-label').style.display = 'block';
+        btn.querySelector('.cat-label').style.display = 'inline-block';
+        btn.querySelector('.cat-emoji').style.marginRight = '8px';
         sel.value = cat;
         sel.dispatchEvent(new Event('change'));
       });

@@ -323,7 +323,7 @@
       <!-- ROW 1: Noč/Jezik – Za ponudnike -->
       <div class="nav-row row1">
         <div class="left" style="display:flex;gap:10px;align-items:center;width:100%;justify-content:flex-start;">
-          <button id="btnThemeToggle" class="pill" type="button" title="Preklopi temo" style="padding:0 10px; height:34px; display:flex;align-items:center;justify-content:center;font-size:18px;min-width:34px;">
+          <button id="btnThemeToggle" class="pill" type="button" title="Preklopi temo" style="padding:0 10px; height:34px; display:flex;align-items:center;justify-content:center;font-size:18px;min-width:34px;" onclick="toggleTheme()">
             <span id="themeIcon" aria-label="Preklopi temo" style="font-size:20px;">🌙</span>
           </button>
           <div class="pill lang" id="langWrap">
@@ -767,6 +767,14 @@ function qs(o){ return new URLSearchParams(o).toString(); }
 function euro(v){ return isFinite(+v)?new Intl.NumberFormat('sl-SI',{style:'currency',currency:'EUR'}).format(+v):''; }
 function debounce(fn,ms){ var t; return function(){ var a=arguments; clearTimeout(t); t=setTimeout(function(){ fn.apply(null,a); }, ms||350); }; }
 function downloadFile(name,content,type){ var blob=new Blob([content],{type:type||"text/calendar"}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },0); }
+function toggleTheme(){ 
+  var body=document.body; var icon=$("#themeIcon"); 
+  if(body.classList.contains('dark')){ 
+    body.classList.remove('dark'); icon.textContent='🌙'; localStorage.setItem('theme','light'); 
+  } else { 
+    body.classList.add('dark'); icon.textContent='☀️'; localStorage.setItem('theme','dark'); 
+  } 
+}
 function isExternalAPI(e){ var u=(e && e.url ? e.url : "").toLowerCase(); return u.indexOf("ticketmaster")>-1 || u.indexOf("eventbrite")>-1; }
 function headerH(){ var h=document.querySelector('header'); return (h && h.getBoundingClientRect().height)||64; }
 
@@ -1872,6 +1880,17 @@ for(var i=0;i<modeBtns.length;i++){
 
 /* ====== INIT ====== */
 document.addEventListener('DOMContentLoaded', function(){
+  // Inicializacija teme
+  var savedTheme = localStorage.getItem('theme');
+  var icon = $("#themeIcon");
+  if(savedTheme === 'dark'){ 
+    document.body.classList.add('dark'); 
+    if(icon) icon.textContent='☀️'; 
+  } else { 
+    document.body.classList.remove('dark'); 
+    if(icon) icon.textContent='🌙'; 
+  }
+  
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(
       function(p){ GEO=p.coords.latitude.toFixed(5)+","+p.coords.longitude.toFixed(5); loadFeatured(); initTopMap(); loadAllForTopMap(); },

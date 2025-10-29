@@ -97,15 +97,15 @@ document.getElementById('premiumEmailForm')?.addEventListener('submit', async fu
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(payload)
 		}).then(x => x.json());
-		if (r && r.ok && r.url) {
-			location.href = r.url;
-		} else {
-			confirmation.textContent = 'Nakup Premium ni uspel.';
-			confirmation.style.display = 'block';
-			confirmation.style.color = 'red';
-		}
+			if (r && r.ok && r.url) {
+				location.href = r.url;
+			} else {
+				confirmation.textContent = 'Nakup Premium ni uspel.';
+				confirmation.style.display = 'block';
+				confirmation.style.color = 'red';
+			}
 	} catch {
-		confirmation.textContent = 'Napaka pri nakupu Premium.';
+			confirmation.textContent = 'Nakup Premium ni uspel.';
 		confirmation.style.display = 'block';
 		confirmation.style.color = 'red';
 	}

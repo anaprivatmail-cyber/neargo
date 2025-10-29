@@ -152,22 +152,6 @@
           <button class="btn mini" id="buyProYearly">Pro paket – 350 €/leto</button>
         </div>
         <div class="muted" id="providerPlanInfo" style="font-size:13px; margin-top:8px">Po nakupu prejmete potrditveni email in dostop do portala za ponudnike.</div>
-        <script>
-        function isMobileStore() {
-          const ua = navigator.userAgent || navigator.vendor || window.opera;
-          if (/Android/.test(ua) && (/wv/.test(ua) || /Version\/\d+\.\d+/.test(ua))) return true;
-          if (/iPhone|iPad|iPod/.test(ua) && /AppleWebKit/.test(ua) && !/Safari/.test(ua)) return true;
-          if (window.Capacitor || window.cordova || window.ReactNativeWebView) return true;
-          return false;
-        }
-        document.addEventListener('DOMContentLoaded', function() {
-          if (isMobileStore()) {
-            document.getElementById('providerPlanButtons').style.display = 'none';
-            document.getElementById('providerPlanInfo').textContent = 'Nakup paketov v mobilni aplikaciji poteka preko Google Play ali Apple Store.';
-            document.getElementById('providerPlanInfo').style.color = '#d64c4c';
-          }
-        });
-        </script>
       </section>
 
     <!-- OBRAZEC ZA OBJAVO - prikaže se na klik -->

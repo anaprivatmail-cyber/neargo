@@ -405,7 +405,6 @@
     <section class="card" id="searchPanel">
   <div class="title search-form-title" style="width:100%;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding-bottom:10px;margin-bottom:14px;border-bottom:3px solid var(--accent);">
     <span id="searchTitle" style="font-size:1.35em;font-weight:900;line-height:1.2;">Iskanje</span>
-    <span style="font-size:1em;color:var(--muted);font-weight:500;margin-top:2px;">Obrazec za iskanje</span>
   </div>
   <style>
     @media (max-width: 600px) {
@@ -714,6 +713,8 @@
 
     <!-- PREMIUM section moved to /premium.html -->
 
+
+    <!-- PREMIUM section moved to /premium.html -->
     <!-- Zakaj NearGo (uporabniki) -->
     <section class="card" id="benefitsUser">
       <div class="title">Zakaj NearGo?</div>
@@ -725,6 +726,77 @@
         <li><b>Dodaj v koledar</b> in <b>povabi prijatelje</b> z enim klikom.</li>
       </ul>
     </section>
+
+    <!-- OBRAZEC: Predhodno obveščanje (earlyNotifyForm) -->
+    <section class="card" id="earlyNotifyPanel" style="margin-top:18px;">
+      <div class="title">Premium obvestila – bodite prvi obveščeni!</div>
+      <form id="earlyNotifyForm" style="margin-top:10px;">
+        <label>E-pošta
+          <input type="email" id="earlyNotifyEmail" placeholder="Vaš e-poštni naslov" required>
+        </label>
+        <label style="margin-top:12px;">Kategorije obvestil
+          <div id="earlyNotifyCategories" class="chips" style="margin-top:8px;flex-wrap:wrap;"></div>
+        </label>
+        <button class="btn" type="submit" style="margin-top:14px;">Prijavi se na obvestila</button>
+        <span id="earlyNotifyMsg" class="muted" style="margin-left:10px;"></span>
+      </form>
+    </section>
+
+    <script>
+    // Emoji chips for notification form
+    (function(){
+      var cats = [
+        { key: "koncert", emoji: "🎸", label: "Koncerti" },
+        { key: "kultura", emoji: "🎭", label: "Kultura" },
+        { key: "otroci", emoji: "🧸", label: "Otroci" },
+        { key: "hrana", emoji: "🍔", label: "Hrana" },
+        { key: "narava", emoji: "🌳", label: "Narava" },
+        { key: "sport", emoji: "⚽", label: "Šport" },
+        { key: "zabava", emoji: "🎉", label: "Zabava" },
+        { key: "za-podjetja", emoji: "🏢", label: "Za podjetja" }
+      ];
+      var wrap = document.getElementById("earlyNotifyCategories");
+      if(!wrap) return;
+      cats.forEach(function(cat){
+        var chip = document.createElement("button");
+        chip.className = "chip cat";
+        chip.type = "button";
+        chip.setAttribute("data-cat", cat.key);
+        chip.innerHTML = '<span class="cat-icon">'+cat.emoji+'</span>' + '<span class="cat-label" style="display:none;">'+cat.label+'</span>';
+        chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+        chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+        chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+        chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+        chip.addEventListener("click", function(){
+          var all = wrap.querySelectorAll(".cat");
+          all.forEach(function(b){ b.classList.remove("active"); b.querySelector(".cat-label").style.display = "none"; });
+          chip.classList.add("active");
+          chip.querySelector(".cat-label").style.display = "block";
+        });
+        wrap.appendChild(chip);
+      });
+    })();
+    // Notification form submit logic
+    (function(){
+      var form = document.getElementById("earlyNotifyForm");
+      if(!form) return;
+      form.addEventListener("submit", function(ev){
+        ev.preventDefault();
+        var email = document.getElementById("earlyNotifyEmail").value.trim();
+        var catBtn = document.querySelector("#earlyNotifyCategories .cat.active");
+        var cat = catBtn ? catBtn.getAttribute("data-cat") : "";
+        var msg = document.getElementById("earlyNotifyMsg");
+        msg.textContent = "";
+        if(!email){ msg.textContent = "Vnesite e-poštni naslov."; msg.style.color = "var(--bad)"; return; }
+        if(!cat){ msg.textContent = "Izberite kategorijo."; msg.style.color = "var(--bad)"; return; }
+        // Simulate API call
+        setTimeout(function(){
+          msg.textContent = "✅ Prijava uspešna!";
+          msg.style.color = "var(--ok)";
+        }, 800);
+      });
+    })();
+    </script>
 
     <!-- Zakaj NearGo (organizatorji) -->
     <section class="card panel" id="benefitsOrg" style="display:none">

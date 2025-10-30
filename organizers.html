@@ -198,7 +198,8 @@
         <input id="city2" placeholder="Mesto/kraj *" required>
         <input id="url" placeholder="Povezava za več info / nakup (če obstaja)">
         <label>Kategorija (glede na tip) *
-          <select id="category" required></select>
+          <div id="categoryChips" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"></div>
+          <input type="hidden" id="category" required>
         </label>
       </div>
 
@@ -345,20 +346,66 @@
     $("#showProviderTerms")?.addEventListener("click", (e) => { e.preventDefault(); showPanel('providerTermsPanel'); });
     $("#closeProviderTerms")?.addEventListener("click", () => showPanel('orgPanel'));
 
-    /* Categories populate */
-    function populateCategories() {
-      const ct = $("#category");
+    /* Emoji kategorije */
+    const CATEGORY_EMOJI_EVENT = [
+      { cat: 'koncert', emoji: '🎵' },
+      { cat: 'kultura', emoji: '🎭' },
+      { cat: 'otroci', emoji: '👨‍👩‍👧' },
+      { cat: 'hrana', emoji: '🍴' },
+      { cat: 'narava', emoji: '🏕️' },
+      { cat: 'sport', emoji: '🏃‍♀️' },
+      { cat: 'zabava', emoji: '✨' },
+      { cat: 'za-podjetja', emoji: '🧰' }
+    ];
+    const CATEGORY_EMOJI_SERVICE = [
+      { cat: 'frizer', emoji: '💄' },
+      { cat: 'wellness', emoji: '🌿' },
+      { cat: 'zdravje', emoji: '❤️' },
+      { cat: 'kozmetika', emoji: '💄' },
+      { cat: 'fitnes', emoji: '🏋️‍♂️' },
+      { cat: 'avto-moto', emoji: '🚗' },
+      { cat: 'turizem', emoji: '🏡' },
+      { cat: 'gospodinjske', emoji: '🔧' },
+      { cat: 'ostalo', emoji: '🌈' }
+    ];
+    function renderCategoryChipsOrg() {
+      const wrap = $("#categoryChips");
+      const input = $("#category");
       const isSvc = $("#entryType")?.value === "service";
-      const opts = isSvc ? 
-        ["", "frizer", "wellness", "zdravje", "kozmetika", "fitnes", "avto-moto", "turizem", "gospodinjske", "ostalo"] :
-        ["", "koncert", "kultura", "otroci", "hrana", "narava", "sport", "zabava", "za-podjetja"];
-      
-      if (ct) {
-        ct.innerHTML = ['<option value="">(izberi)</option>', 
-          ...opts.filter(Boolean).map(v => `<option value="${v}">${v.replace("-", " ").replace(/\b\w/g, m => m.toUpperCase())}</option>`)
-        ].join("");
-      }
+      const cats = isSvc ? CATEGORY_EMOJI_SERVICE : CATEGORY_EMOJI_EVENT;
+      if (!wrap || !input) return;
+      wrap.innerHTML = '';
+      cats.forEach(({cat, emoji}) => {
+        const btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.setAttribute('data-cat', cat);
+        btn.innerHTML = `<span class="cat-emoji" style="font-size:2em;">${emoji}</span><span class="cat-label" style="display:none;font-size:1em;margin-top:2px;">${cat}</span>`;
+        btn.addEventListener('mouseenter', function(){
+          if(!btn.classList.contains('active')) btn.querySelector('.cat-label').style.display = 'inline';
+        });
+        btn.addEventListener('mouseleave', function(){
+          if(!btn.classList.contains('active')) btn.querySelector('.cat-label').style.display = 'none';
+        });
+        btn.addEventListener('touchstart', function(){
+          if(!btn.classList.contains('active')) btn.querySelector('.cat-label').style.display = 'inline';
+        });
+        btn.addEventListener('touchend', function(){
+          if(!btn.classList.contains('active')) btn.querySelector('.cat-label').style.display = 'none';
+        });
+        btn.addEventListener('click', function() {
+          wrap.querySelectorAll('.chip').forEach(b => {
+            b.classList.remove('active');
+            b.querySelector('.cat-label').style.display = 'none';
+          });
+          btn.classList.add('active');
+          btn.querySelector('.cat-label').style.display = 'inline';
+          input.value = cat;
+        });
+        wrap.appendChild(btn);
+      });
     }
+    $("#entryType")?.addEventListener('change', renderCategoryChipsOrg);
+    document.addEventListener('DOMContentLoaded', renderCategoryChipsOrg);
 
     /* Entry type change */
     $("#entryType")?.addEventListener("change", () => {

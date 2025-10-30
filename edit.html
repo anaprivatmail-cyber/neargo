@@ -69,34 +69,35 @@
               { key: "zabava", emoji: "🎉", label: "Zabava" },
               { key: "za-podjetja", emoji: "🏢", label: "Za podjetja" }
             ];
-            function renderChips(){
-              var wrap = document.getElementById("editCategoryChips");
-              var input = document.getElementById("category");
-              if(!wrap || !input) return;
-              wrap.innerHTML = "";
-              cats.forEach(function(cat, idx){
-                var chip = document.createElement("button");
-                chip.className = "chip cat" + (idx===0 ? " active" : "");
-                chip.type = "button";
-                chip.setAttribute("data-cat", cat.key);
-                chip.innerHTML = '<span class="cat-icon">'+cat.emoji+'</span>' + '<span class="cat-label" style="display:none;">'+cat.label+'</span>';
-                chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
-                chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
-                chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
-                chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
-                chip.addEventListener("click", function(){
-                  var all = wrap.querySelectorAll(".cat");
-                  all.forEach(function(b){ b.classList.remove("active"); b.querySelector(".cat-label").style.display = "none"; });
-                  chip.classList.add("active");
-                  chip.querySelector(".cat-label").style.display = "block";
-                  input.value = cat.key;
+              function renderChips(){
+                const cats = EVENT_CATEGORIES;
+                const wrap = document.getElementById("editCategoryChips");
+                const input = document.getElementById("category");
+                if(!wrap || !input) return;
+                wrap.innerHTML = "";
+                cats.forEach(function(cat, idx){
+                  const chip = document.createElement("button");
+                  chip.className = "chip cat" + (idx===0 ? " active" : "");
+                  chip.type = "button";
+                  chip.setAttribute("data-cat", cat.key);
+                  chip.innerHTML = '<span class="cat-icon">'+cat.emoji+'</span>' + '<span class="cat-label" style="display:none;">'+cat.label+'</span>';
+                  chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+                  chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+                  chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+                  chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+                  chip.addEventListener("click", function(){
+                    const all = wrap.querySelectorAll(".cat");
+                    all.forEach(function(b){ b.classList.remove("active"); b.querySelector(".cat-label").style.display = "none"; });
+                    chip.classList.add("active");
+                    chip.querySelector(".cat-label").style.display = "block";
+                    input.value = cat.key;
+                  });
+                  wrap.appendChild(chip);
                 });
-                wrap.appendChild(chip);
-              });
-              input.value = cats[0].key;
-            }
-            document.addEventListener("DOMContentLoaded", renderChips);
-          })();
+                input.value = cats[0].key;
+              }
+              document.addEventListener("DOMContentLoaded", renderChips);
+            })();
           </script>
         </div>
       </div>

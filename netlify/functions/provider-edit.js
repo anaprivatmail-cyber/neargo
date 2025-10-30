@@ -2,45 +2,37 @@
 import { createClient } from '@supabase/supabase-js';
 
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
-};
-const res = (body, s=200, type='text/html') => ({
-  statusCode: s,
-  headers: { 'Content-Type': type+'; charset=utf-8', ...CORS },
-  body
-});
-const json = (d, s=200) => res(JSON.stringify(d), s, 'application/json');
-
-const SUPABASE_URL              = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const BUCKET = 'event-images';
-const DESC_MAX = 800;
-
-/* ---------- helpers ---------- */
-async function loadEvent(supabase, key){
-  const { data, error } = await supabase.storage.from(BUCKET).download(key);
-  if (error) throw new Error(error.message);
-  const text = await data.text();
-  return JSON.parse(text);
-}
-async function saveEvent(supabase, key, obj){
-  const bytes = Buffer.from(JSON.stringify(obj, null, 2), 'utf8');
-  const { error } = await supabase.storage.from(BUCKET)
-    .upload(key, bytes, { contentType:'application/json; charset=utf-8', upsert:true });
-  if (error) throw new Error(error.message);
-}
-function sanitizePatch(p){
-  const allowed = [
-    'organizer','organizerEmail',
-    'eventName','venue','city','city2','country',
-    'start','end','url',
-    'offerType','price','stock','maxPerOrder',
-    'description','category','imagePublicUrl',
-    'featured','featuredUntil',
-    'venueLat','venueLon'
-  ];
+            <script type="module">
+            import { SERVICE_CATEGORIES } from '../../assets/categories.js';
+            (function(){
+              function renderChips(){
+                const cats = SERVICE_CATEGORIES;
+                const wrap = document.getElementById("providerEditCategoryChips");
+                const input = document.getElementById("category");
+                if(!wrap || !input) return;
+                wrap.innerHTML = "";
+                cats.forEach(function(cat){
+                  const chip = document.createElement("button");
+                  chip.className = "chip cat" + (input.value === cat.key ? " active" : "");
+                  chip.type = "button";
+                  chip.setAttribute("data-cat", cat.key);
+                  chip.innerHTML = '<span class="cat-icon">'+cat.emoji+'</span>' + '<span class="cat-label" style="display:none;">'+cat.label+'</span>';
+                  chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+                  chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+                  chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+                  chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+                  chip.addEventListener("click", function(){
+                    const all = wrap.querySelectorAll(".cat");
+                    all.forEach(function(b){ b.classList.remove("active"); b.querySelector(".cat-label").style.display = "none"; });
+                    chip.classList.add("active");
+                    chip.querySelector(".cat-label").style.display = "block";
+                    input.value = cat.key;
+                  });
+                  wrap.appendChild(chip);
+                });
+              }
+              document.addEventListener("DOMContentLoaded", renderChips);
+            })();
   const out = {};
   for (const k of allowed) if (k in p) out[k] = p[k];
   if ('featured' in out) out.featured = !!(out.featured === true || out.featured === 'on' || out.featured === 'true' || out.featured === 1 || out.featured === '1');

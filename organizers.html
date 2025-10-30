@@ -77,7 +77,154 @@
     input[type="checkbox"]::after{
       content:""; position:absolute; left:3px; top:-1px; width:6px; height:10px;
       border-right:3px solid var(--primary); border-bottom:3px solid var(--primary);
-      <!doctype html>
+      transform:rotate(45deg); opacity:0; transition:opacity .12s;
+    }
+    input[type="checkbox"]:checked{ border-color:var(--primary) }
+    input[type="checkbox"]:checked::after{ opacity:1 }
+
+    input[type="radio"]{
+      -webkit-appearance:none; appearance:none; width:14px; height:14px; margin:0; position:relative;
+      border:2px solid #a9c3d6; border-radius:50%; background:#fff; outline:none; display:inline-block; box-sizing:content-box; padding:0; min-height:0 !important;
+    }
+    input[type="radio"]::after{
+      content:""; position:absolute; left:3px; top:3px; width:6px; height:6px; border-radius:50%;
+      background:var(--primary); opacity:0; transition:opacity .12s;
+    }
+    input[type="radio"]:checked{ border-color:var(--primary) }
+    input[type="radio"]:checked::after{ opacity:1 }
+
+    /* Toast */
+    .toast{ position:fixed; left:50%; transform:translateX(-50%); bottom:12px; z-index:1002; display:none; padding:10px 14px; border-radius:12px; font-weight:800 }
+    .toast.ok{ background:#e6fbf5; color:#05614d; border:1px solid #baf0df }
+    .toast.bad{ background:#ffeaea; color:#7a1b1b; border:1px solid #ffd1d1 }
+
+    /* Development helper - mobile view on desktop */
+    @media (min-width: 768px) {
+      body {
+        max-width: 390px;
+        margin: 0 auto;
+        box-shadow: 0 0 20px rgba(0,0,0,0.1);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <div class="brand" aria-label="NearGo">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <defs><radialGradient id="g1" cx="50%" cy="50%"><stop offset="0%" stop-color="#0bbbd6"/><stop offset="100%" stop-color="#7de3f0"/></radialGradient></defs>
+          <circle cx="16" cy="16" r="13" class="ring" fill="none" stroke="url(#g1)" stroke-width="2"/>
+          <circle cx="16" cy="16" r="8" class="ring" fill="none" stroke="url(#g1)" stroke-width="2" opacity=".9"/>
+          <circle cx="16" cy="16" r="3.2" class="dot pulse" fill="url(#g1)"/>
+        </svg>
+        NearGo
+      </div>
+      <a class="btn link" href="/">← Nazaj na glavno stran</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- HUB za organizatorje -->
+    <section class="card">
+      <div class="title">Za organizatorje & ponudnike</div>
+      <p class="muted">Objava je brezplačna. NearGo pomaga povečevati prodajo, zapolniti prazne termine in povečati doseg.</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:16px">
+        <button class="btn" id="hubPublish">Objavi dogodek/storitev</button>
+        <a class="btn link" href="/scan.html">Skeniraj QR</a>
+        <a class="btn link" href="/org-stats.html">Analitika</a>
+        <button class="btn link" id="hubBoost">Boost izpostavitev</button>
+      </div>
+    </section>
+    
+      <!-- PAKETI ZA PONUDNIKE -->
+      <section class="card" id="providerPlans">
+        <div class="title">Paketi za ponudnike</div>
+        <ul style="margin-bottom:12px; font-size:15px; color:var(--muted)">
+          <li><b>Grow</b>: Analitika, izpostavitve, predčasna obvestila, večja vidnost</li>
+          <li><b>Pro</b>: Vse iz Grow + napredna statistika, prioritetna podpora, ekskluzivne funkcije</li>
+          <li>Možnost mesečne ali letne naročnine. Prek Stripe Checkout (samo v web aplikaciji).</li>
+        </ul>
+        <div id="providerPlanButtons" style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:8px">
+          <button class="btn mini" id="buyGrowMonthly">Grow paket – 15 €/mesec</button>
+          <button class="btn mini" id="buyGrowYearly">Grow paket – 150 €/leto</button>
+          <button class="btn mini" id="buyProMonthly">Pro paket – 35 €/mesec</button>
+          <button class="btn mini" id="buyProYearly">Pro paket – 350 €/leto</button>
+        </div>
+        <div class="muted" id="providerPlanInfo" style="font-size:13px; margin-top:8px">Po nakupu prejmete potrditveni email in dostop do portala za ponudnike.</div>
+      </section>
+
+    <!-- OBRAZEC ZA OBJAVO - prikaže se na klik -->
+    <section class="card" id="orgPanel" style="display:none">
+      <div class="title">Objavi dogodek ali storitev</div>
+      <p class="muted">Objava je brezplačna. Prodaja vstopnic/kuponov prek Stripe. Naročnine & izpostavitve prek IAP (native).</p>
+      
+      <!-- Osnovni podatki -->
+      <div class="row row--3">
+        <label>Tip vnosa *
+          <select id="entryType" required>
+            <option value="event" selected>Dogodek</option>
+            <option value="service">Storitev</option>
+          </select>
+        </label>
+        <input id="orgName" placeholder="Ime organizatorja / ponudnika *" required>
+        <input id="orgFullName" placeholder="Ime in priimek (kontaktna oseba) *" required>
+      </div>
+
+      <div class="row row--3">
+        <input id="orgEmail" type="email" placeholder="E-pošta za potrditev *" required>
+        <input id="eventName" placeholder="Naslov (dogodek ali storitev) *" required>
+        <input id="venue" placeholder="Lokacija (ime prizorišča ali salona) *" required>
+      </div>
+
+      <div class="row row--3">
+        <select id="country" required>
+          <option value="">Država (izberi) *</option>
+          <option value="SI" selected>Slovenija (SI)</option>
+          <option value="AT">Avstrija (AT)</option>
+          <option value="HR">Hrvaška (HR)</option>
+          <option value="IT">Italija (IT)</option>
+          <option value="HU">Madžarska (HU)</option>
+          <option value="DE">Nemčija (DE)</option>
+          <option value="FR">Francija (FR)</option>
+          <option value="GB">Združeno kraljestvo (GB)</option>
+          <option value="US">ZDA (US)</option>
+        </select>
+        <label id="startWrap">Začetek * <input id="start" type="datetime-local"></label>
+        <label id="endWrap">Končanje * <input id="end" type="datetime-local"></label>
+      </div>
+
+      <div class="row row--3">
+        <input id="city2" placeholder="Mesto/kraj *" required>
+        <input id="url" placeholder="Povezava za več info / nakup (če obstaja)">
+        <label>Kategorija (glede na tip) *
+          <select id="category" required></select>
+        </label>
+      </div>
+
+      <!-- Opis -->
+      <div class="row" style="margin-top:8px">
+        <textarea id="desc" placeholder="Opis *" maxlength="800" required></textarea>
+        <div class="muted" id="descCount" style="font-size:12px; text-align:right">0 / 800</div>
+      </div>
+
+      <!-- Slika -->
+      <div class="row">
+        <div class="file-wrap">
+          <input id="image" type="file" accept="image/*">
+          <span id="fileName" class="file-name">Fotografija ni izbrana</span>
+          <img id="imgPreview" alt="" style="display:none;width:56px;height:56px;border-radius:8px;border:1px solid var(--chipborder);object-fit:cover">
+        </div>
+      </div>
+
+      <!-- Osnovne nastavitve ponudbe -->
+      <div class="row row--2" id="offerRow">
+        <label>Tip ponudbe
+          <select id="offerType">
+            <option value="none" selected>Brez plačila</option>
+            <option value="ticket">Vstopnice – prodaja prek NearGo</option>
+            <option value="coupon">Kupon – unovčljiv prek NearGo</option>
+          </select>
         </label>
         <div class="euro" id="priceWrap">
           <input id="price" type="number" min="0" step="0.01" placeholder="Cena (ena cena)">
@@ -198,66 +345,20 @@
     $("#showProviderTerms")?.addEventListener("click", (e) => { e.preventDefault(); showPanel('providerTermsPanel'); });
     $("#closeProviderTerms")?.addEventListener("click", () => showPanel('orgPanel'));
 
-    /* Emoji kategorije */
-    const CATEGORY_EMOJI_EVENT = [
-      { cat: 'koncert', emoji: '🎵' },
-      { cat: 'kultura', emoji: '🎭' },
-      { cat: 'otroci', emoji: '👨‍👩‍👧' },
-      { cat: 'hrana', emoji: '🍴' },
-      { cat: 'narava', emoji: '🏕️' },
-      { cat: 'sport', emoji: '🏃‍♀️' },
-      { cat: 'zabava', emoji: '✨' },
-      { cat: 'za-podjetja', emoji: '🧰' }
-    ];
-    const CATEGORY_EMOJI_SERVICE = [
-      { cat: 'frizer', emoji: '💄' },
-      { cat: 'wellness', emoji: '🌿' },
-      { cat: 'zdravje', emoji: '❤️' },
-      { cat: 'kozmetika', emoji: '💄' },
-      { cat: 'fitnes', emoji: '🏋️‍♂️' },
-      { cat: 'avto-moto', emoji: '🚗' },
-      { cat: 'turizem', emoji: '🏡' },
-      { cat: 'gospodinjske', emoji: '🔧' },
-      { cat: 'ostalo', emoji: '🌈' }
-    ];
-    function renderCategoryChipsOrg() {
-      const wrap = $("#categoryChips");
-      const input = $("#category");
+    /* Categories populate */
+    function populateCategories() {
+      const ct = $("#category");
       const isSvc = $("#entryType")?.value === "service";
-      const cats = isSvc ? CATEGORY_EMOJI_SERVICE : CATEGORY_EMOJI_EVENT;
-      if (!wrap || !input) return;
-      wrap.innerHTML = '';
-      cats.forEach(({cat, emoji}) => {
-        const btn = document.createElement('button');
-        btn.className = 'chip';
-        btn.setAttribute('data-cat', cat);
-        btn.innerHTML = `<span class="cat-emoji" style="font-size:2em;">${emoji}</span><span class="cat-label" style="display:none;font-size:1em;margin-top:2px;">${cat}</span>`;
-        btn.addEventListener('mouseenter', function(){
-          if(!btn.classList.contains('active')) btn.querySelector('.cat-label').style.display = 'inline';
-        });
-        btn.addEventListener('mouseleave', function(){
-          if(!btn.classList.contains('active')) btn.querySelector('.cat-label').style.display = 'none';
-        });
-        btn.addEventListener('touchstart', function(){
-          if(!btn.classList.contains('active')) btn.querySelector('.cat-label').style.display = 'inline';
-        });
-        btn.addEventListener('touchend', function(){
-          if(!btn.classList.contains('active')) btn.querySelector('.cat-label').style.display = 'none';
-        });
-        btn.addEventListener('click', function() {
-          wrap.querySelectorAll('.chip').forEach(b => {
-            b.classList.remove('active');
-            b.querySelector('.cat-label').style.display = 'none';
-          });
-          btn.classList.add('active');
-          btn.querySelector('.cat-label').style.display = 'inline';
-          input.value = cat;
-        });
-        wrap.appendChild(btn);
-      });
+      const opts = isSvc ? 
+        ["", "frizer", "wellness", "zdravje", "kozmetika", "fitnes", "avto-moto", "turizem", "gospodinjske", "ostalo"] :
+        ["", "koncert", "kultura", "otroci", "hrana", "narava", "sport", "zabava", "za-podjetja"];
+      
+      if (ct) {
+        ct.innerHTML = ['<option value="">(izberi)</option>', 
+          ...opts.filter(Boolean).map(v => `<option value="${v}">${v.replace("-", " ").replace(/\b\w/g, m => m.toUpperCase())}</option>`)
+        ].join("");
+      }
     }
-    $("#entryType")?.addEventListener('change', renderCategoryChipsOrg);
-    document.addEventListener('DOMContentLoaded', renderCategoryChipsOrg);
 
     /* Entry type change */
     $("#entryType")?.addEventListener("change", () => {

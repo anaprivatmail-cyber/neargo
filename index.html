@@ -357,6 +357,35 @@
             <span class="label"><span id="langLabel">SL</span><span class="chev">▼</span></span>
             <select id="lang" aria-label="Jezik"></select>
             <div class="lang-menu" id="langMenu"></div>
+            <script>
+            // Prikaz samo dogovorjenih jezikov
+            const supportedLangs = [
+              ["sl","Slovenščina"],
+              ["en","English"],
+              ["de","Deutsch"],
+              ["hr","Hrvatski"],
+              ["it","Italiano"],
+              ["cs","Čeština"],
+              ["sk","Slovenčina"],
+              ["pl","Polski"]
+            ];
+            const langSelect = document.getElementById('lang');
+            const langMenu = document.getElementById('langMenu');
+            if (langSelect && langMenu) {
+              langSelect.innerHTML = '';
+              langMenu.innerHTML = '';
+              supportedLangs.forEach(([code, name]) => {
+                const opt = document.createElement('option');
+                opt.value = code;
+                opt.textContent = name;
+                langSelect.appendChild(opt);
+                const btn = document.createElement('button');
+                btn.textContent = name;
+                btn.dataset.lang = code;
+                langMenu.appendChild(btn);
+              });
+            }
+            </script>
           </div>
           <div style="flex:1"></div>
           <a class="cta" id="btnOrganizersTop" href="/organizers.html" style="margin-right:0;">Za ponudnike</a>

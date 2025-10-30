@@ -541,6 +541,8 @@
         <a class="btn link" id="hubStats" href="/org-stats.html">Analitika</a>
         <button class="btn link" id="hubBoost">Boost izpostavitev</button>
       </div>
+      <div id="orgFormWrap" style="width:100%;margin-top:18px;display:none"></div>
+      </div>
     </section>
 
     <!-- OBRAZEC: Dogodek / Storitev -->
@@ -778,7 +780,20 @@
     </section>
 
     <script>
-    // Emoji chips for notification form
+    // Prikaz obrazca za vpis dogodka/storitve v orgHub
+    document.addEventListener('DOMContentLoaded', function() {
+      var publishBtn = document.getElementById('hubPublish');
+      var orgPanel = document.getElementById('orgPanel');
+      var orgFormWrap = document.getElementById('orgFormWrap');
+      if (publishBtn && orgPanel && orgFormWrap) {
+        publishBtn.addEventListener('click', function() {
+          if (orgFormWrap.innerHTML.trim() === '') {
+            orgFormWrap.innerHTML = orgPanel.innerHTML;
+          }
+          orgFormWrap.style.display = (orgFormWrap.style.display === 'none' || orgFormWrap.style.display === '') ? 'block' : 'none';
+        });
+      }
+    });
     (function(){
       var cats = [
         { key: "koncert", emoji: "🎸", label: "Koncerti" },

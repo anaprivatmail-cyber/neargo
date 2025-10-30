@@ -177,7 +177,7 @@ export const handler = async (event) => {
             <div id="providerEditCategoryChips" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"></div>
             <input type="hidden" name="category" id="category" value="${obj.category||''}">
             <script>
-            // Emoji chips for category selection in provider-edit form
+            // User-specified emoji chips for category selection in provider-edit form
             (function(){
               var cats = [
                 { key: "koncert", emoji: "🎸", label: "Koncerti" },

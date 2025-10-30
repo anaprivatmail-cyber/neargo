@@ -201,9 +201,9 @@
           <div id="categoryChips" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"></div>
           <input type="hidden" id="category" required>
           <script>
-          // Emoji chips for event/service entry form
+          // User-specified emoji chips for event/service entry form
           (function(){
-            var EVENT_CATS = [
+            var cats = [
               { key: "koncert", emoji: "🎸", label: "Koncerti" },
               { key: "kultura", emoji: "🎭", label: "Kultura" },
               { key: "otroci", emoji: "🧸", label: "Otroci" },
@@ -213,24 +213,11 @@
               { key: "zabava", emoji: "🎉", label: "Zabava" },
               { key: "za-podjetja", emoji: "🏢", label: "Za podjetja" }
             ];
-            var SERVICE_CATS = [
-              { key: "frizer", emoji: "💇", label: "Frizer" },
-              { key: "wellness", emoji: "🧖", label: "Wellness" },
-              { key: "zdravje", emoji: "❤️", label: "Zdravje" },
-              { key: "kozmetika", emoji: "💅", label: "Kozmetika" },
-              { key: "fitnes", emoji: "🏋️", label: "Fitnes" },
-              { key: "avto-moto", emoji: "🚗", label: "Avto-moto" },
-              { key: "turizem", emoji: "🏡", label: "Turizem" },
-              { key: "gospodinjske", emoji: "🛠️", label: "Gospodinjske" },
-              { key: "ostalo", emoji: "✨", label: "Ostalo" }
-            ];
             function renderChips(){
               var wrap = document.getElementById("categoryChips");
               var input = document.getElementById("category");
-              var entryType = document.getElementById("entryType");
-              if(!wrap || !input || !entryType) return;
+              if(!wrap || !input) return;
               wrap.innerHTML = "";
-              var cats = entryType.value === "service" ? SERVICE_CATS : EVENT_CATS;
               cats.forEach(function(cat, idx){
                 var chip = document.createElement("button");
                 chip.className = "chip cat" + (idx===0 ? " active" : "");
@@ -252,7 +239,6 @@
               });
               input.value = cats[0].key;
             }
-            document.getElementById("entryType")?.addEventListener("change", renderChips);
             document.addEventListener("DOMContentLoaded", renderChips);
           })();
           </script>

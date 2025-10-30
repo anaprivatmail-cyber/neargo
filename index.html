@@ -19,10 +19,10 @@
 
   <style>
     :root{
-      --brand:#0bbbd6; --text:#0b1b2b; --muted:#5b6b7b; --card:#fff;
+      --brand:#0bbbd6; --accent:#ff6b6b; --text:#0b1b2b; --muted:#5b6b7b; --card:#fff;
       --chip:#fff; --chipborder:#cfe1ee; --shadow:0 10px 30px rgba(0,0,0,.08);
       --radius:16px; --primary:#0bbbd6; --focus:#bfeef6; --gap:16px;
-      --ok:#11a67a; --bad:#d64c4c;
+      --ok:#11a67a; --bad:#d64c4c; --accent-light:#fff0f0;
     }
     body.dark{--text:#e8f0f8; --muted:#b8c3cf; --card:#0f1f30; --chip:#102437; --chipborder:#19324a; --focus:#123956}
     *{box-sizing:border-box}
@@ -51,10 +51,14 @@
     .pulse{animation:slowPulse 2.8s ease-in-out infinite; transform-origin:center}
 
     .pill{border:1px solid var(--chipborder); background:var(--chip); border-radius:999px; height:34px; display:flex; align-items:center; padding:0 10px; font-weight:800; font-size:14px; color:inherit; position:relative; cursor:pointer}
-    .btn{background:var(--primary); color:#fff; border:none; padding:12px 18px; border-radius:14px; font-weight:900; cursor:pointer; font-size:16px}
+    .btn{background:var(--accent); color:#fff; border:none; padding:12px 18px; border-radius:14px; font-weight:900; cursor:pointer; font-size:16px; transition:all 0.2s ease; box-shadow:0 4px 12px rgba(255,107,107,0.25)}
+    .btn:hover{background:#e55a5a; transform:translateY(-1px); box-shadow:0 6px 16px rgba(255,107,107,0.35)}
     .btn.mini{padding:8px 12px; font-size:13px; border-radius:12px}
     .btn.link{background:#fff; color:#000; border:1px solid var(--chipborder)}
-    .cta{background:var(--primary); color:#fff; border:none; padding:8px 14px; border-radius:999px; font-weight:800; box-shadow:var(--shadow); height:34px; display:flex; align-items:center}
+    .btn.secondary{background:var(--primary); color:#fff; box-shadow:0 4px 12px rgba(11,187,214,0.25)}
+    .btn.secondary:hover{background:#0aa5c1}
+    .cta{background:var(--accent); color:#fff; border:none; padding:8px 14px; border-radius:999px; font-weight:800; box-shadow:0 4px 12px rgba(255,107,107,0.25); height:34px; display:flex; align-items:center; transition:all 0.2s ease}
+    .cta:hover{background:#e55a5a; transform:translateY(-1px); box-shadow:0 6px 16px rgba(255,107,107,0.35)}
 
     .mode{ border:1px solid var(--chipborder); background:var(--chip); border-radius:999px; padding:6px 10px; font-weight:900; cursor:pointer; user-select:none }
     .mode.active{ background:var(--primary); color:#fff; border-color:transparent }
@@ -92,6 +96,29 @@
   .chip{border:1px solid var(--chipborder); border-radius:999px; padding:10px 14px 6px 14px; background:var(--chip); color:var(--muted); font-weight:700; cursor:pointer; min-width:48px; min-height:48px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative;}
     .chip.active{ background:var(--primary); color:#fff; border-color:#fff; }
   .chip.active .cat-label{ display:block !important; color:#fff; font-weight:900; font-size:13px; margin-top:4px; }
+  
+  /* Koralni poudarki */
+  .badge{background:var(--accent); color:#fff; padding:2px 6px; border-radius:10px; font-size:11px; font-weight:800; margin-left:6px}
+  .premium-badge{background:linear-gradient(135deg, var(--accent) 0%, #ff8a80 100%); color:#fff; padding:4px 8px; border-radius:12px; font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; box-shadow:0 2px 8px rgba(255,107,107,0.3)}
+  .hot-badge{background:var(--accent); color:#fff; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase; animation:pulse 2s infinite}
+  .new-badge{background:linear-gradient(45deg, var(--accent), #ff8a80); color:#fff; padding:3px 6px; border-radius:6px; font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:0.3px}
+  .discount-tag{background:var(--accent); color:#fff; padding:4px 12px; border-radius:16px; font-weight:800; font-size:12px; box-shadow:0 3px 10px rgba(255,107,107,0.4)}
+  
+  /* Gradientni prehodi */
+  .gradient-accent{background:linear-gradient(135deg, var(--brand) 0%, var(--accent) 100%)}
+  .gradient-soft{background:linear-gradient(135deg, var(--accent-light) 0%, rgba(255,107,107,0.1) 100%); border:1px solid rgba(255,107,107,0.2)}
+  
+  /* Koralni teksti */
+  .coral-accent-text {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  
+  /* Animacije */
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
   .cat-icon{ width:32px; height:32px; display:block; margin:0 auto; }
   .cat-label{ display:none; position:relative; font-size:13px; font-weight:700; margin-top:4px; color:var(--muted); }
 
@@ -339,9 +366,9 @@
       <!-- ROW 2: Dogodki/Storitve/Premium/Moje -->
       <div class="nav-row row2" style="flex-direction:column;gap:0;">
         <div style="display:flex;gap:10px;width:100%;flex-wrap:wrap;align-items:center;justify-content:flex-start;">
-          <button class="mode active" data-mode="events">Dogodki</button>
+          <button class="mode active" data-mode="events">Dogodki <span class="hot-badge">vroče</span></button>
           <button class="mode" data-mode="services">Storitve</button>
-          <a class="pill" id="btnPremiumTop" href="/premium.html">Premium</a>
+          <a class="pill premium-badge" id="btnPremiumTop" href="/premium.html">Premium</a>
           <a class="pill" id="btnMine" href="/my.html" title="Moje vstopnice & kuponi" style="min-width:50px;text-align:center;padding:6px 10px;font-size:14px;">Moje <span id="pointsBadge" class="badge" style="margin-left:4px;display:none;font-size:11px;">0</span></a>
         </div>
       </div>
@@ -362,7 +389,7 @@
         <span style="font-size:14px;">V živo: <span id="liveCount">0</span></span>
         <button class="btn mini link" id="btnShowLiveMap" style="background:#11a67a;color:#fff;padding:3px 8px;font-size:12px;border-radius:7px;box-shadow:none;">Zemljevid</button>
       </div>
-      <div id="earlyNotifyPromo" style="margin-top:8px;display:flex;align-items:center;gap:8px;padding:7px 12px;background:#e9f7ff;border-radius:10px;box-shadow:0 2px 8px rgba(11,187,214,.07);font-weight:700;color:#0bbbd6;font-size:1em;max-width:260px;">
+      <div id="earlyNotifyPromo" style="margin-top:8px;display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--accent-light);border-radius:10px;box-shadow:0 2px 8px rgba(255,107,107,.12);font-weight:700;color:var(--accent);font-size:1em;max-width:260px;border:1px solid rgba(255,107,107,0.2);">
         <span style="font-size:16px;">🔔</span>
         <span style="font-size:14px;">Premium obvestila: Bodite prvi obveščeni!</span>
       </div>
@@ -680,7 +707,7 @@
     <section class="card" id="benefitsUser">
       <div class="title">Zakaj NearGo?</div>
       <ul class="benefits" style="margin:8px 0 0 18px; color:var(--muted); line-height:1.6">
-        <li><b>Prihranki s kuponi</b> — ekskluzivni popusti pri dogodkih in storitvah.</li>
+        <li><b>Prihranki s kuponi</b> — ekskluzivni <span class="coral-accent-text">popusti</span> pri dogodkih in storitvah. <span class="discount-tag">-50%</span></li>
         <li><b>Brezplačne promocijske ponudbe</b> (omejen čas) — odkrij top akcije v bližini.</li>
         <li><b>Zbiraj točke</b> z ocenami in deljenji ter jih unovči za ugodnosti.</li>
         <li><b>Vse blizu tebe</b> — geolokacijsko iskanje, zemljevid, hitri filtri.</li>

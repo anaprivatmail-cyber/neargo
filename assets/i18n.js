@@ -9,10 +9,14 @@ class I18nManager {
     
     // Razširjen seznam podprtih jezikov
     this.supportedLangs = [
-      ["sl","SL"],["en","EN"],["de","DE"],["hr","HR"],["it","IT"],
-      ["fr","FR"],["es","ES"],["pt","PT"],["nl","NL"],["pl","PL"],
-      ["cs","CS"],["sk","SK"],["hu","HU"],["ro","RO"],["bg","BG"],
-      ["el","GR"],["tr","TR"],["ru","RU"]
+      ["sl","SL"], // Slovenščina
+      ["en","EN"], // Angleščina
+      ["de","DE"], // Nemščina
+      ["hr","HR"], // Hrvaščina
+      ["it","IT"], // Italijanščina
+      ["cs","CS"], // Češčina
+      ["sk","SK"], // Slovaščina
+      ["pl","PL"], // Poljščina
     ];
   }
 

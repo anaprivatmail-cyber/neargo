@@ -365,12 +365,16 @@
 
       <!-- ROW 2: Dogodki/Storitve/Premium/Moje -->
       <div class="nav-row row2" style="flex-direction:column;gap:0;">
-  <div style="display:flex;gap:10px;width:100%;flex-wrap:wrap;align-items:center;justify-content:flex-end;">
-          <button class="mode active" data-mode="events">Dogodki</button>
-          <button class="mode" data-mode="services">Storitve</button>
-          <a class="pill premium-badge" id="btnPremiumTop" href="/premium.html">Premium</a>
-          <a class="pill" id="btnMine" href="/my.html" title="Moje vstopnice & kuponi" style="min-width:50px;text-align:center;padding:6px 10px;font-size:14px;">Moje <span id="pointsBadge" class="badge" style="margin-left:4px;display:none;font-size:11px;">0</span></a>
-        </div>
+  <div style="display:flex;gap:10px;width:100%;flex-wrap:wrap;align-items:center;">
+    <div style="display:flex;gap:10px;align-items:center;flex-grow:1;">
+      <button class="mode active" data-mode="events">Dogodki</button>
+      <button class="mode" data-mode="services">Storitve</button>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <a class="pill premium-badge" id="btnPremiumTop" href="/premium.html">Premium</a>
+      <a class="pill" id="btnMine" href="/my.html" title="Moje vstopnice & kuponi" style="min-width:50px;text-align:center;padding:6px 10px;font-size:14px;">Moje <span id="pointsBadge" class="badge" style="margin-left:4px;display:none;font-size:11px;">0</span></a>
+    </div>
+  </div>
       </div>
     </div>
   </header>

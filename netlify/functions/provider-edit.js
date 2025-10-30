@@ -174,9 +174,49 @@ export const handler = async (event) => {
             <label>Max na naročilo <input type="number" step="1" name="maxPerOrder" value="${obj.maxPerOrder ?? ''}"></label>
           </div>
           <label>Kategorija
-            <select name="category">
-              ${['koncert','kultura','otroci','hrana','narava','sport','za-podjetja'].map(c=>`<option value="${c}" ${obj.category===c?'selected':''}>${c}</option>`).join('')}
-            </select>
+            <div id="providerEditCategoryChips" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"></div>
+            <input type="hidden" name="category" id="category" value="${obj.category||''}">
+            <script>
+            // Emoji chips for category selection in provider-edit form
+            (function(){
+              var cats = [
+                { key: "koncert", emoji: "🎸", label: "Koncerti" },
+                { key: "kultura", emoji: "🎭", label: "Kultura" },
+                { key: "otroci", emoji: "🧸", label: "Otroci" },
+                { key: "hrana", emoji: "🍔", label: "Hrana" },
+                { key: "narava", emoji: "🌳", label: "Narava" },
+                { key: "sport", emoji: "⚽", label: "Šport" },
+                { key: "zabava", emoji: "🎉", label: "Zabava" },
+                { key: "za-podjetja", emoji: "🏢", label: "Za podjetja" }
+              ];
+              function renderChips(){
+                var wrap = document.getElementById("providerEditCategoryChips");
+                var input = document.getElementById("category");
+                if(!wrap || !input) return;
+                wrap.innerHTML = "";
+                cats.forEach(function(cat){
+                  var chip = document.createElement("button");
+                  chip.className = "chip cat" + (input.value === cat.key ? " active" : "");
+                  chip.type = "button";
+                  chip.setAttribute("data-cat", cat.key);
+                  chip.innerHTML = '<span class="cat-icon">'+cat.emoji+'</span>' + '<span class="cat-label" style="display:none;">'+cat.label+'</span>';
+                  chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+                  chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+                  chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+                  chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+                  chip.addEventListener("click", function(){
+                    var all = wrap.querySelectorAll(".cat");
+                    all.forEach(function(b){ b.classList.remove("active"); b.querySelector(".cat-label").style.display = "none"; });
+                    chip.classList.add("active");
+                    chip.querySelector(".cat-label").style.display = "block";
+                    input.value = cat.key;
+                  });
+                  wrap.appendChild(chip);
+                });
+              }
+              document.addEventListener("DOMContentLoaded", renderChips);
+            })();
+            </script>
           </label>
           <label>Opis (max ${DESC_MAX})
             <span class="count"><span id="cnt">0</span> / ${DESC_MAX}</span>

@@ -54,13 +54,50 @@
         </div>
         <div>
           <label>Kategorija</label>
-          <select id="category">
-            <option value="">(izberi)</option>
-            <option value="koncert">Koncert</option><option value="kultura">Kultura</option>
-            <option value="otroci">Otroci</option><option value="hrana">Hrana</option>
-            <option value="narava">Narava</option><option value="sport">Šport</option>
-            <option value="za-podjetja">Za podjetja</option>
-          </select>
+          <div id="editCategoryChips" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"></div>
+          <input type="hidden" id="category">
+          <script>
+          // Emoji chips for category selection in edit form
+          (function(){
+            var cats = [
+              { key: "koncert", emoji: "🎸", label: "Koncerti" },
+              { key: "kultura", emoji: "🎭", label: "Kultura" },
+              { key: "otroci", emoji: "🧸", label: "Otroci" },
+              { key: "hrana", emoji: "🍔", label: "Hrana" },
+              { key: "narava", emoji: "🌳", label: "Narava" },
+              { key: "sport", emoji: "⚽", label: "Šport" },
+              { key: "zabava", emoji: "🎉", label: "Zabava" },
+              { key: "za-podjetja", emoji: "🏢", label: "Za podjetja" }
+            ];
+            function renderChips(){
+              var wrap = document.getElementById("editCategoryChips");
+              var input = document.getElementById("category");
+              if(!wrap || !input) return;
+              wrap.innerHTML = "";
+              cats.forEach(function(cat, idx){
+                var chip = document.createElement("button");
+                chip.className = "chip cat" + (idx===0 ? " active" : "");
+                chip.type = "button";
+                chip.setAttribute("data-cat", cat.key);
+                chip.innerHTML = '<span class="cat-icon">'+cat.emoji+'</span>' + '<span class="cat-label" style="display:none;">'+cat.label+'</span>';
+                chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+                chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+                chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+                chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+                chip.addEventListener("click", function(){
+                  var all = wrap.querySelectorAll(".cat");
+                  all.forEach(function(b){ b.classList.remove("active"); b.querySelector(".cat-label").style.display = "none"; });
+                  chip.classList.add("active");
+                  chip.querySelector(".cat-label").style.display = "block";
+                  input.value = cat.key;
+                });
+                wrap.appendChild(chip);
+              });
+              input.value = cats[0].key;
+            }
+            document.addEventListener("DOMContentLoaded", renderChips);
+          })();
+          </script>
         </div>
       </div>
 

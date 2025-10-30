@@ -28,11 +28,11 @@ export const handler = async (event) => {
     const cancelUrl  = payload.cancelUrl  || `${PUBLIC_BASE_URL || ""}/#cancel`;
     const metadata   = payload.metadata || {};
 
+
     // --- KU P O N -----------------------------------------------------------
     if ((payload.type || metadata.type) === "coupon") {
       // opis za PaymentIntent
       const piDesc = metadata.display_benefit ? `Kupon – ${metadata.display_benefit}` : "Kupon";
-
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         payment_method_types: ["card"],
@@ -55,7 +55,68 @@ export const handler = async (event) => {
         payment_intent_data: { description: piDesc },
         metadata
       });
+      return { statusCode: 200, body: JSON.stringify({ ok: true, url: session.url }) };
+    }
 
+    // --- PROVIDER PLAN (Grow/Pro) ------------------------------------------
+    if ((payload.type || metadata.type) === "provider-plan") {
+      // Določi ceno in ime paketa
+      let plan = payload.plan || metadata.plan;
+      let interval = payload.interval || metadata.interval;
+      let price = 0, name = "";
+      if (plan === "grow" && interval === "monthly") { price = 1500; name = "Grow paket – mesečno"; }
+      if (plan === "grow" && interval === "yearly")  { price = 15000; name = "Grow paket – letno"; }
+      if (plan === "pro"  && interval === "monthly") { price = 3500; name = "Pro paket – mesečno"; }
+      if (plan === "pro"  && interval === "yearly")  { price = 35000; name = "Pro paket – letno"; }
+      if (!price) return { statusCode: 400, body: JSON.stringify({ ok: false, error: "Neveljaven paket" }) };
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        line_items: [
+          {
+            price_data: {
+              currency: "eur",
+              unit_amount: price,
+              product_data: {
+                name,
+                description: name,
+              }
+            },
+            quantity: 1
+          }
+        ],
+        payment_intent_data: { description: name },
+        metadata: { ...metadata, plan, interval }
+      });
+      return { statusCode: 200, body: JSON.stringify({ ok: true, url: session.url }) };
+    }
+
+    // --- PREMIUM -----------------------------------------------------------
+    if ((payload.type || metadata.type) === "premium") {
+      const email = payload.email || metadata.email || "";
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        line_items: [
+          {
+            price_data: {
+              currency: "eur",
+              unit_amount: 9900, // 99,00 € Premium
+              product_data: {
+                name: "Premium NearGo",
+                description: "Premium naročnina za NearGo",
+              }
+            },
+            quantity: 1
+          }
+        ],
+        payment_intent_data: { description: "Premium NearGo" },
+        metadata: { ...metadata, email }
+      });
       return { statusCode: 200, body: JSON.stringify({ ok: true, url: session.url }) };
     }
 

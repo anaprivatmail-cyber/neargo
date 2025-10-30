@@ -161,6 +161,14 @@ document.getElementById("btnToggleResultsMap")?.addEventListener("click",()=>{
 function getEndTs(e){ const cand=e.end||e.until||e.endsAt||e.ends_at||e.finish||e.stop||e.start; const t=new Date(cand).getTime(); return Number.isFinite(t)?t:NaN; }
 async function doSearch(page=0, byGeo=false){
   window.showPanel?.("searchPanel"); currentPage=page;
+  // Dinamično nastavi naslov obrazca
+  const mode = document.querySelector('.mode.active')?.dataset?.mode || '';
+  const searchTitle = document.getElementById('searchTitle');
+  if(searchTitle){
+    if(mode==='events') searchTitle.textContent = 'Iskanje dogodkov';
+    else if(mode==='services') searchTitle.textContent = 'Iskanje storitev';
+    else searchTitle.textContent = 'Iskanje';
+  }
   const qVal=document.getElementById("q")?.value.trim()||"", cityVal=document.getElementById("city")?.value.trim()||"";
   const radUser=Number(document.getElementById("radius")?.value||30);
   const radCity=Number(document.getElementById("radiusCity")?.value||30);
@@ -184,6 +192,20 @@ async function doSearch(page=0, byGeo=false){
   try{ internal=await fetch(`/api/provider-list?${qs(params)}`).then(r=>r.json()).then(d=>d?.results||[]).catch(()=>[]);}catch{}
   try{ external=await fetch(`/api/search?${qs(params)}`).then(r=>r.json()).then(d=>d?.results||[]).catch(()=>[]);}catch{}
   let items=[...(internal||[]), ...(external||[])];
+  // Filtriraj demo/test/sample dogodke/storitve
+  items=items.filter(e=>{
+    const name=(e.name||'').toLowerCase();
+    if(name.includes('demo')||name.includes('test')||name.includes('vzorec')||name.includes('sample')) return false;
+    return true;
+  });
+  // Prikaži le dogodke/storitve, ki jih je vpisal uporabnik ali so iz velikih appov
+  items=items.filter(e=>{
+    // Če ima e.userId ali e.createdBy, je vpisal uporabnik
+    if(e.userId||e.createdBy) return true;
+    // Če je iz Ticketmaster/Eventbrite
+    if(isExternalAPI(e)) return true;
+    return false;
+  });
   const seen=new Set();
   items=items.filter(e=>{ const k=`${(e.name||'').toLowerCase()}|${e.start||''}|${e.venue?.address||''}`; if(seen.has(k)) return false; seen.add(k); return true; });
   const now=Date.now();

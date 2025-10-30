@@ -536,7 +536,7 @@
       <div class="title">Za organizatorje & ponudnike</div>
       <p class="muted">Objava je brezplačna. NearGo pomaga povečevati prodajo, zapolniti prazne termine in povečati doseg.</p>
       <div class="inline" style="display:flex; gap:10px; flex-wrap:wrap">
-        <button class="btn" id="hubPublish">Objavi dogodek/storitev</button>
+        <button class="btn" id="hubPublish">Vpis novega dogodka/storitve</button>
         <a class="btn link" id="hubScan" href="/scan.html">Skeniraj QR</a>
         <a class="btn link" id="hubStats" href="/org-stats.html">Analitika</a>
         <button class="btn link" id="hubBoost">Boost izpostavitev</button>
@@ -794,6 +794,111 @@
         });
       }
     });
+      // Prikaz obrazca za vpis dogodka/storitve v orgHub (stanje iz 20.10)
+      document.addEventListener('DOMContentLoaded', function() {
+        var publishBtn = document.getElementById('hubPublish');
+        var orgFormWrap = document.getElementById('orgFormWrap');
+        if (publishBtn && orgFormWrap) {
+          publishBtn.addEventListener('click', function() {
+            if (orgFormWrap.innerHTML.trim() === '') {
+              // Vstavi HTML obrazca iz stare verzije (20.10)
+              orgFormWrap.innerHTML = `
+                <div class="title">Vpis novega dogodka/storitve</div>
+                <p class="muted">Izpolni podatke o dogodku ali storitvi. Po oddaji boš prejel potrditveni email.</p>
+                <form id="eventForm">
+                  <label>Naslov dogodka/storitve *<input id="eventName" required></label>
+                  <label>Opis *<textarea id="desc" maxlength="800" required></textarea><div class="muted" id="descCount">0 / 800</div></label>
+                  <label>Lokacija (prizorišče/salon) *<input id="venue" required></label>
+                  <label>Mesto/kraj *<input id="city2" required></label>
+                  <label>Država<select id="country" required><option value="SI" selected>Slovenija (SI)</option><option value="AT">Avstrija (AT)</option><option value="HR">Hrvaška (HR)</option><option value="IT">Italija (IT)</option><option value="HU">Madžarska (HU)</option><option value="DE">Nemčija (DE)</option><option value="FR">Francija (FR)</option><option value="GB">Združeno kraljestvo (GB)</option><option value="US">ZDA (US)</option></select></label>
+                  <label>Začetek <input id="start" type="datetime-local"></label>
+                  <label>Končanje <input id="end" type="datetime-local"></label>
+                  <label>Kategorija<select id="category" required><option value="koncert">Koncert</option><option value="kultura">Kultura</option><option value="otroci">Otroci</option><option value="hrana">Hrana</option><option value="narava">Narava</option><option value="sport">Šport</option><option value="zabava">Zabava</option><option value="za-podjetja">Za podjetja</option></select></label>
+                  <label>Fotografija<input id="image" type="file" accept="image/*"><span id="fileName" class="file-name">Fotografija ni izbrana</span></label>
+                  <label>Tip ponudbe<select id="offerType"><option value="none" selected>Brez plačila</option><option value="ticket">Vstopnice</option><option value="coupon">Kupon</option></select></label>
+                  <label>Cena (ena cena)<input id="price" type="number" min="0" step="0.01"></label>
+                  <label>Zaloga (št. kosov)<input id="stock" type="number" min="0" step="1"></label>
+                  <label>Max na naročilo<input id="maxPerOrder" type="number" min="1" step="1"></label>
+                  <label class="inline"><input type="checkbox" id="featured"> Izpostavi (7 dni)</label>
+                  <label class="inline"><input type="checkbox" id="agreeFees"> Strinjam se s Pogoji za plačljive ponudbe.</label>
+                  <button class="btn" id="btnSubmitEvent" type="button">Objavi</button>
+                  <span id="orgMsg" class="muted" style="margin-left:10px"></span>
+                </form>
+              `;
+              // Dodaj JS logiko za štetje znakov, validacijo, oddajo, upload slike, potrditve
+              var desc = orgFormWrap.querySelector('#desc');
+              var descCount = orgFormWrap.querySelector('#descCount');
+              if(desc && descCount){ desc.addEventListener('input',function(){ descCount.textContent = desc.value.length + ' / 800'; }); }
+              var image = orgFormWrap.querySelector('#image');
+              var fileName = orgFormWrap.querySelector('#fileName');
+              if(image && fileName){ image.addEventListener('change',function(ev){ var f = ev.target.files[0]; fileName.textContent = f ? f.name : 'Fotografija ni izbrana'; }); }
+              var submit = orgFormWrap.querySelector('#btnSubmitEvent');
+              if(submit){
+                submit.addEventListener('click',function(ev){
+                  ev.preventDefault();
+                  var orgMsg = orgFormWrap.querySelector('#orgMsg');
+                  if(orgMsg){ orgMsg.textContent = ''; orgMsg.style.color = ''; }
+                  var must = ['#eventName','#desc','#venue','#city2','#country','#start','#end','#category'];
+                  for(var i=0;i<must.length;i++){
+                    var node = orgFormWrap.querySelector(must[i]);
+                    var val = node && node.value ? node.value.trim() : '';
+                    if(!val){ if(orgMsg){ orgMsg.textContent = 'Izpolni obvezna polja označena z *.'; orgMsg.style.color = 'var(--bad)'; } if(node && node.focus) node.focus(); return; }
+                  }
+                  var st = orgFormWrap.querySelector('#start'), en = orgFormWrap.querySelector('#end');
+                  var sdt = st && st.value ? new Date(st.value) : null;
+                  var edt = en && en.value ? new Date(en.value) : null;
+                  if(!(edt>st)){ if(orgMsg){ orgMsg.textContent = 'Konec mora biti po začetku.'; orgMsg.style.color = 'var(--bad)'; } if(en) en.focus(); return; }
+                  var IMAGE_URL = null;
+                  var fEl = orgFormWrap.querySelector('#image'); var f = fEl && fEl.files && fEl.files[0] ? fEl.files[0] : null;
+                  function afterImage(){
+                    var payload = {
+                      eventName: orgFormWrap.querySelector('#eventName').value.trim(),
+                      description: orgFormWrap.querySelector('#desc').value.trim(),
+                      venue: orgFormWrap.querySelector('#venue').value.trim(),
+                      city: orgFormWrap.querySelector('#city2').value.trim(),
+                      country: orgFormWrap.querySelector('#country').value,
+                      start: orgFormWrap.querySelector('#start').value,
+                      end: orgFormWrap.querySelector('#end').value,
+                      category: orgFormWrap.querySelector('#category').value,
+                      imagePublicUrl: IMAGE_URL,
+                      offerType: orgFormWrap.querySelector('#offerType').value,
+                      price: orgFormWrap.querySelector('#price').value,
+                      stock: orgFormWrap.querySelector('#stock').value,
+                      maxPerOrder: orgFormWrap.querySelector('#maxPerOrder').value,
+                      featured: orgFormWrap.querySelector('#featured').checked,
+                      agreeFees: orgFormWrap.querySelector('#agreeFees').checked
+                    };
+                    submit.disabled = true;
+                    fetch('/api/provider-submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+                      .then(function(x){return x.json();})
+                      .then(function(res){
+                        if(res && res.ok){
+                          if(orgMsg){ orgMsg.textContent = '✅ Uspešno oddano. Potrditveni e-mail je poslan.'; orgMsg.style.color = 'var(--ok)'; }
+                          setTimeout(function(){ orgFormWrap.style.display = 'none'; }, 3500);
+                        }else{
+                          if(orgMsg){ orgMsg.textContent = (res && res.error) ? res.error : 'Oddaja ni uspela.'; orgMsg.style.color = 'var(--bad)'; }
+                        }
+                      })
+                      .catch(function(){ if(orgMsg){ orgMsg.textContent = 'Napaka pri oddaji.'; orgMsg.style.color = 'var(--bad)'; } })
+                      .finally(function(){ submit.disabled = false; });
+                  }
+                  if(f){
+                    var up = new FormData(); up.append('file', f);
+                    fetch('/api/provider-upload',{method:'POST', body:up})
+                      .then(function(x){return x.json();})
+                      .then(function(ur){ if(ur && ur.ok && (ur.url||ur.imagePublicUrl)) IMAGE_URL = (ur.url||ur.imagePublicUrl); })
+                      .catch(function(){})
+                      .finally(afterImage);
+                  }else{
+                    afterImage();
+                  }
+                });
+              }
+            }
+            orgFormWrap.style.display = (orgFormWrap.style.display === 'none' || orgFormWrap.style.display === '') ? 'block' : 'none';
+          });
+        }
+      });
     (function(){
       var cats = [
         { key: "koncert", emoji: "🎸", label: "Koncerti" },

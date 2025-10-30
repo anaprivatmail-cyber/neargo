@@ -358,29 +358,29 @@
             <select id="lang" aria-label="Jezik"></select>
             <div class="lang-menu" id="langMenu"></div>
             <script>
-            // Prikaz samo dogovorjenih jezikov
+            // Prikaz samo dogovorjenih jezikov - kratice v njihovem jeziku
             const supportedLangs = [
-              ["sl","Slovenščina"],
-              ["en","English"],
-              ["de","Deutsch"],
-              ["hr","Hrvatski"],
-              ["it","Italiano"],
-              ["cs","Čeština"],
-              ["sk","Slovenčina"],
-              ["pl","Polski"]
+              ["sl","SL"], // Slovenščina
+              ["en","EN"], // English
+              ["de","DE"], // Deutsch
+              ["hr","HR"], // Hrvatski
+              ["it","IT"], // Italiano
+              ["cs","CS"], // Čeština
+              ["sk","SK"], // Slovenčina
+              ["pl","PL"]  // Polski
             ];
             const langSelect = document.getElementById('lang');
             const langMenu = document.getElementById('langMenu');
             if (langSelect && langMenu) {
               langSelect.innerHTML = '';
               langMenu.innerHTML = '';
-              supportedLangs.forEach(([code, name]) => {
+              supportedLangs.forEach(([code, short]) => {
                 const opt = document.createElement('option');
                 opt.value = code;
-                opt.textContent = name;
+                opt.textContent = short;
                 langSelect.appendChild(opt);
                 const btn = document.createElement('button');
-                btn.textContent = name;
+                btn.textContent = short;
                 btn.dataset.lang = code;
                 langMenu.appendChild(btn);
               });

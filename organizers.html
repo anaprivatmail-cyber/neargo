@@ -118,33 +118,37 @@
   </style>
 </head>
 <body id="organizers">
-  <!-- HEADER: tvoj globalni header ostane – gumb "Za ponudnike" naj kaže na /organizers.html -->
-  <header><div class="nav"></div></header>
+  <!-- HEADER: tvoj globalni header ostane – dodan gumb za vrnitev na domačo stran -->
+  <header>
+    <div class="nav">
+      <a href="/" aria-label="Domov" title="Domov" style="display:inline-flex;align-items:center;gap:8px;font-weight:900;color:var(--primary)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M10 19L3 12L10 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span style="font-size:15px">Domov</span>
+      </a>
+    </div>
+  </header>
 
   <main>
     <!-- ========== HUB ZA PONUDNIKE (motivacijski + hitre akcije) ========== -->
     <section class="section card" aria-labelledby="hubTitle">
-      <h2 id="hubTitle" class="title">Za organizatorje & ponudnike</h2>
-      <p class="muted" style="margin:6px 0 10px">
-        Objava je brezplačna. NearGo pomaga povečati prodajo, zapolniti prazne termine in doseg.
-      </p>
+        <!-- Glavna akcija -->
+        <button class="btn btn-accent" id="hubPublish" style="width:100%; font-size:18px;">Objavi dogodek ali storitev</button>
 
-      <!-- Glavna akcija -->
-      <button class="btn btn-accent" id="hubPublish" style="width:100%; font-size:18px;">Objavi dogodek ali storitev</button>
+        <!-- Kratek, informativen opis pod gumbom -->
+        <div style="margin-top:12px">
+          <p class="muted" style="margin:6px 0 8px">Objava je brezplačna. NearGo pomaga povečati prodajo, zapolniti prazne termine in razširiti doseg. Objavljanje je hitro in enostavno — v nekaj minutah.</p>
+          <ul style="margin:6px 0 0;padding-left:18px; color:var(--muted)">
+            <li>⚡ Hitra objava — pripraviš in oddaš v nekaj minutah</li>
+            <li>📈 Večja vidnost — prikaže se lokalnim uporabnikom</li>
+            <li>🕒 Zapolnitev prostih terminov — enostavno upravljanje zalog in terminov</li>
+          </ul>
+        </div>
 
-      <!-- Hitre akcije -->
-      <div class="actions" style="margin-top:12px">
-        <a class="chip-btn" href="/scan.html">Skeniraj QR</a>
-        <a class="chip-btn" href="/org-stats.html">Analitika</a>
-        <a class="chip-btn" id="hubBoost" href="#">Boost izpostavitev</a>
-      </div>
-
-      <!-- mini benefit chips -->
-      <div class="actions" style="margin-top:12px">
-        <div class="chip-btn">📈 Večja vidnost</div>
-        <div class="chip-btn">⏱️ Zapolni prazne termine</div>
-        <div class="chip-btn">🎯 Lokalno targetiranje</div>
-      </div>
+        <!-- Hitre akcije (ohrani samo dejanske povezave) -->
+        <div class="actions" style="margin-top:12px">
+          <a class="chip-btn" href="/scan.html">Skeniraj QR</a>
+          <a class="chip-btn" href="/org-stats.html">Analitika</a>
+        </div>
     </section>
 
     <!-- ========== PAKETI ZA PONUDNIKE (ID-ji gumbov OSTANEJO – Stripe dela) ========== -->
@@ -165,9 +169,9 @@
             • Podpora preko e-pošte
           </div>
           <div class="price-line" style="font-size:15px;font-weight:800;margin-top:6px;color:var(--primary)">15 €/mesec &nbsp;|&nbsp; 150 €/leto</div>
-          <div class="cta-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-            <button class="btn btn-primary btn-mini" id="buyGrowMonthly">Grow – 15 €/mesec</button>
-            <button class="btn btn-primary btn-mini" id="buyGrowYearly">Grow – 150 €/leto</button>
+          <div class="cta-row" style="display:flex;gap:8px;flex-wrap:nowrap;margin-top:8px;overflow:auto">
+            <button class="btn btn-primary btn-mini" id="buyGrowMonthly">Kupi (mesečno)</button>
+            <button class="btn btn-primary btn-mini" id="buyGrowYearly">Kupi (letno)</button>
           </div>
         </article>
 
@@ -183,9 +187,9 @@
             • Prednostna pozicija v iskalniku
           </div>
           <div class="price-line" style="font-size:15px;font-weight:800;margin-top:6px;color:var(--accent)">35 €/mesec &nbsp;|&nbsp; 350 €/leto</div>
-          <div class="cta-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-            <button class="btn btn-accent btn-mini" id="buyProMonthly">Pro – 35 €/mesec</button>
-            <button class="btn btn-accent btn-mini" id="buyProYearly">Pro – 350 €/leto</button>
+          <div class="cta-row" style="display:flex;gap:8px;flex-wrap:nowrap;margin-top:8px;overflow:auto">
+            <button class="btn btn-accent btn-mini" id="buyProMonthly">Kupi (mesečno)</button>
+            <button class="btn btn-accent btn-mini" id="buyProYearly">Kupi (letno)</button>
           </div>
         </article>
       </div>
@@ -515,15 +519,7 @@
       }
     });
 
-    /* ===== Boost IAP (1:1) ===== */
-    $("#hubBoost")?.addEventListener("click", async (e) => {
-      e.preventDefault();
-      try {
-        const r = await fetch("/api/iap/boost-start", { method: "POST" }).then(x => x.json());
-        if (r && r.ok && r.url) { location.href = r.url; }
-        else { showToast("Boost trenutno ni na voljo.", false); }
-      } catch { showToast("Napaka pri zagonu boosta.", false); }
-    });
+    /* Boost removed from UI — no handler required */
 
     // Init
     populateCategories();

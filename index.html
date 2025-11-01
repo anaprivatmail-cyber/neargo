@@ -416,24 +416,8 @@
   </header>
 
   <main>
-    <!-- HERO / SEARCH BAR -->
+    <!-- HERO sekcija brez search bara in hitrih filtrov -->
     <section class="hero card" id="hero" style="padding-bottom:0;">
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;flex-direction:row;align-items:center;gap:10px;width:100%;margin-bottom:8px;">
-          <input id="searchWhat" type="text" placeholder="Kaj?" style="flex:2 1 0%;padding:10px 12px;border-radius:12px;border:1px solid var(--chipborder);font-size:16px;">
-          <input id="searchWhere" type="text" placeholder="Kje?" style="flex:1 1 0%;padding:10px 12px;border-radius:12px;border:1px solid var(--chipborder);font-size:16px;">
-          <input id="searchWhen" type="date" style="flex:1 1 0%;padding:10px 12px;border-radius:12px;border:1px solid var(--chipborder);font-size:16px;">
-          <button class="btn mini" id="btnFilters" style="margin-left:6px;min-width:44px;display:flex;align-items:center;justify-content:center;gap:4px;">
-            <span style="font-size:18px;">🔎</span> Filtri
-          </button>
-        </div>
-        <div class="chips" style="display:flex;flex-direction:row;gap:8px;overflow-x:auto;margin-bottom:8px;">
-          <button class="chip quickDate" data-mode="today" type="button">Danes</button>
-          <button class="chip quickDate" data-mode="weekend" type="button">Vikend</button>
-          <button class="chip quickDate" data-mode="7" type="button">7 dni</button>
-          <button class="chip quickDate" data-mode="30" type="button">30 dni</button>
-        </div>
-      </div>
       <h1 id="heroHeadline" style="margin-top:10px;">Najdi <span style="color:var(--brand)">dogodke blizu</span> — koncerti, hrana, kultura, otroci &amp; več</h1>
       <p id="heroLead">Vtipkaj, izberi kraj ali radij in dobiš dogodke v izbrani okolici — kupi vstopnico ali kupon, dodaj v koledar, povabi prijatelje.</p>
       <!-- PASICA ZA ŽIVE DOGODKE -->
@@ -511,34 +495,41 @@
 
       <!-- Kategorije – dinamično -->
       <div class="chips" id="cats" style="margin-top:8px" role="tablist" aria-label="Kategorije"></div>
-      <script>
-      // User-specified emoji chips for search form
-      (function(){
-        <script type="module">
-        import { EVENT_CATEGORIES } from './assets/categories.js';
-        (function(){
-          const cats = EVENT_CATEGORIES;
-          const wrap = document.getElementById("cats");
-          if(!wrap) return;
-          wrap.innerHTML = "";
-          cats.forEach(function(cat, idx){
-            const chip = document.createElement("button");
-            chip.className = "chip cat" + (idx===0 ? " active" : "");
-            chip.type = "button";
-            chip.setAttribute("data-cat", cat.key);
-            chip.innerHTML = '<span class="cat-icon">'+cat.emoji+'</span>' + '<span class="cat-label" style="display:none;">'+cat.label+'</span>';
-            chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
-            chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
-            chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
-            chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
-            chip.addEventListener("click", function(){
-              const all = wrap.querySelectorAll(".cat");
-              all.forEach(function(b){ b.classList.remove("active"); b.querySelector(".cat-label").style.display = "none"; });
-              chip.classList.add("active");
-          wrap.appendChild(chip);
+  <script>
+  // User-specified emoji chips for search form
+  (function(){
+        var cats = [
+          { key: "koncert", emoji: "🎸", label: "Koncerti" },
+          { key: "kultura", emoji: "🎭", label: "Kultura" },
+          { key: "otroci", emoji: "🧸", label: "Otroci" },
+          { key: "hrana", emoji: "🍔", label: "Hrana" },
+          { key: "narava", emoji: "🌳", label: "Narava" },
+          { key: "sport", emoji: "⚽", label: "Šport" },
+          { key: "zabava", emoji: "🎉", label: "Zabava" },
+          { key: "za-podjetja", emoji: "🏢", label: "Za podjetja" }
+        ];
+        var wrap = document.getElementById("cats");
+        if(!wrap) return;
+        wrap.innerHTML = "";
+        cats.forEach(function(cat, idx){
+          var chip = document.createElement("button");
+          chip.className = "chip cat" + (idx===0 ? " active" : "");
+          chip.type = "button";
+          chip.setAttribute("data-cat", cat.key);
+          chip.innerHTML = '<span class="cat-icon">'+cat.emoji+'</span>' + '<span class="cat-label" style="display:none;">'+cat.label+'</span>';
+          chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+          chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+          chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+          chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+          chip.addEventListener("click", function(){
+            var all = wrap.querySelectorAll(".cat");
+            all.forEach(function(b){ b.classList.remove("active"); b.querySelector(".cat-label").style.display = "none"; });
+            chip.classList.add("active");
           });
-        })();
-        </script>
+          wrap.appendChild(chip);
+        });
+      })();
+      </script>
 
       <div style="margin-top:6px" id="freeOnlyWrap">
         <label class="inline" style="gap:8px; align-items:center">

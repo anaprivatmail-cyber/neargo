@@ -544,22 +544,23 @@
             clearTimeout(timeout);
             const { error, data, diagnostic } = res;
             if (error) {
-              if (error.message?.toLowerCase().includes('user already registered')) {
-                resultDiv.textContent = 'Napaka: Email je že registriran. Uporabi prijavo.';
-              } else if (error.message?.toLowerCase().includes('password')) {
-                resultDiv.textContent = 'Napaka: Geslo je prekratko ali neustrezno (min. 6 znakov).';
-              } else {
-                resultDiv.textContent = 'Napaka: ' + error.message + (diagnostic ? `\n[${diagnostic.message}]` : '');
-              }
-              if (diagnostic) {
-                resultDiv.textContent += `\n(Supabase URL: ${diagnostic.supabaseUrl}, anonKey: ${diagnostic.anonKey ? 'OK' : 'NI'})`;
-              }
+              let msg = 'Napaka pri registraciji:';
+              if (error.message) msg += `\n- message: ${error.message}`;
+              if (error.status) msg += `\n- status: ${error.status}`;
+              if (error.code) msg += `\n- code: ${error.code}`;
+              if (error.error_code) msg += `\n- error_code: ${error.error_code}`;
+              if (diagnostic && diagnostic.message) msg += `\n- diagnostic: ${diagnostic.message}`;
+              if (diagnostic && diagnostic.supabaseUrl) msg += `\n- Supabase URL: ${diagnostic.supabaseUrl}`;
+              if (diagnostic && typeof diagnostic.anonKey !== 'undefined') msg += `\n- anonKey: ${diagnostic.anonKey ? 'OK' : 'NI'}`;
+              if (error.details) msg += `\n- details: ${JSON.stringify(error.details)}`;
+              resultDiv.textContent = msg;
               resultDiv.style.color = '#d64c4c';
             } else {
-              resultDiv.textContent = 'Registracija uspešna! Preveri email za potrditev (če je zahtevano).';
-              if (diagnostic) {
-                resultDiv.textContent += `\n(Supabase URL: ${diagnostic.supabaseUrl}, anonKey: ${diagnostic.anonKey ? 'OK' : 'NI'})`;
-              }
+              let msg = 'Registracija uspešna! Preveri email za potrditev (če je zahtevano).';
+              if (diagnostic && diagnostic.message) msg += `\n- diagnostic: ${diagnostic.message}`;
+              if (diagnostic && diagnostic.supabaseUrl) msg += `\n- Supabase URL: ${diagnostic.supabaseUrl}`;
+              if (diagnostic && typeof diagnostic.anonKey !== 'undefined') msg += `\n- anonKey: ${diagnostic.anonKey ? 'OK' : 'NI'}`;
+              resultDiv.textContent = msg;
               resultDiv.style.color = '#11a67a';
               setTimeout(() => { tabLogin.click(); }, 1800);
             }

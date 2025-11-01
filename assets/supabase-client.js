@@ -30,25 +30,14 @@ export async function testSignUpEmail(email, password) {
 	return result;
 }
 // assets/supabase-client.js
-// Univerzalni import za Supabase: CDN za browser, npm za bundler/native
+// Browser/PWA: statični import iz CDN
+// Native/bundler: dynamic import iz npm
 let createClient;
-if (typeof window !== 'undefined') {
-	// Browser/PWA: import from CDN
-	// Uporabi dynamic import, če ni že na voljo
-	if (!window.__SUPABASE_CLIENT) {
-		import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm').then(mod => {
-			window.__SUPABASE_CLIENT = mod.createClient;
-		});
-	}
-	createClient = (...args) => window.__SUPABASE_CLIENT?.(...args);
-} else {
-	// Node/bundler/native: import from npm
-	try {
-		createClient = require('@supabase/supabase-js').createClient;
-	} catch (e) {
-		throw new Error('Supabase client ni na voljo: npm install @supabase/supabase-js');
-	}
-}
+// Browser/PWA: import iz CDN
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+// Če boš uporabljal native/bundler (Node.js, React Native, ...), zamenjaj zgornji import z:
+// const { createClient } = require('@supabase/supabase-js');
 
 // Poskusi pridobiti iz window, localStorage ali iz Netlify globalnih spremenljivk
 let SUPABASE_URL = typeof window !== 'undefined' ? (window.SUPABASE_URL || localStorage.getItem('SUPABASE_URL')) : process.env.SUPABASE_URL;

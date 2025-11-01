@@ -1,9 +1,33 @@
 // Testna funkcija za registracijo z emailom
 export async function testSignUpEmail(email, password) {
 	console.log('Poskus registracije z email:', email);
-	const { data, error } = await supabase.auth.signUp({ email, password });
-	console.log('Rezultat email signUp:', { data, error });
-	return { data, error };
+	let result = {};
+	try {
+		const { data, error } = await supabase.auth.signUp({ email, password });
+		result = { data, error };
+		if (error) {
+			console.error('Napaka pri registraciji:', error.message, error);
+			result.diagnostic = {
+				message: error.message,
+				status: error.status,
+				details: error,
+				supabaseUrl: supabase?.url,
+				anonKey: !!supabase?.key,
+			};
+		} else {
+			console.log('Registracija uspešna:', data);
+			result.diagnostic = {
+				message: 'Registracija uspešna',
+				emailSent: !!data?.user,
+				supabaseUrl: supabase?.url,
+				anonKey: !!supabase?.key,
+			};
+		}
+	} catch (e) {
+		console.error('Exception pri registraciji:', e);
+		result = { error: e, diagnostic: { message: e.message, details: e } };
+	}
+	return result;
 }
 // assets/supabase-client.js
 import { createClient } from '@supabase/supabase-js';
@@ -15,9 +39,33 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Testna funkcija za vpis z emailom
 export async function testSignInEmail(email, password) {
 	console.log('Poskus vpisa z email:', email);
-	const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-	console.log('Rezultat email signIn:', { data, error });
-	return { data, error };
+	let result = {};
+	try {
+		const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+		result = { data, error };
+		if (error) {
+			console.error('Napaka pri prijavi:', error.message, error);
+			result.diagnostic = {
+				message: error.message,
+				status: error.status,
+				details: error,
+				supabaseUrl: supabase?.url,
+				anonKey: !!supabase?.key,
+			};
+		} else {
+			console.log('Prijava uspešna:', data);
+			result.diagnostic = {
+				message: 'Prijava uspešna',
+				user: !!data?.user,
+				supabaseUrl: supabase?.url,
+				anonKey: !!supabase?.key,
+			};
+		}
+	} catch (e) {
+		console.error('Exception pri prijavi:', e);
+		result = { error: e, diagnostic: { message: e.message, details: e } };
+	}
+	return result;
 }
 
 // Testna funkcija za vpis z Google

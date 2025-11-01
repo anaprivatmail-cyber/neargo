@@ -149,8 +149,13 @@
             <button id="loginApple" style="width:100%;margin-bottom:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" style="height:18px;vertical-align:middle;margin-right:8px"> Apple</button>
             <form id="loginEmailForm" style="margin-top:10px">
               <input type="email" id="loginEmail" placeholder="E-pošta" required style="margin-bottom:8px">
-              <button type="submit" class="btn btn-primary" style="width:100%">Prijava preko e-pošte</button>
+              <input type="password" id="loginPassword" placeholder="Geslo" required style="margin-bottom:8px">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between">
+                <button type="submit" class="btn btn-primary" style="width:48%">Prijava</button>
+                <button type="button" id="btnSignUp" class="btn btn-outline" style="width:48%">Registracija</button>
+              </div>
             </form>
+            <div id="loginResult" style="margin-top:1em;color:#c00;font-size:14px;text-align:center"></div>
             <button id="closeLoginModal" class="btn btn-mini btn-outline" style="width:100%;margin-top:14px">Prekliči</button>
           </div>
         </div>
@@ -418,12 +423,47 @@
       $("#loginModal").style.display = "none";
       showPanel('orgPanel');
     });
-    $("#loginEmailForm")?.addEventListener("submit", (ev) => {
+    $("#loginEmailForm")?.addEventListener("submit", async (ev) => {
       ev.preventDefault();
-      // TODO: Integrate email login/confirmation
-      alert("Prijava preko e-pošte (demo)");
-      $("#loginModal").style.display = "none";
-      showPanel('orgPanel');
+      const email = $("#loginEmail")?.value.trim();
+      const password = $("#loginPassword")?.value;
+      const resultDiv = $("#loginResult");
+      resultDiv.textContent = "Pošiljam...";
+      if (!email || !password) {
+        resultDiv.textContent = "Vnesi email in geslo.";
+        return;
+      }
+      import('./assets/supabase-client.js').then(({ testSignInEmail }) => {
+        testSignInEmail(email, password).then(({ error, data }) => {
+          if (error) {
+            resultDiv.textContent = "Napaka: " + error.message;
+          } else {
+            resultDiv.textContent = "Prijava uspešna!";
+            setTimeout(() => { $("#loginModal").style.display = "none"; showPanel('orgPanel'); }, 1200);
+          }
+        }).catch(() => { resultDiv.textContent = "Napaka pri prijavi."; });
+      });
+    });
+
+    $("#btnSignUp")?.addEventListener("click", async () => {
+      const email = $("#loginEmail")?.value.trim();
+      const password = $("#loginPassword")?.value;
+      const resultDiv = $("#loginResult");
+      resultDiv.textContent = "Pošiljam...";
+      if (!email || !password) {
+        resultDiv.textContent = "Vnesi email in geslo.";
+        return;
+      }
+      import('./assets/supabase-client.js').then(({ testSignUpEmail }) => {
+        testSignUpEmail(email, password).then(({ error, data }) => {
+          if (error) {
+            resultDiv.textContent = "Napaka: " + error.message;
+          } else {
+            resultDiv.textContent = "Registracija uspešna! Preveri email za potrditev.";
+            setTimeout(() => { $("#loginModal").style.display = "none"; showPanel('orgPanel'); }, 1800);
+          }
+        }).catch(() => { resultDiv.textContent = "Napaka pri registraciji."; });
+      });
     });
     $("#closeProviderTerms")?.addEventListener("click", () => showPanel('orgPanel'));
     $("#showProviderTerms")?.addEventListener("click", (e) => { e.preventDefault?.(); showPanel('providerTermsPanel'); });

@@ -460,32 +460,7 @@
     });
 
 
-    $("#btnSignUp")?.addEventListener("click", async () => {
-      const email = $("#loginEmail")?.value.trim();
-      const password = $("#loginPassword")?.value;
-      const resultDiv = $("#loginResult");
-      resultDiv.textContent = "Pošiljam...";
-      if (!email || !password) {
-        resultDiv.textContent = "Vnesi email in geslo.";
-        return;
-      }
-      import('./assets/supabase-client.js').then(({ testSignUpEmail }) => {
-        testSignUpEmail(email, password).then(({ error, data }) => {
-          if (error) {
-            if (error.message?.toLowerCase().includes('user already registered')) {
-              resultDiv.textContent = "Napaka: Email je že registriran. Uporabi prijavo.";
-            } else if (error.message?.toLowerCase().includes('password')) {
-              resultDiv.textContent = "Napaka: Geslo je prekratko ali neustrezno (min. 6 znakov).";
-            } else {
-              resultDiv.textContent = "Napaka: " + error.message;
-            }
-          } else {
-            resultDiv.textContent = "Registracija uspešna! Preveri email za potrditev (če je zahtevano).";
-            setTimeout(() => { $("#loginModal").style.display = "none"; showPanel('orgPanel'); }, 1800);
-          }
-        }).catch(() => { resultDiv.textContent = "Napaka pri registraciji."; });
-      });
-    });
+    // Odstranjen star handler za #btnSignUp (ni več v UI)
       // Login/Register tab logic
       const tabLogin = document.getElementById('tabLogin');
       const tabRegister = document.getElementById('tabRegister');
@@ -551,20 +526,27 @@
           return;
         }
         import('./assets/supabase-client.js').then(({ testSignUpEmail }) => {
-          testSignUpEmail(email, password).then(({ error, data }) => {
+          testSignUpEmail(email, password).then((res) => {
+            const { error, data, diagnostic } = res;
             if (error) {
               if (error.message?.toLowerCase().includes('user already registered')) {
                 resultDiv.textContent = 'Napaka: Email je že registriran. Uporabi prijavo.';
               } else if (error.message?.toLowerCase().includes('password')) {
                 resultDiv.textContent = 'Napaka: Geslo je prekratko ali neustrezno (min. 6 znakov).';
               } else {
-                resultDiv.textContent = 'Napaka: ' + error.message;
+                resultDiv.textContent = 'Napaka: ' + error.message + (diagnostic ? `\n[${diagnostic.message}]` : '');
+              }
+              if (diagnostic) {
+                resultDiv.textContent += `\n(Supabase URL: ${diagnostic.supabaseUrl}, anonKey: ${diagnostic.anonKey ? 'OK' : 'NI'})`;
               }
             } else {
               resultDiv.textContent = 'Registracija uspešna! Preveri email za potrditev (če je zahtevano).';
+              if (diagnostic) {
+                resultDiv.textContent += `\n(Supabase URL: ${diagnostic.supabaseUrl}, anonKey: ${diagnostic.anonKey ? 'OK' : 'NI'})`;
+              }
               setTimeout(() => { tabLogin.click(); }, 1800);
             }
-          }).catch(() => { resultDiv.textContent = 'Napaka pri registraciji.'; });
+          }).catch((e) => { resultDiv.textContent = 'Napaka pri registraciji: ' + (e?.message || e); });
         });
       });
     $("#closeProviderTerms")?.addEventListener("click", () => showPanel('orgPanel'));

@@ -407,10 +407,10 @@
     });
 
     $("#loginGoogle")?.addEventListener("click", () => {
-      // TODO: Integrate Google login
-      alert("Google prijava (demo)");
+      import('./assets/supabase-client.js').then(({ signInWithGoogle }) => {
+        signInWithGoogle().catch(() => alert("Napaka pri prijavi z Google."));
+      });
       $("#loginModal").style.display = "none";
-      showPanel('orgPanel');
     });
     $("#loginApple")?.addEventListener("click", () => {
       // TODO: Integrate Apple login
@@ -420,10 +420,21 @@
     });
     $("#loginEmailForm")?.addEventListener("submit", (ev) => {
       ev.preventDefault();
-      // TODO: Integrate email login/confirmation
-      alert("Prijava preko e-pošte (demo)");
+      const email = $("#loginEmail")?.value.trim();
+      if (!email) {
+        alert("Vnesite e-poštni naslov.");
+        return;
+      }
+      import('./assets/supabase-client.js').then(({ signInWithEmail }) => {
+        signInWithEmail(email).then(({ error }) => {
+          if (error) {
+            alert("Napaka: " + error.message);
+          } else {
+            alert("Prijavni link je poslan! Preverite e-pošto.");
+          }
+        }).catch(() => alert("Napaka pri prijavi preko e-pošte."));
+      });
       $("#loginModal").style.display = "none";
-      showPanel('orgPanel');
     });
     $("#closeProviderTerms")?.addEventListener("click", () => showPanel('orgPanel'));
     $("#showProviderTerms")?.addEventListener("click", (e) => { e.preventDefault?.(); showPanel('providerTermsPanel'); });

@@ -51,4 +51,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 4) zaženi tvoj app (vsa logika, ki je bila prej v indexu)
   if (typeof window.appInit === 'function') window.appInit();
+
+  // Testni login debug
+  import('./supabase-client.js').then(({ testSignInEmail, testSignInGoogle }) => {
+    const btnEmail = document.getElementById('btnTestEmailLogin');
+    const btnGoogle = document.getElementById('btnTestGoogleLogin');
+    const emailInput = document.getElementById('testEmail');
+    const passInput = document.getElementById('testPassword');
+    const resultDiv = document.getElementById('testLoginResult');
+    if (btnEmail && btnGoogle && emailInput && passInput && resultDiv) {
+      btnEmail.onclick = async () => {
+        resultDiv.textContent = 'Pošiljam...';
+        const email = emailInput.value.trim();
+        const pass = passInput.value;
+        const { data, error } = await testSignInEmail(email, pass);
+        resultDiv.textContent = error ? `Napaka: ${error.message}` : `OK: ${JSON.stringify(data)}`;
+      };
+      btnGoogle.onclick = async () => {
+        resultDiv.textContent = 'Pošiljam...';
+        const { data, error } = await testSignInGoogle();
+        resultDiv.textContent = error ? `Napaka: ${error.message}` : `OK: ${JSON.stringify(data)}`;
+      };
+    }
+  });
 });

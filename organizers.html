@@ -145,11 +145,11 @@
           <div style="background:#fff;padding:28px 22px;border-radius:16px;max-width:340px;width:90vw;box-shadow:0 4px 32px rgba(0,0,0,0.13);margin:auto;">
             <div style="font-weight:900;font-size:1.15rem;margin-bottom:12px;text-align:center;">Prijava v NearGo</div>
             <div style="margin-bottom:18px;text-align:center;color:var(--muted);font-size:15px;">Za objavo dogodka/storitve se prijaviš hitro in varno:</div>
-            <button id="loginGoogle" style="width:100%;margin-bottom:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="height:18px;vertical-align:middle;margin-right:8px"> Prijava z Google</button>
-            <button id="loginApple" style="width:100%;margin-bottom:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" style="height:18px;vertical-align:middle;margin-right:8px"> Prijava z Apple</button>
+            <button id="loginGoogle" style="width:100%;margin-bottom:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="height:18px;vertical-align:middle;margin-right:8px"> Google</button>
+            <button id="loginApple" style="width:100%;margin-bottom:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" style="height:18px;vertical-align:middle;margin-right:8px"> Apple</button>
             <form id="loginEmailForm" style="margin-top:10px">
               <input type="email" id="loginEmail" placeholder="E-pošta" required style="margin-bottom:8px">
-              <button type="submit" class="btn btn-primary" style="width:100%;background:#0bbbd6;color:#fff;font-weight:700;">Prijava preko e-pošte</button>
+              <button type="submit" class="btn btn-primary" style="width:100%">Prijava preko e-pošte</button>
             </form>
             <button id="closeLoginModal" class="btn btn-mini btn-outline" style="width:100%;margin-top:14px">Prekliči</button>
           </div>
@@ -407,10 +407,10 @@
     });
 
     $("#loginGoogle")?.addEventListener("click", () => {
-      import('./assets/supabase-client.js').then(({ signInWithGoogle }) => {
-        signInWithGoogle().catch(() => alert("Napaka pri prijavi z Google."));
-      });
+      // TODO: Integrate Google login
+      alert("Google prijava (demo)");
       $("#loginModal").style.display = "none";
+      showPanel('orgPanel');
     });
     $("#loginApple")?.addEventListener("click", () => {
       // TODO: Integrate Apple login
@@ -420,21 +420,10 @@
     });
     $("#loginEmailForm")?.addEventListener("submit", (ev) => {
       ev.preventDefault();
-      const email = $("#loginEmail")?.value.trim();
-      if (!email) {
-        alert("Vnesite e-poštni naslov.");
-        return;
-      }
-      import('./assets/supabase-client.js').then(({ signInWithEmail }) => {
-        signInWithEmail(email).then(({ error }) => {
-          if (error) {
-            alert("Napaka: " + error.message);
-          } else {
-            alert("Prijavni link je poslan! Preverite e-pošto.");
-          }
-        }).catch(() => alert("Napaka pri prijavi preko e-pošte."));
-      });
+      // TODO: Integrate email login/confirmation
+      alert("Prijava preko e-pošte (demo)");
       $("#loginModal").style.display = "none";
+      showPanel('orgPanel');
     });
     $("#closeProviderTerms")?.addEventListener("click", () => showPanel('orgPanel'));
     $("#showProviderTerms")?.addEventListener("click", (e) => { e.preventDefault?.(); showPanel('providerTermsPanel'); });

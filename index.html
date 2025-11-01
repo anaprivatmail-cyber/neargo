@@ -412,13 +412,26 @@
   </header>
 
   <main>
-    <!-- HERO -->
-    <section class="hero card" id="hero">
-      <h1 id="heroHeadline">Najdi <span style="color:var(--brand)">dogodke blizu</span> — koncerti, hrana, kultura, otroci &amp; več</h1>
-      <p id="heroLead">Vtipkaj, izberi kraj ali radij in dobiš dogodke v izbrani okolici — kupi vstopnico ali kupon, dodaj v koledar, povabi prijatelje.</p>
-      <div class="chips">
-        <button class="btn" id="btnStart">Začni z iskanjem</button>
+    <!-- HERO / SEARCH BAR -->
+    <section class="hero card" id="hero" style="padding-bottom:0;">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;flex-direction:row;align-items:center;gap:10px;width:100%;margin-bottom:8px;">
+          <input id="searchWhat" type="text" placeholder="Kaj?" style="flex:2 1 0%;padding:10px 12px;border-radius:12px;border:1px solid var(--chipborder);font-size:16px;">
+          <input id="searchWhere" type="text" placeholder="Kje?" style="flex:1 1 0%;padding:10px 12px;border-radius:12px;border:1px solid var(--chipborder);font-size:16px;">
+          <input id="searchWhen" type="date" style="flex:1 1 0%;padding:10px 12px;border-radius:12px;border:1px solid var(--chipborder);font-size:16px;">
+          <button class="btn mini" id="btnFilters" style="margin-left:6px;min-width:44px;display:flex;align-items:center;justify-content:center;gap:4px;">
+            <span style="font-size:18px;">🔎</span> Filtri
+          </button>
+        </div>
+        <div class="chips" style="display:flex;flex-direction:row;gap:8px;overflow-x:auto;margin-bottom:8px;">
+          <button class="chip quickDate" data-mode="today" type="button">Danes</button>
+          <button class="chip quickDate" data-mode="weekend" type="button">Vikend</button>
+          <button class="chip quickDate" data-mode="7" type="button">7 dni</button>
+          <button class="chip quickDate" data-mode="30" type="button">30 dni</button>
+        </div>
       </div>
+      <h1 id="heroHeadline" style="margin-top:10px;">Najdi <span style="color:var(--brand)">dogodke blizu</span> — koncerti, hrana, kultura, otroci &amp; več</h1>
+      <p id="heroLead">Vtipkaj, izberi kraj ali radij in dobiš dogodke v izbrani okolici — kupi vstopnico ali kupon, dodaj v koledar, povabi prijatelje.</p>
       <!-- PASICA ZA ŽIVE DOGODKE -->
       <div id="liveBanner" style="margin:12px 0 0 0;display:flex;align-items:center;gap:8px;padding:7px 12px;background:#e6fbf5;border-radius:10px;box-shadow:0 2px 8px rgba(17,166,122,.07);font-weight:700;color:#05614d;font-size:1em;max-width:260px;">
         <span style="font-size:16px;">🟢</span>
@@ -2082,3 +2095,11 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
 
   </script>
   <script src="assets/app-logic.js"></script>
+  <div style="margin:2em 0">
+    <h3>Test vpis (debug)</h3>
+    <input id="testEmail" type="email" placeholder="Email" style="margin-right:8px">
+    <input id="testPassword" type="password" placeholder="Geslo" style="margin-right:8px">
+    <button id="btnTestEmailLogin">Testiraj vpis z emailom</button>
+    <button id="btnTestGoogleLogin">Testiraj vpis z Google</button>
+    <div id="testLoginResult" style="margin-top:1em;color:#c00"></div>
+  </div>

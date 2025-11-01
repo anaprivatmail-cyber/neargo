@@ -538,8 +538,15 @@
             finished = true;
           }
         }, 10000);
-        import('./assets/supabase-client.js').then(({ testSignUpEmail }) => {
-          testSignUpEmail(email, password).then((res) => {
+        import('./assets/supabase-client.js').then(mod => {
+          if (!mod.testSignUpEmail) {
+            resultDiv.textContent = 'Napaka: testSignUpEmail ni na voljo! Modul ni pravilno naložen ali ni ES modul.';
+            resultDiv.style.color = '#d64c4c';
+            clearTimeout(timeout);
+            finished = true;
+            return;
+          }
+          mod.testSignUpEmail(email, password).then((res) => {
             if (finished) return;
             clearTimeout(timeout);
             const { error, data, diagnostic } = res;

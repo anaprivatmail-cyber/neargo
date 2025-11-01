@@ -51,7 +51,9 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 	setTimeout(() => {
 		let el = document.getElementById('loginResult');
 		if (el) {
-			el.textContent = 'Napaka: Supabase URL ali anon ključ NI nastavljen! Preveri okolje v Netlify in vstavitev v JS.';
+			el.textContent = 'Napaka: Supabase URL ali anon ključ NI nastavljen! Preveri okolje v Netlify in vstavitev v JS.' +
+				'\nSUPABASE_URL: ' + (SUPABASE_URL || '[NI]') +
+				'\nSUPABASE_ANON_KEY: ' + (SUPABASE_ANON_KEY ? '[OK]' : '[NI]');
 			el.style.color = '#d64c4c';
 		}
 		console.error('Supabase config error:', { SUPABASE_URL, SUPABASE_ANON_KEY });

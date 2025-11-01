@@ -12,10 +12,6 @@
   <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0bbbd6">
-  <script>
-    window.SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
-    window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
-  </script>
 
   <style>
     /* ====== DESIGN TOKENS (ohranjeni + akcent coral) ====== */
@@ -147,26 +143,32 @@
         <!-- Login modal (hidden by default) -->
         <div id="loginModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:9999;align-items:center;justify-content:center;">
           <div style="background:#fff;padding:28px 22px;border-radius:16px;max-width:340px;width:90vw;box-shadow:0 4px 32px rgba(0,0,0,0.13);margin:auto;">
-            <div style="font-weight:900;font-size:1.15rem;margin-bottom:12px;text-align:center;">Prijava v NearGo</div>
+            <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:12px;">
+              <a href="/" class="brand" aria-label="NearGo" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+                <svg viewBox="0 0 32 32" aria-hidden="true" style="width:38px;height:38px;">
+                  <defs><radialGradient id="g1" cx="50%" cy="50%"><stop offset="0%" stop-color="#0bbbd6"/><stop offset="100%" stop-color="#7de3f0"/></radialGradient></defs>
+                  <circle cx="16" cy="16" r="13" class="ring" fill="none" stroke="url(#g1)" stroke-width="2"/>
+                  <circle cx="16" cy="16" r="8" class="ring" fill="none" stroke="url(#g1)" stroke-width="2" opacity=".9"/>
+                  <circle cx="16" cy="16" r="3.2" class="dot pulse"/>
+                </svg>
+                <span style="font-weight:900;font-size:22px;color:#14202b;letter-spacing:-1px;">NearGo</span>
+              </a>
+            </div>
             <div style="margin-bottom:18px;text-align:center;color:var(--muted);font-size:15px;">Za objavo dogodka/storitve se prijaviš hitro in varno:</div>
             <button id="loginGoogle" style="width:100%;margin-bottom:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="height:18px;vertical-align:middle;margin-right:8px"> Google</button>
             <button id="loginApple" style="width:100%;margin-bottom:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" style="height:18px;vertical-align:middle;margin-right:8px"> Apple</button>
-              <div id="loginTabs" style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;">
-                <button id="tabLogin" class="btn btn-outline" style="flex:1 1 0%;font-weight:700">Prijava</button>
-                <button id="tabRegister" class="btn btn-outline" style="flex:1 1 0%;font-weight:700">Registracija</button>
-              </div>
-              <form id="loginEmailForm" style="margin-top:10px;display:block">
-                <input type="email" id="loginEmail" placeholder="E-pošta" required style="margin-bottom:8px">
-                <input type="password" id="loginPassword" placeholder="Geslo" required style="margin-bottom:8px">
-                <button type="submit" class="btn btn-primary" style="width:100%">Prijava</button>
-              </form>
-              <form id="registerForm" style="margin-top:10px;display:none">
-                <input type="email" id="regEmail" placeholder="E-pošta" required style="margin-bottom:8px">
-                <input type="password" id="regPassword" placeholder="Geslo (min. 6 znakov)" required style="margin-bottom:8px">
-                <input type="password" id="regPassword2" placeholder="Ponovi geslo" required style="margin-bottom:8px">
-                <button type="submit" class="btn btn-accent" style="width:100%">Registracija</button>
-              </form>
-              <div id="loginResult" style="margin-top:1em;color:#c00;font-size:14px;text-align:center"></div>
+            <form id="loginEmailForm" style="margin-top:10px">
+              <input type="email" id="loginEmail" placeholder="E-pošta" required style="margin-bottom:8px">
+              <input type="password" id="loginPassword" placeholder="Geslo" required style="margin-bottom:8px">
+              <button type="submit" class="btn btn-primary" style="width:100%">Prijava</button>
+            </form>
+            <button id="registerBtn" class="btn btn-outline" style="width:100%;margin-top:8px">Registracija</button>
+            <div id="loginError" style="display:none;color:var(--bad);font-size:14px;margin-top:8px;text-align:center"></div>
+            <div id="forgotRow" style="display:none;margin-top:6px;text-align:center;font-size:13px;">
+              <a href="#" id="forgotPasswordLink" style="color:var(--primary);margin-right:10px">Pozabljeno geslo?</a>
+              <span>ali</span>
+              <a href="#" id="registerLink" style="color:var(--primary);margin-left:10px">Še niste registrirani?</a>
+            </div>
             <button id="closeLoginModal" class="btn btn-mini btn-outline" style="width:100%;margin-top:14px">Prekliči</button>
           </div>
         </div>
@@ -434,153 +436,40 @@
       $("#loginModal").style.display = "none";
       showPanel('orgPanel');
     });
-
-    $("#loginEmailForm")?.addEventListener("submit", async (ev) => {
+    $("#loginEmailForm")?.addEventListener("submit", (ev) => {
       ev.preventDefault();
-      const email = $("#loginEmail")?.value.trim();
-      const password = $("#loginPassword")?.value;
-      const resultDiv = $("#loginResult");
-      resultDiv.textContent = "Pošiljam...";
+      // Simulacija preverjanja gesla in emaila
+      const email = $("#loginEmail").value.trim();
+      const password = $("#loginPassword").value;
+      // Demo: napačno geslo ali neobstoječi uporabnik
+      let errorMsg = "";
       if (!email || !password) {
-        resultDiv.textContent = "Vnesi email in geslo.";
+        errorMsg = "Vnesite e-pošto in geslo.";
+      } else if (email !== "demo@neargo.com" || password !== "demo123") {
+        errorMsg = "Napačno geslo ali uporabnik ne obstaja.";
+      }
+      if (errorMsg) {
+        $("#loginError").textContent = errorMsg;
+        $("#loginError").style.display = "block";
+        $("#forgotRow").style.display = "block";
         return;
       }
-      import('./assets/supabase-client.js').then(({ testSignInEmail }) => {
-        testSignInEmail(email, password).then(({ error, data }) => {
-          if (error) {
-            if (error.message?.toLowerCase().includes('invalid login credentials')) {
-              resultDiv.textContent = "Napaka: Napačen email ali geslo.";
-            } else if (error.message?.toLowerCase().includes('email not confirmed')) {
-              resultDiv.textContent = "Napaka: Email ni potrjen. Preveri svoj email in potrdi registracijo.";
-            } else {
-              resultDiv.textContent = "Napaka: " + error.message;
-            }
-          } else {
-            resultDiv.textContent = "Prijava uspešna!";
-            setTimeout(() => { $("#loginModal").style.display = "none"; showPanel('orgPanel'); }, 1200);
-          }
-        }).catch(() => { resultDiv.textContent = "Napaka pri prijavi."; });
-      });
+      $("#loginError").style.display = "none";
+      $("#forgotRow").style.display = "none";
+      $("#loginModal").style.display = "none";
+      showPanel('orgPanel');
     });
-
-
-    // Odstranjen star handler za #btnSignUp (ni več v UI)
-      // Login/Register tab logic
-      const tabLogin = document.getElementById('tabLogin');
-      const tabRegister = document.getElementById('tabRegister');
-      const loginForm = document.getElementById('loginEmailForm');
-      const registerForm = document.getElementById('registerForm');
-      tabLogin.onclick = () => {
-        tabLogin.classList.add('btn-primary'); tabRegister.classList.remove('btn-primary');
-        loginForm.style.display = 'block'; registerForm.style.display = 'none';
-        document.getElementById('loginResult').textContent = '';
-      };
-      tabRegister.onclick = () => {
-        tabRegister.classList.add('btn-primary'); tabLogin.classList.remove('btn-primary');
-        loginForm.style.display = 'none'; registerForm.style.display = 'block';
-        document.getElementById('loginResult').textContent = '';
-      };
-      tabLogin.classList.add('btn-primary');
-
-      loginForm?.addEventListener('submit', async (ev) => {
-        ev.preventDefault();
-        const email = document.getElementById('loginEmail')?.value.trim();
-        const password = document.getElementById('loginPassword')?.value;
-        const resultDiv = document.getElementById('loginResult');
-        resultDiv.textContent = 'Pošiljam...';
-        if (!email || !password) {
-          resultDiv.textContent = 'Vnesi email in geslo.';
-          return;
-        }
-        import('./assets/supabase-client.js').then(({ testSignInEmail }) => {
-          testSignInEmail(email, password).then(({ error, data }) => {
-            if (error) {
-              if (error.message?.toLowerCase().includes('invalid login credentials')) {
-                resultDiv.textContent = 'Napaka: Napačen email ali geslo.';
-              } else if (error.message?.toLowerCase().includes('email not confirmed')) {
-                resultDiv.textContent = 'Napaka: Email ni potrjen. Preveri svoj email in potrdi registracijo.';
-              } else {
-                resultDiv.textContent = 'Napaka: ' + error.message;
-              }
-            } else {
-              resultDiv.textContent = 'Prijava uspešna!';
-              setTimeout(() => { document.getElementById('loginModal').style.display = 'none'; showPanel('orgPanel'); }, 1200);
-            }
-          }).catch(() => { resultDiv.textContent = 'Napaka pri prijavi.'; });
-        });
-      });
-
-      registerForm?.addEventListener('submit', async (ev) => {
-        ev.preventDefault();
-        const email = document.getElementById('regEmail')?.value.trim();
-        const password = document.getElementById('regPassword')?.value;
-        const password2 = document.getElementById('regPassword2')?.value;
-        const resultDiv = document.getElementById('loginResult');
-        resultDiv.textContent = 'Pošiljam...';
-        if (!email || !password || !password2) {
-          resultDiv.textContent = 'Vnesi email in geslo.';
-          return;
-        }
-        if (password.length < 6) {
-          resultDiv.textContent = 'Geslo mora imeti vsaj 6 znakov.';
-          return;
-        }
-        if (password !== password2) {
-          resultDiv.textContent = 'Gesli se ne ujemata.';
-          return;
-        }
-        let finished = false;
-        // Timeout za Supabase klic
-        const timeout = setTimeout(() => {
-          if (!finished) {
-            resultDiv.textContent = 'Napaka: Strežnik se ne odziva (timeout). Preveri povezavo ali Supabase nastavitve.';
-            resultDiv.style.color = '#d64c4c';
-            finished = true;
-          }
-        }, 10000);
-        import('./assets/supabase-client.js').then(mod => {
-          if (!mod.testSignUpEmail) {
-            resultDiv.textContent = 'Napaka: testSignUpEmail ni na voljo! Modul ni pravilno naložen ali ni ES modul.';
-            resultDiv.style.color = '#d64c4c';
-            clearTimeout(timeout);
-            finished = true;
-            return;
-          }
-          mod.testSignUpEmail(email, password).then((res) => {
-            if (finished) return;
-            clearTimeout(timeout);
-            const { error, data, diagnostic } = res;
-            if (error) {
-              let msg = 'Napaka pri registraciji:';
-              if (error.message) msg += `\n- message: ${error.message}`;
-              if (error.status) msg += `\n- status: ${error.status}`;
-              if (error.code) msg += `\n- code: ${error.code}`;
-              if (error.error_code) msg += `\n- error_code: ${error.error_code}`;
-              if (diagnostic && diagnostic.message) msg += `\n- diagnostic: ${diagnostic.message}`;
-              if (diagnostic && diagnostic.supabaseUrl) msg += `\n- Supabase URL: ${diagnostic.supabaseUrl}`;
-              if (diagnostic && typeof diagnostic.anonKey !== 'undefined') msg += `\n- anonKey: ${diagnostic.anonKey ? 'OK' : 'NI'}`;
-              if (error.details) msg += `\n- details: ${JSON.stringify(error.details)}`;
-              resultDiv.textContent = msg;
-              resultDiv.style.color = '#d64c4c';
-            } else {
-              let msg = 'Registracija uspešna! Preveri email za potrditev (če je zahtevano).';
-              if (diagnostic && diagnostic.message) msg += `\n- diagnostic: ${diagnostic.message}`;
-              if (diagnostic && diagnostic.supabaseUrl) msg += `\n- Supabase URL: ${diagnostic.supabaseUrl}`;
-              if (diagnostic && typeof diagnostic.anonKey !== 'undefined') msg += `\n- anonKey: ${diagnostic.anonKey ? 'OK' : 'NI'}`;
-              resultDiv.textContent = msg;
-              resultDiv.style.color = '#11a67a';
-              setTimeout(() => { tabLogin.click(); }, 1800);
-            }
-            finished = true;
-          }).catch((e) => {
-            if (finished) return;
-            clearTimeout(timeout);
-            resultDiv.textContent = 'Napaka pri registraciji: ' + (e?.message || e);
-            resultDiv.style.color = '#d64c4c';
-            finished = true;
-          });
-        });
-      });
+    $("#registerBtn")?.addEventListener("click", () => {
+      window.location.href = "/register.html";
+    });
+    $("#registerLink")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.location.href = "/register.html";
+    });
+    $("#forgotPasswordLink")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.location.href = "/forgot-password.html";
+    });
     $("#closeProviderTerms")?.addEventListener("click", () => showPanel('orgPanel'));
     $("#showProviderTerms")?.addEventListener("click", (e) => { e.preventDefault?.(); showPanel('providerTermsPanel'); });
 

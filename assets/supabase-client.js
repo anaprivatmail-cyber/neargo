@@ -1,3 +1,10 @@
+// Testna funkcija za registracijo z emailom
+export async function testSignUpEmail(email, password) {
+	console.log('Poskus registracije z email:', email);
+	const { data, error } = await supabase.auth.signUp({ email, password });
+	console.log('Rezultat email signUp:', { data, error });
+	return { data, error };
+}
 // assets/supabase-client.js
 import { createClient } from '@supabase/supabase-js';
 

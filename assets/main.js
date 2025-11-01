@@ -53,13 +53,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (typeof window.appInit === 'function') window.appInit();
 
   // Testni login debug
-  import('./supabase-client.js').then(({ testSignInEmail, testSignInGoogle }) => {
+  import('./supabase-client.js').then(({ testSignInEmail, testSignInGoogle, testSignUpEmail }) => {
     const btnEmail = document.getElementById('btnTestEmailLogin');
     const btnGoogle = document.getElementById('btnTestGoogleLogin');
+    const btnSignUp = document.getElementById('btnTestSignUp');
     const emailInput = document.getElementById('testEmail');
     const passInput = document.getElementById('testPassword');
     const resultDiv = document.getElementById('testLoginResult');
-    if (btnEmail && btnGoogle && emailInput && passInput && resultDiv) {
+    if (btnEmail && btnGoogle && btnSignUp && emailInput && passInput && resultDiv) {
+      btnSignUp.onclick = async () => {
+        resultDiv.textContent = 'Pošiljam...';
+        const email = emailInput.value.trim();
+        const pass = passInput.value;
+        const { data, error } = await testSignUpEmail(email, pass);
+        resultDiv.textContent = error ? `Napaka: ${error.message}` : `OK: ${JSON.stringify(data)}`;
+      };
       btnEmail.onclick = async () => {
         resultDiv.textContent = 'Pošiljam...';
         const email = emailInput.value.trim();

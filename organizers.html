@@ -525,8 +525,19 @@
           resultDiv.textContent = 'Gesli se ne ujemata.';
           return;
         }
+        let finished = false;
+        // Timeout za Supabase klic
+        const timeout = setTimeout(() => {
+          if (!finished) {
+            resultDiv.textContent = 'Napaka: Strežnik se ne odziva (timeout). Preveri povezavo ali Supabase nastavitve.';
+            resultDiv.style.color = '#d64c4c';
+            finished = true;
+          }
+        }, 10000);
         import('./assets/supabase-client.js').then(({ testSignUpEmail }) => {
           testSignUpEmail(email, password).then((res) => {
+            if (finished) return;
+            clearTimeout(timeout);
             const { error, data, diagnostic } = res;
             if (error) {
               if (error.message?.toLowerCase().includes('user already registered')) {
@@ -539,14 +550,23 @@
               if (diagnostic) {
                 resultDiv.textContent += `\n(Supabase URL: ${diagnostic.supabaseUrl}, anonKey: ${diagnostic.anonKey ? 'OK' : 'NI'})`;
               }
+              resultDiv.style.color = '#d64c4c';
             } else {
               resultDiv.textContent = 'Registracija uspešna! Preveri email za potrditev (če je zahtevano).';
               if (diagnostic) {
                 resultDiv.textContent += `\n(Supabase URL: ${diagnostic.supabaseUrl}, anonKey: ${diagnostic.anonKey ? 'OK' : 'NI'})`;
               }
+              resultDiv.style.color = '#11a67a';
               setTimeout(() => { tabLogin.click(); }, 1800);
             }
-          }).catch((e) => { resultDiv.textContent = 'Napaka pri registraciji: ' + (e?.message || e); });
+            finished = true;
+          }).catch((e) => {
+            if (finished) return;
+            clearTimeout(timeout);
+            resultDiv.textContent = 'Napaka pri registraciji: ' + (e?.message || e);
+            resultDiv.style.color = '#d64c4c';
+            finished = true;
+          });
         });
       });
     $("#closeProviderTerms")?.addEventListener("click", () => showPanel('orgPanel'));

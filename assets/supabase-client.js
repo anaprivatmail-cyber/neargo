@@ -30,11 +30,29 @@ export async function testSignUpEmail(email, password) {
 	return result;
 }
 // assets/supabase-client.js
-import { createClient } from '@supabase/supabase-js';
+// Univerzalni import za Supabase: CDN za browser, npm za bundler/native
+let createClient;
+if (typeof window !== 'undefined') {
+	// Browser/PWA: import from CDN
+	// Uporabi dynamic import, če ni že na voljo
+	if (!window.__SUPABASE_CLIENT) {
+		import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm').then(mod => {
+			window.__SUPABASE_CLIENT = mod.createClient;
+		});
+	}
+	createClient = (...args) => window.__SUPABASE_CLIENT?.(...args);
+} else {
+	// Node/bundler/native: import from npm
+	try {
+		createClient = require('@supabase/supabase-js').createClient;
+	} catch (e) {
+		throw new Error('Supabase client ni na voljo: npm install @supabase/supabase-js');
+	}
+}
 
 // Poskusi pridobiti iz window, localStorage ali iz Netlify globalnih spremenljivk
-let SUPABASE_URL = window.SUPABASE_URL || localStorage.getItem('SUPABASE_URL');
-let SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY');
+let SUPABASE_URL = typeof window !== 'undefined' ? (window.SUPABASE_URL || localStorage.getItem('SUPABASE_URL')) : process.env.SUPABASE_URL;
+let SUPABASE_ANON_KEY = typeof window !== 'undefined' ? (window.SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY')) : process.env.SUPABASE_ANON_KEY;
 // Netlify včasih doda spremenljivke v globalni objekt __env ali process.env
 if (window.__env) {
 	SUPABASE_URL = SUPABASE_URL || window.__env.SUPABASE_URL;

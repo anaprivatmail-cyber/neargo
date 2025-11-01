@@ -147,15 +147,22 @@
             <div style="margin-bottom:18px;text-align:center;color:var(--muted);font-size:15px;">Za objavo dogodka/storitve se prijaviš hitro in varno:</div>
             <button id="loginGoogle" style="width:100%;margin-bottom:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="height:18px;vertical-align:middle;margin-right:8px"> Google</button>
             <button id="loginApple" style="width:100%;margin-bottom:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" style="height:18px;vertical-align:middle;margin-right:8px"> Apple</button>
-            <form id="loginEmailForm" style="margin-top:10px">
-              <input type="email" id="loginEmail" placeholder="E-pošta" required style="margin-bottom:8px">
-              <input type="password" id="loginPassword" placeholder="Geslo" required style="margin-bottom:8px">
-              <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between">
-                <button type="submit" class="btn btn-primary" style="width:48%">Prijava</button>
-                <button type="button" id="btnSignUp" class="btn btn-outline" style="width:48%">Registracija</button>
+              <div id="loginTabs" style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;">
+                <button id="tabLogin" class="btn btn-outline" style="flex:1 1 0%;font-weight:700">Prijava</button>
+                <button id="tabRegister" class="btn btn-outline" style="flex:1 1 0%;font-weight:700">Registracija</button>
               </div>
-            </form>
-            <div id="loginResult" style="margin-top:1em;color:#c00;font-size:14px;text-align:center"></div>
+              <form id="loginEmailForm" style="margin-top:10px;display:block">
+                <input type="email" id="loginEmail" placeholder="E-pošta" required style="margin-bottom:8px">
+                <input type="password" id="loginPassword" placeholder="Geslo" required style="margin-bottom:8px">
+                <button type="submit" class="btn btn-primary" style="width:100%">Prijava</button>
+              </form>
+              <form id="registerForm" style="margin-top:10px;display:none">
+                <input type="email" id="regEmail" placeholder="E-pošta" required style="margin-bottom:8px">
+                <input type="password" id="regPassword" placeholder="Geslo (min. 6 znakov)" required style="margin-bottom:8px">
+                <input type="password" id="regPassword2" placeholder="Ponovi geslo" required style="margin-bottom:8px">
+                <button type="submit" class="btn btn-accent" style="width:100%">Registracija</button>
+              </form>
+              <div id="loginResult" style="margin-top:1em;color:#c00;font-size:14px;text-align:center"></div>
             <button id="closeLoginModal" class="btn btn-mini btn-outline" style="width:100%;margin-top:14px">Prekliči</button>
           </div>
         </div>
@@ -479,6 +486,87 @@
         }).catch(() => { resultDiv.textContent = "Napaka pri registraciji."; });
       });
     });
+      // Login/Register tab logic
+      const tabLogin = document.getElementById('tabLogin');
+      const tabRegister = document.getElementById('tabRegister');
+      const loginForm = document.getElementById('loginEmailForm');
+      const registerForm = document.getElementById('registerForm');
+      tabLogin.onclick = () => {
+        tabLogin.classList.add('btn-primary'); tabRegister.classList.remove('btn-primary');
+        loginForm.style.display = 'block'; registerForm.style.display = 'none';
+        document.getElementById('loginResult').textContent = '';
+      };
+      tabRegister.onclick = () => {
+        tabRegister.classList.add('btn-primary'); tabLogin.classList.remove('btn-primary');
+        loginForm.style.display = 'none'; registerForm.style.display = 'block';
+        document.getElementById('loginResult').textContent = '';
+      };
+      tabLogin.classList.add('btn-primary');
+
+      loginForm?.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const email = document.getElementById('loginEmail')?.value.trim();
+        const password = document.getElementById('loginPassword')?.value;
+        const resultDiv = document.getElementById('loginResult');
+        resultDiv.textContent = 'Pošiljam...';
+        if (!email || !password) {
+          resultDiv.textContent = 'Vnesi email in geslo.';
+          return;
+        }
+        import('./assets/supabase-client.js').then(({ testSignInEmail }) => {
+          testSignInEmail(email, password).then(({ error, data }) => {
+            if (error) {
+              if (error.message?.toLowerCase().includes('invalid login credentials')) {
+                resultDiv.textContent = 'Napaka: Napačen email ali geslo.';
+              } else if (error.message?.toLowerCase().includes('email not confirmed')) {
+                resultDiv.textContent = 'Napaka: Email ni potrjen. Preveri svoj email in potrdi registracijo.';
+              } else {
+                resultDiv.textContent = 'Napaka: ' + error.message;
+              }
+            } else {
+              resultDiv.textContent = 'Prijava uspešna!';
+              setTimeout(() => { document.getElementById('loginModal').style.display = 'none'; showPanel('orgPanel'); }, 1200);
+            }
+          }).catch(() => { resultDiv.textContent = 'Napaka pri prijavi.'; });
+        });
+      });
+
+      registerForm?.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const email = document.getElementById('regEmail')?.value.trim();
+        const password = document.getElementById('regPassword')?.value;
+        const password2 = document.getElementById('regPassword2')?.value;
+        const resultDiv = document.getElementById('loginResult');
+        resultDiv.textContent = 'Pošiljam...';
+        if (!email || !password || !password2) {
+          resultDiv.textContent = 'Vnesi email in geslo.';
+          return;
+        }
+        if (password.length < 6) {
+          resultDiv.textContent = 'Geslo mora imeti vsaj 6 znakov.';
+          return;
+        }
+        if (password !== password2) {
+          resultDiv.textContent = 'Gesli se ne ujemata.';
+          return;
+        }
+        import('./assets/supabase-client.js').then(({ testSignUpEmail }) => {
+          testSignUpEmail(email, password).then(({ error, data }) => {
+            if (error) {
+              if (error.message?.toLowerCase().includes('user already registered')) {
+                resultDiv.textContent = 'Napaka: Email je že registriran. Uporabi prijavo.';
+              } else if (error.message?.toLowerCase().includes('password')) {
+                resultDiv.textContent = 'Napaka: Geslo je prekratko ali neustrezno (min. 6 znakov).';
+              } else {
+                resultDiv.textContent = 'Napaka: ' + error.message;
+              }
+            } else {
+              resultDiv.textContent = 'Registracija uspešna! Preveri email za potrditev (če je zahtevano).';
+              setTimeout(() => { tabLogin.click(); }, 1800);
+            }
+          }).catch(() => { resultDiv.textContent = 'Napaka pri registraciji.'; });
+        });
+      });
     $("#closeProviderTerms")?.addEventListener("click", () => showPanel('orgPanel'));
     $("#showProviderTerms")?.addEventListener("click", (e) => { e.preventDefault?.(); showPanel('providerTermsPanel'); });
 

@@ -32,9 +32,31 @@ export async function testSignUpEmail(email, password) {
 // assets/supabase-client.js
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = window.SUPABASE_URL || localStorage.getItem('SUPABASE_URL');
-const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY');
+// Poskusi pridobiti iz window, localStorage ali iz Netlify globalnih spremenljivk
+let SUPABASE_URL = window.SUPABASE_URL || localStorage.getItem('SUPABASE_URL');
+let SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY');
+// Netlify včasih doda spremenljivke v globalni objekt __env ali process.env
+if (window.__env) {
+	SUPABASE_URL = SUPABASE_URL || window.__env.SUPABASE_URL;
+	SUPABASE_ANON_KEY = SUPABASE_ANON_KEY || window.__env.SUPABASE_ANON_KEY;
+}
+if (typeof process !== 'undefined' && process.env) {
+	SUPABASE_URL = SUPABASE_URL || process.env.SUPABASE_URL;
+	SUPABASE_ANON_KEY = SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+}
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Če ni nastavljenih ključev, izpiši napako v UI
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+	setTimeout(() => {
+		let el = document.getElementById('loginResult');
+		if (el) {
+			el.textContent = 'Napaka: Supabase URL ali anon ključ NI nastavljen! Preveri okolje v Netlify in vstavitev v JS.';
+			el.style.color = '#d64c4c';
+		}
+		console.error('Supabase config error:', { SUPABASE_URL, SUPABASE_ANON_KEY });
+	}, 500);
+}
 
 // Testna funkcija za vpis z emailom
 export async function testSignInEmail(email, password) {

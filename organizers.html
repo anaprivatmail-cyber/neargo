@@ -423,6 +423,7 @@
       $("#loginModal").style.display = "none";
       showPanel('orgPanel');
     });
+
     $("#loginEmailForm")?.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const email = $("#loginEmail")?.value.trim();
@@ -436,7 +437,13 @@
       import('./assets/supabase-client.js').then(({ testSignInEmail }) => {
         testSignInEmail(email, password).then(({ error, data }) => {
           if (error) {
-            resultDiv.textContent = "Napaka: " + error.message;
+            if (error.message?.toLowerCase().includes('invalid login credentials')) {
+              resultDiv.textContent = "Napaka: Napačen email ali geslo.";
+            } else if (error.message?.toLowerCase().includes('email not confirmed')) {
+              resultDiv.textContent = "Napaka: Email ni potrjen. Preveri svoj email in potrdi registracijo.";
+            } else {
+              resultDiv.textContent = "Napaka: " + error.message;
+            }
           } else {
             resultDiv.textContent = "Prijava uspešna!";
             setTimeout(() => { $("#loginModal").style.display = "none"; showPanel('orgPanel'); }, 1200);
@@ -444,6 +451,7 @@
         }).catch(() => { resultDiv.textContent = "Napaka pri prijavi."; });
       });
     });
+
 
     $("#btnSignUp")?.addEventListener("click", async () => {
       const email = $("#loginEmail")?.value.trim();
@@ -457,9 +465,15 @@
       import('./assets/supabase-client.js').then(({ testSignUpEmail }) => {
         testSignUpEmail(email, password).then(({ error, data }) => {
           if (error) {
-            resultDiv.textContent = "Napaka: " + error.message;
+            if (error.message?.toLowerCase().includes('user already registered')) {
+              resultDiv.textContent = "Napaka: Email je že registriran. Uporabi prijavo.";
+            } else if (error.message?.toLowerCase().includes('password')) {
+              resultDiv.textContent = "Napaka: Geslo je prekratko ali neustrezno (min. 6 znakov).";
+            } else {
+              resultDiv.textContent = "Napaka: " + error.message;
+            }
           } else {
-            resultDiv.textContent = "Registracija uspešna! Preveri email za potrditev.";
+            resultDiv.textContent = "Registracija uspešna! Preveri email za potrditev (če je zahtevano).";
             setTimeout(() => { $("#loginModal").style.display = "none"; showPanel('orgPanel'); }, 1800);
           }
         }).catch(() => { resultDiv.textContent = "Napaka pri registraciji."; });

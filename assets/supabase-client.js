@@ -1,17 +1,22 @@
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+// assets/supabase-client.js
+import { createClient } from '@supabase/supabase-js';
 
-// Nastavi svoj Supabase URL in anon ključ:
-const SUPABASE_URL = "https://wqdfteaijjcrzcniotvhh.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
-
+const SUPABASE_URL = window.SUPABASE_URL || localStorage.getItem('SUPABASE_URL');
+const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY');
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Prijava z e-mailom
-export async function signInWithEmail(email) {
-	return await supabase.auth.signInWithOtp({ email });
+// Testna funkcija za vpis z emailom
+export async function testSignInEmail(email, password) {
+	console.log('Poskus vpisa z email:', email);
+	const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+	console.log('Rezultat email signIn:', { data, error });
+	return { data, error };
 }
 
-// Prijava z Google
-export async function signInWithGoogle() {
-	return await supabase.auth.signInWithOAuth({ provider: 'google' });
+// Testna funkcija za vpis z Google
+export async function testSignInGoogle() {
+	console.log('Poskus vpisa z Google');
+	const { data, error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+	console.log('Rezultat Google signIn:', { data, error });
+	return { data, error };
 }

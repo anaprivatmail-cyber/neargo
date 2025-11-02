@@ -129,7 +129,6 @@
       e.preventDefault();
       loginForm.style.display = 'none';
       registerSection.style.display = 'block';
-      loginMsg.textContent = '';
     });
 
     forgotPasswordLink.addEventListener('click', function(e) {
@@ -150,16 +149,6 @@
     const registerMsg = document.getElementById('register-message');
     const registerCodeRow = document.getElementById('register-code-row');
     const backToLoginLink = document.getElementById('backToLoginLink');
-    backToLoginLink.addEventListener('click', function(e) {
-      e.preventDefault();
-      registerSection.style.display = 'none';
-      loginForm.style.display = 'block';
-      codeSent = false;
-      registerCodeRow.style.display = 'none';
-      registerMsg.textContent = '';
-      loginMsg.textContent = '';
-      registerForm.reset();
-    });
 
   let codeSent = false;
   let codeMethod = 'sms';
@@ -310,6 +299,16 @@
         } catch (err) {
           registerMsg.textContent = 'Napaka: ' + err.message;
         }
+      });
+
+      backToLoginLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        registerSection.style.display = 'none';
+        loginForm.style.display = 'block';
+        codeSent = false;
+        registerCodeRow.style.display = 'none';
+        registerMsg.textContent = '';
+        registerForm.reset();
       });
     }
   </script>

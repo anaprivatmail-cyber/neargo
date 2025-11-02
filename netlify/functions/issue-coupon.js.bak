@@ -56,14 +56,7 @@ export const handler = async (event) => {
       contentType: "application/json"
     });
 
-    // 3) e-pošta z QR + linkom
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      secure: Number(process.env.SMTP_PORT) === 465,
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-    });
-
+    // 3) e-pošta z QR + linkom preko centraliziranega email modula
     const base = process.env.PUBLIC_BASE_URL || `https://${event.headers.host}`;
     const viewUrl = `${base}/coupon.html?token=${encodeURIComponent(token)}`;
     const dataUrl = await qrDataUrl(token);
@@ -78,8 +71,7 @@ export const handler = async (event) => {
       </div>
     `;
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM,
+    await require('./mailer.cjs').sendMail({
       to: buyerEmail,
       subject: "NearGo – vaš kupon",
       html

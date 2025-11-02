@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hitra registracija / vpis</title>
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+  <div class="login-container">
+    <h1>Hitra registracija / vpis</h1>
+    <p>Prosimo, da se hitro registrirate ali vpišete. Na vpis ste preusmerjeni iz različnih mest in razlogov (npr. vpis dogodka, nakup kupona, analitika, skeniranje QR kode, nakup Premium dostopa, pridobivanje točk ...).</p>
+    <form id="register-login-form">
+      <input type="email" name="email" placeholder="E-pošta" autocomplete="email">
+      <input type="password" name="password" placeholder="Geslo" autocomplete="current-password">
+      <div style="margin:12px 0;text-align:center;color:#888;">ali</div>
+      <input type="tel" name="phone" placeholder="Telefonska številka" autocomplete="tel">
+      <button type="button" id="send-sms-code">Pošlji SMS kodo</button>
+      <input type="text" name="smscode" placeholder="Vnesi SMS kodo" style="display:none;">
+      <button type="submit">Registriraj se / Vpiši se</button>
+    </form>
+    <div id="form-message"></div>
+  </div>
+  <script src="assets/app-logic.js"></script>
+  <script src="assets/supabase-client.js"></script>
+  <script src="assets/utils.js"></script>
+  <script>
+    const form = document.getElementById('register-login-form');
+    const phoneInput = form.querySelector('input[name="phone"]');
+    const smsCodeInput = form.querySelector('input[name="smscode"]');
+    const sendSmsBtn = document.getElementById('send-sms-code');
+    const formMsg = document.getElementById('form-message');
+
+    // Pošlji SMS kodo prek Netlify funkcije
+    sendSmsBtn.addEventListener('click', async function() {
+      const phone = phoneInput.value.trim();
+      if (!phone) {
+        formMsg.textContent = 'Vnesite telefonsko številko.';
+        formMsg.style.color = '#d64c4c';
+        return;
+      }
+      sendSmsBtn.disabled = true;
+      formMsg.textContent = 'Pošiljam kodo ...';
+      formMsg.style.color = '#222';
+      try {
+        const res = await fetch('/.netlify/functions/send-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ method: 'sms', phone, countryCode: '+386' })
+        });
+        const data = await res.json();
+        if (data.ok && data.codeSent) {
+          smsCodeInput.style.display = '';
+          formMsg.textContent = 'Koda je bila poslana na SMS.';
+          formMsg.style.color = '#2a7a2a';
+        } else {
+          formMsg.textContent = 'Napaka pri pošiljanju kode.';
+          formMsg.style.color = '#d64c4c';
+        }
+      } catch (e) {
+        formMsg.textContent = 'Napaka: ' + e.message;
+        formMsg.style.color = '#d64c4c';
+      }
+      sendSmsBtn.disabled = false;
+    });
+
+    // Ob oddaji obrazca preveri email/geslo ali SMS kodo
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const email = form.querySelector('input[name="email"]').value.trim();
+      const password = form.querySelector('input[name="password"]').value;
+      const phone = phoneInput.value.trim();
+      const smsCode = smsCodeInput.value.trim();
+
+      formMsg.textContent = '';
+      // Če je vnesena SMS koda, preveri OTP
+      if (phone && smsCode) {
+        formMsg.textContent = 'Preverjam kodo ...';
+        formMsg.style.color = '#222';
+        try {
+          const res = await fetch('/.netlify/functions/verify-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, code: smsCode, countryCode: '+386' })
+          });
+          const data = await res.json();
+          if (data.ok && data.verified) {
+            formMsg.textContent = 'Prijava uspešna!';
+            formMsg.style.color = '#2a7a2a';
+            // TODO: Nastavi session/token, preusmeri naprej
+            window.location.href = data.redirect || '/my.html';
+          } else {
+            formMsg.textContent = 'Koda ni pravilna.';
+            formMsg.style.color = '#d64c4c';
+          }
+        } catch (e) {
+          formMsg.textContent = 'Napaka: ' + e.message;
+          formMsg.style.color = '#d64c4c';
+        }
+        return;
+      }
+      // Če je vnesen email/geslo, uporabi Supabase
+      if (email && password) {
+        formMsg.textContent = 'Prijavljam ...';
+        formMsg.style.color = '#222';
+        try {
+          const { testSignInEmail, testSignUpEmail } = window;
+          let result = await testSignInEmail(email, password);
+          if (result?.data?.user) {
+            formMsg.textContent = 'Prijava uspešna!';
+            formMsg.style.color = '#2a7a2a';
+            window.location.href = '/my.html';
+          } else {
+            // Če uporabnik ne obstaja, poskusi registracijo
+            result = await testSignUpEmail(email, password);
+            if (result?.data?.user) {
+              formMsg.textContent = 'Registracija uspešna!';
+              formMsg.style.color = '#2a7a2a';
+              window.location.href = '/my.html';
+            } else {
+              formMsg.textContent = 'Napaka: ' + (result?.error?.message || 'Neznana napaka.');
+              formMsg.style.color = '#d64c4c';
+            }
+          }
+        } catch (e) {
+          formMsg.textContent = 'Napaka: ' + e.message;
+          formMsg.style.color = '#d64c4c';
+        }
+      }
+    });
+  </script>
+</body>
+</html>

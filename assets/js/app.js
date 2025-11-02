@@ -23,8 +23,26 @@ async function refreshPointsBadge() {
   const points = await getUserPoints(email);
   badge.textContent = points;
   badge.style.display = points > 0 ? 'inline-flex' : 'none';
+  // Progress bar v my.html
+  const progress = document.getElementById('pointsProgress');
+  const label = document.getElementById('pointsProgressLabel');
+  if (progress && label) {
+    progress.value = Math.min(points, 100);
+    label.textContent = `${points} / 100`;
+  }
 }
-document.addEventListener('DOMContentLoaded', refreshPointsBadge);
+document.addEventListener('DOMContentLoaded', function() {
+  refreshPointsBadge();
+  // Prikaz pasice za točke
+  const banner = document.getElementById('pointsBanner');
+  const closeBtn = document.getElementById('pointsBannerClose');
+  const email = localStorage.getItem('user_email');
+  if (banner && !email) {
+    banner.style.display = 'flex';
+    closeBtn.onclick = () => { banner.style.display = 'none'; };
+    setTimeout(() => { banner.style.display = 'none'; }, 12000);
+  }
+});
 // ===== Hero sekcija: štetje odprtij in skrivanje =====
 document.addEventListener("DOMContentLoaded", function() {
   const hero = document.getElementById("hero");
@@ -213,7 +231,39 @@ if(theme){
   if(location.hash==="#cancel"){ show("Plačilo preklicano. ❌", false); history.replaceState(null,"",location.pathname+location.search); }
 })();
 
-/* ===== Navigacija ===== */
+// ===== Navigacija & Preusmeritve =====
+function isLoggedIn() {
+  // Preveri prijavo (npr. po emailu ali tokenu v localStorage)
+  return !!localStorage.getItem('user_email') || !!localStorage.getItem('user_token');
+}
+function saveIntent(intent) {
+  localStorage.setItem('ng_intent', JSON.stringify(intent));
+}
+function getIntent() {
+  try { return JSON.parse(localStorage.getItem('ng_intent') || '{}'); } catch { return {}; }
+}
+function clearIntent() {
+  localStorage.removeItem('ng_intent');
+}
+function redirectToLogin(intent) {
+  saveIntent(intent);
+  window.location.href = '/login.html';
+}
+function handlePostLogin() {
+  const intent = getIntent();
+  if (intent && intent.action) {
+    clearIntent();
+    if (intent.action === 'publish') showPanel('orgPanel');
+    else if (intent.action === 'buy') window.location.href = intent.url || '/';
+    else if (intent.action === 'scan') window.location.href = '/scan.html';
+    else if (intent.action === 'stats') window.location.href = '/org-stats.html';
+    else if (intent.action === 'premium') window.location.href = '/premium.html';
+    else if (intent.action === 'points') window.location.href = '/my.html';
+    else showPanel('searchPanel');
+  }
+}
+window.handlePostLogin = handlePostLogin;
+
 function showPanel(id){
   ["searchPanel","mapPanel","orgPanel"].forEach(pid=>$("#"+pid)?.classList.remove("show"));
   $("#"+id)?.classList.add("show");
@@ -221,8 +271,39 @@ function showPanel(id){
 }
 $("#btnStart")?.addEventListener("click",()=>{ showPanel("searchPanel"); $("#q")?.focus(); });
 $("#btnMap")?.addEventListener("click",()=> { showPanel("mapPanel"); refreshTopMap(); });
-$("#btnOrganizers")?.addEventListener("click",()=> showPanel("orgPanel"));
-$("#btnChecker")?.addEventListener("click",()=> { location.href = "/checker.html"; });
+$("#hubPublish")?.addEventListener("click",()=>{
+  if (!isLoggedIn()) { redirectToLogin({action:'publish'}); return; }
+  showPanel('orgPanel');
+});
+$("#hubScan")?.addEventListener("click",()=>{
+  if (!isLoggedIn()) { redirectToLogin({action:'scan'}); return; }
+  window.location.href = '/scan.html';
+});
+$("#hubStats")?.addEventListener("click",()=>{
+  if (!isLoggedIn()) { redirectToLogin({action:'stats'}); return; }
+  window.location.href = '/org-stats.html';
+});
+$("#btnPremiumTop")?.addEventListener("click",()=>{
+  if (!isLoggedIn()) { redirectToLogin({action:'premium'}); return; }
+  window.location.href = '/premium.html';
+});
+$("#btnMine")?.addEventListener("click",()=>{
+  if (!isLoggedIn()) { redirectToLogin({action:'points'}); return; }
+  window.location.href = '/my.html';
+});
+
+// Nakup kupona/vstopnice
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('button[data-act="buy"]');
+  if (btn) {
+    if (!isLoggedIn()) {
+      redirectToLogin({action:'buy', url: window.location.href});
+      e.preventDefault();
+      return;
+    }
+    // ...obstoječa logika nakupa...
+  }
+});
 
 $("#radius")?.addEventListener("input",()=> { const v=$("#radius")?.value||30; const l=$("#radiusLbl"); if(l) l.textContent = `${v} km`; });
 

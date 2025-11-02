@@ -47,6 +47,13 @@
     </div>
     <div class="card" style="margin-top:18px;padding:18px 12px;background:#f6fbfe;border:1px solid #e6eef7;">
       <h2 style="font-size:1.15em;color:#0bbbd6;margin-bottom:10px;">Unovči točke</h2>
+      <div id="pointsProgressWrap" style="margin-bottom:18px;">
+        <label for="pointsProgress" style="font-weight:700;color:#0bbbd6;">Napredek do nagrade:</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <progress id="pointsProgress" value="0" max="100" style="width:220px;height:18px;"></progress>
+          <span id="pointsProgressLabel" style="font-weight:700;color:#0bbbd6;">0 / 100</span>
+        </div>
+      </div>
       <div id="pointsStore" style="display:grid;gap:14px;">
         <div class="store-item" style="background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 2px 8px rgba(11,187,214,.07);display:flex;align-items:center;justify-content:space-between;">
           <div>
@@ -120,14 +127,17 @@
       const points = await getUserPoints(em);
       if(points < needed) {
         msg.textContent = `Za to nagrado potrebujete ${needed} točk.`;
+        if (window._toast) window._toast('Premalo točk za nagrado.', false);
         return;
       }
       const ok = await redeemUserPoints(em, needed);
       if(ok) {
         msg.textContent = type === 'flash' ? "Čestitamo, pridobili ste Flash kupon!" : "Čestitamo, pridobili ste Premium mesec!";
         document.getElementById('pointsBadge').textContent = points - needed;
+        if (window._toast) window._toast('Nagrada uspešno unovčena! 🎉', true);
       } else {
         msg.textContent = "Napaka pri unovčevanju. Poskusite znova.";
+        if (window._toast) window._toast('Napaka pri unovčevanju točk.', false);
       }
     }
     $("#redeemFlash").onclick = ()=>handleRedeem('flash');

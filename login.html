@@ -61,7 +61,10 @@
           <input type="tel" name="phone" placeholder="Telefonska številka" autocomplete="tel" required style="flex:1;">
         </div>
         <input type="email" name="email" placeholder="E-pošta" autocomplete="email" required style="margin-top:10px;">
-        <input type="password" name="password" placeholder="Geslo (min. 6 znakov)" autocomplete="new-password" required style="margin-top:10px;">
+        <input type="password" name="password" id="registerPassword" placeholder="Geslo (min. 6 znakov)" autocomplete="new-password" required style="margin-top:10px;">
+        <div id="passwordRequirements" style="margin-top:6px;font-size:13px;color:#5b6b7b;display:none;">
+          <div id="reqLength" style="color:#d64c4c;">✗ Vsaj 6 znakov</div>
+        </div>
         <div style="margin-top:10px;display:flex;gap:18px;">
           <button type="button" id="smsCodeBtn" class="code-method-btn selected" style="flex:1;border:1px solid #0bbbd6;color:#0bbbd6;background:#e9f7ff;font-weight:700;">Preveri s SMS kodo</button>
           <button type="button" id="emailCodeBtn" class="code-method-btn" style="flex:1;border:1px solid #cfe1ee;color:#5b6b7b;background:#fff;font-weight:700;">Preveri z email kodo</button>
@@ -145,6 +148,36 @@
       if (googleBtn) {
         googleBtn.innerHTML = '<img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="height:18px;vertical-align:middle;margin-right:8px"> Google';
       }
+      
+      // Password validation UI
+      const passwordInput = document.getElementById('registerPassword');
+      const passwordReq = document.getElementById('passwordRequirements');
+      const reqLength = document.getElementById('reqLength');
+      
+      if (passwordInput && passwordReq && reqLength) {
+        passwordInput.addEventListener('focus', function() {
+          passwordReq.style.display = 'block';
+        });
+        
+        passwordInput.addEventListener('input', function() {
+          const password = passwordInput.value;
+          const lengthValid = password.length >= 6;
+          
+          if (lengthValid) {
+            reqLength.style.color = '#11a67a';
+            reqLength.textContent = '✓ Vsaj 6 znakov';
+          } else {
+            reqLength.style.color = '#d64c4c';
+            reqLength.textContent = '✗ Vsaj 6 znakov';
+          }
+        });
+        
+        passwordInput.addEventListener('blur', function() {
+          if (passwordInput.value.length >= 6) {
+            passwordReq.style.display = 'none';
+          }
+        });
+      }
     });
     const registerForm = document.getElementById('register-form');
     const registerMsg = document.getElementById('register-message');
@@ -191,15 +224,25 @@
       }
       // Pošlji kodo in prikaži obrazec za vnos kode
       registerMsg.textContent = 'Pošiljam kodo ...';
+      registerMsg.style.color = '#0bbbd6';
       const firstName = registerForm.firstName.value.trim();
       const lastName = registerForm.lastName.value.trim();
       const countryCode = registerForm.countryCode.value;
       const phone = registerForm.phone.value.trim();
       const email = registerForm.email.value.trim();
+      const password = registerForm.password.value;
+      
       if (!firstName || !lastName || !phone || !email) {
         registerMsg.textContent = 'Izpolnite vsa polja.';
+        registerMsg.style.color = '#d64c4c';
         return;
       }
+      if (password.length < 6) {
+        registerMsg.textContent = 'Geslo mora imeti vsaj 6 znakov.';
+        registerMsg.style.color = '#d64c4c';
+        return;
+      }
+      
       let res;
       try {
         if (method === 'sms') {
@@ -218,15 +261,19 @@
         const data = await res.json();
         if (data.ok && data.codeSent) {
           codeSent = true;
-          registerMsg.textContent = 'Koda je bila poslana.';
+          registerMsg.textContent = 'Koda je bila poslana na ' + (method === 'sms' ? 'SMS' : 'e-pošto') + '.';
+          registerMsg.style.color = '#11a67a';
           registerCodeRow.style.display = '';
           registerCodeRow.style.background = '#e9f7ff';
+          registerCodeRow.style.padding = '12px';
           registerCodeRow.style.borderRadius = '10px';
         } else {
-          registerMsg.textContent = 'Napaka pri pošiljanju kode.';
+          registerMsg.textContent = 'Napaka pri pošiljanju kode: ' + (data.error || 'Neznana napaka');
+          registerMsg.style.color = '#d64c4c';
         }
       } catch (err) {
         registerMsg.textContent = 'Napaka: ' + err.message;
+        registerMsg.style.color = '#d64c4c';
       }
     }
     smsCodeBtn.addEventListener('click', function() { handleCodeSend('sms'); });
@@ -264,6 +311,7 @@
         // Pošlji kodo, če še ni bila poslana
         if (!codeSent) {
           registerMsg.textContent = 'Pošiljam kodo ...';
+          registerMsg.style.color = '#0bbbd6';
           let res;
           try {
             if (codeMethod === 'sms') {
@@ -282,18 +330,22 @@
             const data = await res.json();
             if (data.ok && data.codeSent) {
               codeSent = true;
-              registerMsg.textContent = 'Koda je bila poslana.';
+              registerMsg.textContent = 'Koda je bila poslana. Preverite ' + (codeMethod === 'sms' ? 'SMS' : 'e-pošto') + '.';
+              registerMsg.style.color = '#11a67a';
               registerCodeRow.style.display = '';
               // Ozadje okenca za vpis kode
               registerCodeRow.style.background = '#e9f7ff';
+              registerCodeRow.style.padding = '12px';
               registerCodeRow.style.borderRadius = '10px';
               return;
             } else {
-              registerMsg.textContent = 'Napaka pri pošiljanju kode.';
+              registerMsg.textContent = 'Napaka pri pošiljanju kode: ' + (data.error || 'Neznana napaka');
+              registerMsg.style.color = '#d64c4c';
               return;
             }
           } catch (err) {
             registerMsg.textContent = 'Napaka: ' + err.message;
+            registerMsg.style.color = '#d64c4c';
             return;
           }
         }
@@ -301,9 +353,11 @@
         // Preveri kodo
         if (!registerCode) {
           registerMsg.textContent = 'Vnesite prejeto kodo.';
+          registerMsg.style.color = '#d64c4c';
           return;
         }
         registerMsg.textContent = 'Preverjam kodo ...';
+        registerMsg.style.color = '#0bbbd6';
         try {
           let verifyRes;
           if (codeMethod === 'sms') {
@@ -321,16 +375,19 @@
           }
           const verifyData = await verifyRes.json();
           if (!verifyData.ok || !verifyData.verified) {
-            registerMsg.textContent = 'Koda ni pravilna.';
+            registerMsg.textContent = verifyData.error || 'Koda ni pravilna.';
+            registerMsg.style.color = '#d64c4c';
             return;
           }
         } catch (err) {
           registerMsg.textContent = 'Napaka: ' + err.message;
+          registerMsg.style.color = '#d64c4c';
           return;
         }
 
         // Registracija v Supabase
         registerMsg.textContent = 'Registriram ...';
+        registerMsg.style.color = '#0bbbd6';
         try {
           const { testSignUpEmail } = window;
           const result = await testSignUpEmail(email, password, {
@@ -341,15 +398,18 @@
             }
           });
           if (result?.data?.user) {
-            registerMsg.textContent = 'Registracija uspešna!';
+            registerMsg.textContent = '✅ Registracija uspešna!';
+            registerMsg.style.color = '#11a67a';
             setTimeout(() => {
               window.location.href = getRedirectUrl();
             }, 800);
           } else {
             registerMsg.textContent = 'Napaka: ' + (result?.error?.message || 'Neznana napaka.');
+            registerMsg.style.color = '#d64c4c';
           }
         } catch (err) {
           registerMsg.textContent = 'Napaka: ' + err.message;
+          registerMsg.style.color = '#d64c4c';
         }
       });
     }

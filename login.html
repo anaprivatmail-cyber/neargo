@@ -9,6 +9,16 @@
 <body>
   <div class="login-container">
     <h1>Prijava</h1>
+    <button type="button" id="googleLoginBtn" style="width:100%;margin-bottom:10px;display:flex;align-items:center;justify-content:center;background:#fff;color:#222;border:1px solid #cfe1ee;font-size:16px;padding:12px 18px;border-radius:14px;font-weight:900;gap:10px;">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="height:20px;vertical-align:middle;margin-right:8px;">
+      Google
+    </button>
+    <button type="button" id="appleLoginBtn" style="width:100%;margin-bottom:10px;display:flex;align-items:center;justify-content:center;background:#fff;color:#222;border:1px solid #cfe1ee;font-size:16px;padding:12px 18px;border-radius:14px;font-weight:900;gap:10px;">
+      <span style="display:flex;align-items:center;">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20"><path fill="#222" d="M16.365 1.43c0 1.14-.93 2.07-2.07 2.07-.03 0-.06 0-.09-.01-.09-1.13.94-2.08 2.07-2.06.06 0 .09 0 .09.01zm2.13 4.36c-1.17-.14-2.15.67-2.71.67-.56 0-1.43-.65-2.36-.63-1.21.02-2.33.7-2.95 1.78-1.26 2.18-.32 5.41.9 7.19.6.91 1.31 1.93 2.25 1.89.9-.04 1.24-.61 2.33-.61 1.09 0 1.39.61 2.36.6.97-.01 1.58-.93 2.18-1.85.69-1.01.97-1.99.98-2.04-.02-.01-1.88-.72-1.9-2.85-.02-1.79 1.46-2.64 1.53-2.68-.84-1.23-2.14-1.37-2.6-1.38zm-4.06-2.56c.56-.68 1.01-1.63.9-2.59-.87.04-1.91.58-2.53 1.27-.55.63-1.04 1.62-.86 2.57.95.07 1.93-.48 2.49-1.25z"/></svg>
+      </span>
+      Apple
+    </button>
     <form id="login-form">
       <input type="email" name="email" placeholder="E-pošta" autocomplete="email" required>
       <input type="password" name="password" placeholder="Geslo" autocomplete="current-password" required>

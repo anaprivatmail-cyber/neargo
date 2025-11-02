@@ -107,22 +107,33 @@
       const email = loginForm.querySelector('input[name="email"]').value.trim();
       const password = loginForm.querySelector('input[name="password"]').value;
       loginMsg.textContent = '';
+      loginMsg.style.color = '';
       if (!email || !password) {
         loginMsg.textContent = 'Vnesite email in geslo.';
+        loginMsg.style.color = '#d64c4c';
+        return;
+      }
+      if (password.length < 6) {
+        loginMsg.textContent = 'Geslo mora imeti vsaj 6 znakov.';
+        loginMsg.style.color = '#d64c4c';
         return;
       }
       loginMsg.textContent = 'Prijavljam ...';
+      loginMsg.style.color = '#0bbbd6';
       try {
         const { testSignInEmail } = window;
         let result = await testSignInEmail(email, password);
         if (result?.data?.user) {
-          loginMsg.textContent = 'Prijava uspešna!';
+          loginMsg.textContent = '✅ Prijava uspešna!';
+          loginMsg.style.color = '#11a67a';
           window.location.href = getRedirectUrl();
         } else {
           loginMsg.textContent = 'Napaka: ' + (result?.error?.message || 'Uporabnik ne obstaja ali je geslo napačno.');
+          loginMsg.style.color = '#d64c4c';
         }
       } catch (e) {
         loginMsg.textContent = 'Napaka: ' + e.message;
+        loginMsg.style.color = '#d64c4c';
       }
     });
 

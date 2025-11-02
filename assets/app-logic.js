@@ -1,3 +1,37 @@
+  // ===== Predogled dogodka/storitve =====
+  const btnPreview = document.getElementById('btnPreviewEvent');
+  const previewModal = document.getElementById('previewModal');
+  const closePreviewModal = document.getElementById('closePreviewModal');
+  const previewContent = document.getElementById('previewContent');
+  if (btnPreview && previewModal && closePreviewModal && previewContent) {
+    btnPreview.onclick = function() {
+      // Zberi podatke iz obrazca
+      const title = document.getElementById('eventName')?.value || '';
+      const desc = document.getElementById('desc')?.value || '';
+      const img = document.getElementById('imgPreview')?.src || 'https://picsum.photos/600/400';
+      const start = document.getElementById('start')?.value || '';
+      const end = document.getElementById('end')?.value || '';
+      const venue = document.getElementById('venue')?.value || '';
+      const price = document.getElementById('price')?.value || '';
+      const category = document.getElementById('category')?.value || '';
+      previewContent.innerHTML = `
+        <img src="${img}" alt="" style="width:100%;max-width:320px;border-radius:12px;margin-bottom:12px;object-fit:cover">
+        <h2 style="margin:0 0 8px 0;font-size:1.3em;color:#0bbbd6;">${title}</h2>
+        <div style="color:#5b6b7b;font-size:14px;margin-bottom:6px">${venue}</div>
+        <div style="color:#5b6b7b;font-size:14px;margin-bottom:6px">${start ? 'Začetek: ' + start : ''} ${end ? '<br>Končanje: ' + end : ''}</div>
+        <div style="color:#5b6b7b;font-size:14px;margin-bottom:6px">Kategorija: ${category}</div>
+        <div style="color:#0bbbd6;font-weight:700;font-size:16px;margin-bottom:8px;">${price ? 'Cena: ' + price + ' €' : ''}</div>
+        <div style="margin-bottom:8px;color:#222;font-size:15px;">${desc}</div>
+      `;
+      previewModal.style.display = 'flex';
+    };
+    closePreviewModal.onclick = function() {
+      previewModal.style.display = 'none';
+    };
+    previewModal.onclick = function(e) {
+      if (e.target === previewModal) previewModal.style.display = 'none';
+    };
+  }
 // assets/app-logic.js
 
 // ===== UTIL =====
@@ -164,3 +198,4 @@ document.addEventListener('DOMContentLoaded', function() {
     () => { loadAllForTopMap(); },
     { enableHighAccuracy: true, timeout: 8000 }
   );
+});

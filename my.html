@@ -44,6 +44,16 @@
       </div>
       <div id="msg" class="muted" style="margin-top:8px"></div>
       <div id="list" class="grid" style="margin-top:12px"></div>
+      <hr style="margin:24px 0;">
+      <h2 style="font-size:1.08em;color:#0bbbd6;margin-bottom:8px;">Uredi profil</h2>
+      <div class="row" style="margin-bottom:10px;">
+        <input id="profileEmail" placeholder="Spremeni email" style="max-width:220px;">
+        <input id="profilePassword" type="password" placeholder="Spremeni geslo" style="max-width:180px;">
+        <button id="saveProfile" class="btn mini" style="background:#0bbbd6;color:#fff;">Shrani profil</button>
+      </div>
+      <div id="profileMsg" class="muted" style="margin-bottom:8px;"></div>
+      <h2 style="font-size:1.08em;color:#11a67a;margin-bottom:8px;">Zgodovina nagrad</h2>
+      <div id="rewardsHistory" class="muted" style="font-size:14px;"></div>
     </div>
     <div class="card" style="margin-top:18px;padding:18px 12px;background:#f6fbfe;border:1px solid #e6eef7;">
       <h2 style="font-size:1.15em;color:#0bbbd6;margin-bottom:10px;">Unovči točke</h2>
@@ -181,8 +191,7 @@
           `;
         }).join("");
       }catch(e){
-        msg.textContent = "Napaka pri nalaganju.";
-      }
+      // ...obstoječa obravnava napake...
     }
     if (emailInput.value.trim()) load();
 
@@ -204,9 +213,76 @@
     }
 
     copyReferralBtn.onclick = () => {
-      referralLinkInput.select();
+  referralLinkInput.select();
+  document.execCommand("copy");
+  msg.textContent = "Povezava skopirana v odložišče!";
+        const email = $("#profileEmail").value.trim();
+        const password = $("#profilePassword").value.trim();
+        const profileMsg = $("#profileMsg");
+        if (!email && !password) { profileMsg.textContent = "Vnesi email ali geslo."; return; }
+        // Klic backend funkcije za posodobitev profila
+        (async function() {
+          try {
+            const res = await fetch("/.netlify/functions/update-profile", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, password, user: localStorage.getItem("user_email") })
+            });
+            const data = await res.json();
+            if (data.success) {
+              profileMsg.textContent = "Profil uspešno posodobljen.";
+              if (email) localStorage.setItem("user_email", email);
+            } else {
+              profileMsg.textContent = data.error || "Napaka pri posodabljanju profila.";
+            }
+          } catch (e) {
+            profileMsg.textContent = "Napaka pri povezavi.";
+          }
+        })();
+      };
       document.execCommand("copy");
+      // Load reward history
+      async function loadRewardsHistory() {
+        const rewardsDiv = $("#rewardsHistory");
+        const email = localStorage.getItem("user_email");
+        if (!email) { rewardsDiv.textContent = "Vnesi email in shrani za prikaz zgodovine."; return; }
+        try {
+          const res = await fetch(`/.netlify/functions/rewards-history?email=${encodeURIComponent(email)}`);
+          const data = await res.json();
+          if (data && data.length) {
+            rewardsDiv.innerHTML = data.map(r => `<div>${r.date}: <b>${r.type}</b> (${r.points} točk)</div>`).join("");
+          } else {
+            rewardsDiv.textContent = "Ni zgodovine nagrad.";
+          }
+        } catch (e) {
+          rewardsDiv.textContent = "Napaka pri nalaganju zgodovine.";
+        }
+      }
+      document.addEventListener("DOMContentLoaded", loadRewardsHistory);
       msg.textContent = "Povezava skopirana v odložišče!";
+      // Referral logic
+      async function loadReferral() {
+        const linkInput = $("#referralLink");
+        const progressDiv = $("#referralProgress");
+        const rewardMsg = $("#referralRewardMsg");
+        const email = localStorage.getItem("user_email");
+        if (!email) { linkInput.value = "Vnesi email in shrani."; return; }
+        try {
+          const res = await fetch(`/.netlify/functions/referral?email=${encodeURIComponent(email)}`);
+          const data = await res.json();
+          linkInput.value = data.link || "Napaka pri pridobivanju povezave.";
+          progressDiv.textContent = `Povabljeni: ${data.invited || 0}, Nagrade: ${data.rewards || 0}`;
+          if (data.rewardMsg) { rewardMsg.textContent = data.rewardMsg; rewardMsg.style.display = "block"; }
+          else { rewardMsg.style.display = "none"; }
+          $("#copyReferralBtn").onclick = () => {
+            navigator.clipboard.writeText(linkInput.value);
+            if (window._toast) window._toast("Povezava kopirana!", true);
+          };
+        } catch (e) {
+          linkInput.value = "Napaka pri povezavi.";
+        }
+      }
+      document.addEventListener("DOMContentLoaded", loadReferral);
     };
 
     // Simulate fetching referral progress

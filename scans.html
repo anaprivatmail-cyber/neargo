@@ -35,6 +35,21 @@
         <input id="to" type="datetime-local" title="Do">
         <input id="limit" type="number" min="1" max="2000" value="200" style="width:100px" title="Limit">
         <button id="load" class="btn">Naloži</button>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          var loadBtn = document.getElementById('load');
+          if (loadBtn) {
+            loadBtn.onclick = function(e) {
+              var loggedIn = !!localStorage.getItem('user_email') || !!localStorage.getItem('user_token');
+              if (!loggedIn) {
+                window.location.href = '/login.html?redirect=scans';
+                e.preventDefault();
+                return false;
+              }
+            };
+          }
+        });
+        </script>
         <button id="exportCsv" class="btn link">Izvozi CSV</button>
       </div>
 

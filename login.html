@@ -73,6 +73,18 @@
       const smsCode = smsCodeInput.value.trim();
 
       formMsg.textContent = '';
+      // Dobi redirect parameter iz URL-ja
+      function getRedirectUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get('redirect');
+        if (!redirect) return '/my.html';
+        if (redirect === 'organizers') return '/organizers.html';
+        if (redirect === 'premium') return '/premium.html';
+        if (redirect === 'my') return '/my.html';
+        if (redirect === 'scans') return '/scans.html';
+        return '/my.html';
+      }
+
       // Če je vnesena SMS koda, preveri OTP
       if (phone && smsCode) {
         formMsg.textContent = 'Preverjam kodo ...';
@@ -87,8 +99,7 @@
           if (data.ok && data.verified) {
             formMsg.textContent = 'Prijava uspešna!';
             formMsg.style.color = '#2a7a2a';
-            // TODO: Nastavi session/token, preusmeri naprej
-            window.location.href = data.redirect || '/my.html';
+            window.location.href = getRedirectUrl();
           } else {
             formMsg.textContent = 'Koda ni pravilna.';
             formMsg.style.color = '#d64c4c';
@@ -109,14 +120,28 @@
           if (result?.data?.user) {
             formMsg.textContent = 'Prijava uspešna!';
             formMsg.style.color = '#2a7a2a';
-            window.location.href = '/my.html';
+            window.location.href = getRedirectUrl();
           } else {
             // Če uporabnik ne obstaja, poskusi registracijo
             result = await testSignUpEmail(email, password);
             if (result?.data?.user) {
               formMsg.textContent = 'Registracija uspešna!';
               formMsg.style.color = '#2a7a2a';
-              window.location.href = '/my.html';
+              // Pošlji potrditveni email
+              await fetch('/.netlify/functions/send-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ method: 'email', email })
+              });
+              // Če je vnesena telefonska številka, pošlji še SMS kodo
+              if (phone) {
+                await fetch('/.netlify/functions/send-code', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ method: 'sms', phone, countryCode: '+386' })
+                });
+              }
+              window.location.href = getRedirectUrl();
             } else {
               formMsg.textContent = 'Napaka: ' + (result?.error?.message || 'Neznana napaka.');
               formMsg.style.color = '#d64c4c';

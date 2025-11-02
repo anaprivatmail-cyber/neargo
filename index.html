@@ -409,6 +409,43 @@
         <span style="font-size:20px;vertical-align:middle;">👤</span>
         <span id="pointsBadge" class="badge" style="margin-left:4px;display:none;font-size:11px;">0</span>
       </a>
+      <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        function notLoggedIn() {
+          return !(localStorage.getItem('user_email') || localStorage.getItem('user_token'));
+        }
+        var premiumBtn = document.getElementById('btnPremiumTop');
+        var mineBtn = document.getElementById('btnMine');
+        var organizersBtn = document.getElementById('btnOrganizersTop');
+        if (premiumBtn) {
+          premiumBtn.onclick = function(e) {
+            if (notLoggedIn()) {
+              window.location.href = '/login.html?redirect=premium';
+              e.preventDefault();
+              return false;
+            }
+          };
+        }
+        if (mineBtn) {
+          mineBtn.onclick = function(e) {
+            if (notLoggedIn()) {
+              window.location.href = '/login.html?redirect=my';
+              e.preventDefault();
+              return false;
+            }
+          };
+        }
+        if (organizersBtn) {
+          organizersBtn.onclick = function(e) {
+            if (notLoggedIn()) {
+              window.location.href = '/login.html?redirect=organizers';
+              e.preventDefault();
+              return false;
+            }
+          };
+        }
+      });
+      </script>
     </div>
   </div>
       </div>
@@ -417,7 +454,24 @@
 
   <main>
     <div id="pointsBanner" class="card" style="display:none;position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:1002;padding:12px 22px;border-radius:14px;border:1px solid var(--chipborder);background:var(--card);box-shadow:var(--shadow);font-size:1.1em;font-weight:700;color:#0bbbd6;">
-      <span>Pridobivaj točke za oglede dogodkov in prejmi nagrade!</span>
+      <span>Pridobivaj točke za oglede dogodkov in prejmi nagrade! Prijavi se ali registriraj za začetek zbiranja točk.</span>
+      <a href="/login.html?redirect=my" class="btn mini" style="margin-left:18px;background:#0bbbd6;color:#fff;">Prijava / Registracija</a>
+      <button id="pointsBannerClose" class="btn mini" style="background:#d64c4c;color:#fff;margin-left:10px;">Zapri</button>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var banner = document.getElementById('pointsBanner');
+      var closeBtn = document.getElementById('pointsBannerClose');
+      var badge = document.getElementById('pointsBadge');
+      var email = localStorage.getItem('user_email');
+      // Prikaži pasico le, če uporabnik ni prijavljen ali nima točk
+      if (!email || (badge && badge.textContent === '0')) {
+        banner.style.display = 'flex';
+        closeBtn.onclick = function() { banner.style.display = 'none'; };
+        setTimeout(function() { banner.style.display = 'none'; }, 12000);
+      }
+    });
+    </script>
       <button class="btn mini" id="pointsBannerClose" style="margin-left:18px;">Zapri</button>
     </div>
     <!-- HERO sekcija brez search bara in hitrih filtrov -->
@@ -425,7 +479,7 @@
       <h1 id="heroHeadline" style="margin-top:10px;">Najdi <span style="color:var(--brand)">dogodke blizu</span> — koncerti, hrana, kultura, otroci &amp; več</h1>
       <p id="heroLead">Vtipkaj, izberi kraj ali radij in dobiš dogodke v izbrani okolici — kupi vstopnico ali kupon, dodaj v koledar, povabi prijatelje.</p>
       <!-- PASICA ZA ŽIVE DOGODKE -->
-      <div id="liveBanner" style="margin:12px 0 0 0;display:flex;align-items:center;gap:8px;padding:7px 12px;background:#e6fbf5;border-radius:10px;box-shadow:0 2px 8px rgba(17,166,122,.07);font-weight:700;color:#05614d;font-size:1em;max-width:260px;">
+      <div id="liveBanner" style="margin:12px 0 0 0;display:flex;align-items:center;gap:8px;padding:7px 12px;background:#e6fbf5 url('https://tile.openstreetmap.org/6/33/22.png') center/cover no-repeat;border-radius:10px;box-shadow:0 2px 8px rgba(17,166,122,.07);font-weight:700;color:#05614d;font-size:1em;max-width:260px;min-height:54px;">
         <span style="font-size:16px;">🟢</span>
         <span style="font-size:14px;">V živo: <span id="liveCount">0</span></span>
         <button class="btn mini link" id="btnShowLiveMap" style="background:#11a67a;color:#fff;padding:3px 8px;font-size:12px;border-radius:7px;box-shadow:none;">Zemljevid</button>
@@ -781,9 +835,18 @@
         </label>
       </div>
 
-      <div style="margin-top:10px">
+      <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
+        <button class="btn" id="btnPreviewEvent" type="button" style="background:#11a67a;color:#fff;">Predogled</button>
         <button class="btn" id="btnSubmitEvent" type="button">Objavi</button>
         <span id="orgMsg" class="muted" style="margin-left:10px"></span>
+      </div>
+
+      <!-- Modal za predogled dogodka/storitve -->
+      <div id="previewModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:2000;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.12);max-width:420px;width:96vw;padding:24px;position:relative;">
+          <button id="closePreviewModal" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:22px;color:#0bbbd6;cursor:pointer;">×</button>
+          <div id="previewContent"></div>
+        </div>
       </div>
     </section>
 

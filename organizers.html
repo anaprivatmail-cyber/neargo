@@ -140,6 +140,22 @@
         </div>
         <button class="btn btn-accent" id="hubPublish" style="width:100%; font-size:18px;">Objavi dogodek ali storitev</button>
 
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          var publishBtn = document.getElementById('hubPublish');
+          if (publishBtn) {
+            publishBtn.onclick = function(e) {
+              var loggedIn = !!localStorage.getItem('user_email') || !!localStorage.getItem('user_token');
+              if (!loggedIn) {
+                window.location.href = '/login.html?redirect=organizers';
+                e.preventDefault();
+                return false;
+              }
+              // ...obstoječa logika za objavo dogodka...
+            };
+          }
+        });
+        </script>
         <!-- Login modal (hidden by default) -->
         <div id="loginModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:9999;align-items:center;justify-content:center;">
           <div style="background:#fff;padding:28px 22px;border-radius:16px;max-width:340px;width:90vw;box-shadow:0 4px 32px rgba(0,0,0,0.13);margin:auto;">

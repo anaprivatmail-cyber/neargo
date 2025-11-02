@@ -404,11 +404,29 @@
       <button class="mode" data-mode="services">Storitve</button>
     </div>
     <div style="display:flex;gap:10px;align-items:center;">
-      <a class="pill premium-badge" id="btnPremiumTop" href="/premium.html">Premium</a>
-      <a class="pill" id="btnMine" href="/my.html" title="Moje vstopnice & kuponi" style="min-width:50px;text-align:center;padding:6px 10px;font-size:18px;">
+      <!-- Account button with dropdown -->
+      <div id="btnAccount" class="pill" style="min-width:50px;text-align:center;padding:6px 10px;font-size:18px;position:relative;cursor:pointer;">
         <span style="font-size:20px;vertical-align:middle;">👤</span>
+        <span id="badgePremium" class="premium-badge" style="display:none;margin-left:4px;">Premium</span>
         <span id="pointsBadge" class="badge" style="margin-left:4px;display:none;font-size:11px;">0</span>
-      </a>
+        <span id="chipUpgrade" class="badge" style="display:none;margin-left:4px;background:var(--accent);color:#fff;">Nadgradi</span>
+        <span style="margin-left:6px;font-size:14px;vertical-align:middle;">▼</span>
+        <!-- Dropdown menu -->
+        <div id="accountMenu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--card);border:1px solid var(--chipborder);border-radius:12px;box-shadow:var(--shadow);padding:8px;z-index:10000;min-width:180px;">
+          <ul style="list-style:none;padding:0;margin:0;">
+            <li><a href="/my.html" title="Vaš profil in nastavitve" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">👤</span> Moj profil</a></li>
+            <li><a href="/my.html" title="Pregled vseh nakupov in kuponov" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">🎟️</span> Moji nakupi / kuponi</a></li>
+            <li><a href="/my.html#favorites" title="Vaši najljubši dogodki in storitve" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">⭐</span> Najljubše</a></li>
+            <li><a href="/my.html#notifications" title="Obvestila in sporočila" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">🔔</span> Obvestila</a></li>
+            <li id="menuPremium" style="display:none;"><a href="/premium.html" title="Vaša naročnina in ugodnosti" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">💎</span> Premium ugodnosti</a></li>
+            <li id="menuUpgrade" style="display:none;"><a href="/premium.html" title="Nadgradite na Premium" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">⬆️</span> Nadgradi na Premium</a></li>
+            <li id="menuProvider" style="display:none;"><a href="/org-stats.html" title="Portal za ponudnike in analitika" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">🏢</span> Portal ponudnika</a></li>
+            <li><a href="/my.html#settings" title="Nastavitve računa" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">⚙️</span> Nastavitve</a></li>
+            <li id="menuLogin" style="display:none;"><a href="/login.html" title="Prijava ali registracija" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">🔑</span> Prijava / Registracija</a></li>
+            <li id="menuLogout" style="display:none;"><a href="#" title="Odjava iz računa" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;" onclick="logoutUser();return false;"><span style="font-size:18px;margin-right:8px;">🚪</span> Odjava</a></li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
       </div>
@@ -2090,6 +2108,100 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
 
   </script>
   <script src="assets/app-logic.js"></script>
+<script>
+// ===== Account UI Logic =====
+function renderAccountUI(state) {
+  var btn = document.getElementById('btnAccount');
+  var menu = document.getElementById('accountMenu');
+  var badgePremium = document.getElementById('badgePremium');
+  var chipUpgrade = document.getElementById('chipUpgrade');
+  var pointsBadge = document.getElementById('pointsBadge');
+  var menuPremium = document.getElementById('menuPremium');
+  var menuProvider = document.getElementById('menuProvider');
+  var menuUpgrade = document.getElementById('menuUpgrade');
+  var menuLogin = document.getElementById('menuLogin');
+  var menuLogout = document.getElementById('menuLogout');
+
+  // Hide all menu items by default
+  [menuPremium, menuProvider, menuUpgrade, menuLogin, menuLogout].forEach(function(el){ if(el) el.style.display='none'; });
+  if(badgePremium) badgePremium.style.display = 'none';
+  if(chipUpgrade) chipUpgrade.style.display = 'none';
+
+  // Guest (not logged in)
+  if(!state.isLoggedIn) {
+    if(menuLogin) menuLogin.style.display = 'block';
+    if(menuLogout) menuLogout.style.display = 'none';
+    if(pointsBadge) pointsBadge.style.display = 'none';
+    btn.title = 'Prijava / Registracija';
+    return;
+  }
+
+  // Free user
+  if(state.isLoggedIn && !state.isPremium) {
+    if(chipUpgrade) chipUpgrade.style.display = 'inline-flex';
+    if(menuUpgrade) menuUpgrade.style.display = 'block';
+    if(menuLogout) menuLogout.style.display = 'block';
+    btn.title = 'Moj profil';
+    if(pointsBadge && state.points > 0) pointsBadge.style.display = 'inline-flex';
+    return;
+  }
+
+  // Premium user
+  if(state.isPremium) {
+    if(badgePremium) badgePremium.style.display = 'inline-flex';
+    if(menuPremium) menuPremium.style.display = 'block';
+    if(menuLogout) menuLogout.style.display = 'block';
+    btn.title = 'Premium profil';
+    if(pointsBadge && state.points > 0) pointsBadge.style.display = 'inline-flex';
+    return;
+  }
+
+  // Provider
+  if(state.isProvider) {
+    if(menuProvider) menuProvider.style.display = 'block';
+    if(menuLogout) menuLogout.style.display = 'block';
+    btn.title = 'Portal ponudnika';
+    if(pointsBadge && state.points > 0) pointsBadge.style.display = 'inline-flex';
+  }
+}
+
+// Toggle account menu
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('btnAccount');
+  var menu = document.getElementById('accountMenu');
+  if(btn && menu) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+    });
+    document.addEventListener('click', function(e) {
+      if(!btn.contains(e.target) && !menu.contains(e.target)) {
+        menu.style.display = 'none';
+      }
+    });
+  }
+
+  // Fetch user state from backend
+  fetch('/api/my').then(function(r){return r.json();}).then(function(me){
+    var state = {
+      isLoggedIn: !!me && !!me.email,
+      isPremium: !!me && !!me.premium,
+      isProvider: !!me && !!me.provider,
+      points: Number(me && me.points || 0)
+    };
+    renderAccountUI(state);
+  }).catch(function(){
+    renderAccountUI({isLoggedIn:false,isPremium:false,isProvider:false,points:0});
+  });
+});
+
+// Logout logic
+function logoutUser() {
+  fetch('/api/logout', {method:'POST'}).then(function(){
+    window.location.href = '/';
+  });
+}
+</script>
   <div style="margin:2em 0">
   <h3>Test vpis / registracija (debug)</h3>
   <input id="testEmail" type="email" placeholder="Email" style="margin-right:8px">

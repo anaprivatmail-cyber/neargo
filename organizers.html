@@ -513,7 +513,6 @@
     const loginError = document.getElementById('loginError');
 
     if (loginForm && showRegisterBtn) {
-      // Ustvari polja za registracijo (dinamično)
       function createRegisterFields() {
         if (registerFields) return;
         registerFields = document.createElement('div');
@@ -522,35 +521,67 @@
           <input type="text" id="loginName" placeholder="Ime" required style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
           <input type="text" id="loginSurname" placeholder="Priimek" required style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
           <input type="tel" id="loginPhone" placeholder="Telefonska številka (za SMS prijavo)" style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
-          <button type="button" id="sendSmsCode" class="btn btn-outline" style="width:100%;margin-bottom:8px">Pošlji SMS kodo</button>
-          <input type="text" id="smsCode" placeholder="Vnesi SMS kodo" style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;display:none;">
+          <input type="password" id="registerPassword" placeholder="Geslo (min. 6 znakov, velika začetnica, posebni znak)" required style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
+          <input type="password" id="registerPasswordRepeat" placeholder="Ponovite geslo" required style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
+          <div style="margin-bottom:8px;">
+            <label><input type="radio" name="codeMethod" value="sms" checked> Preveri s SMS kodo</label>
+            <label style="margin-left:18px;"><input type="radio" name="codeMethod" value="email"> Preveri z email kodo</label>
+          </div>
+          <button type="button" id="sendCodeBtn" class="btn btn-outline" style="width:100%;margin-bottom:8px">Pošlji kodo</button>
+          <input type="text" id="registerCode" placeholder="Vnesite kodo" style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;display:none;">
           <button type="button" id="backToLoginBtn" class="btn btn-outline" style="width:100%;margin-bottom:8px">Nazaj na prijavo</button>
           <button type="button" id="registerSubmitBtn" class="btn btn-primary" style="width:100%;margin-bottom:8px">Registracija</button>
         `;
-        // Vstavi za polje geslo
         const passwordInput = loginForm.querySelector('#loginPassword');
         passwordInput.insertAdjacentElement('afterend', registerFields);
 
-        // Pošlji SMS kodo
-        registerFields.querySelector('#sendSmsCode').onclick = async function() {
+        let codeMethod = 'sms';
+        registerFields.querySelectorAll('input[name="codeMethod"]').forEach(radio => {
+          radio.addEventListener('change', function() {
+            codeMethod = this.value;
+          });
+        });
+
+        // Pošlji kodo
+        registerFields.querySelector('#sendCodeBtn').onclick = async function() {
           const phone = registerFields.querySelector('#loginPhone').value.trim();
-          if (!/^\d{6,}$/.test(phone.replace(/\D/g, ''))) {
-            loginError.textContent = 'Vnesite veljavno telefonsko številko.';
-            loginError.style.display = 'block';
-            return;
+          const email = loginForm.querySelector('#loginEmail').value.trim();
+          loginError.textContent = '';
+          loginError.style.display = 'none';
+          if (codeMethod === 'sms') {
+            if (!/^\d{6,}$/.test(phone.replace(/\D/g, ''))) {
+              loginError.textContent = 'Vnesite veljavno telefonsko številko.';
+              loginError.style.display = 'block';
+              return;
+            }
+          } else {
+            if (!email.match(/^[^@]+@[^@]+\.[^@]+$/)) {
+              loginError.textContent = 'Vnesite veljaven email naslov.';
+              loginError.style.display = 'block';
+              return;
+            }
           }
           loginError.textContent = 'Pošiljam kodo ...';
           loginError.style.display = 'block';
           try {
-            const res = await fetch('/.netlify/functions/send-code', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ method: 'sms', phone, countryCode: '+386' })
-            });
+            let res;
+            if (codeMethod === 'sms') {
+              res = await fetch('/.netlify/functions/send-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ method: 'sms', phone, countryCode: '+386' })
+              });
+            } else {
+              res = await fetch('/.netlify/functions/send-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ method: 'email', email })
+              });
+            }
             const data = await res.json();
             if (data.ok && data.codeSent) {
-              loginError.textContent = 'Koda je bila poslana na SMS.';
-              registerFields.querySelector('#smsCode').style.display = '';
+              loginError.textContent = 'Koda je bila poslana.';
+              registerFields.querySelector('#registerCode').style.display = '';
             } else {
               loginError.textContent = 'Napaka pri pošiljanju kode.';
             }
@@ -565,8 +596,9 @@
           const surname = registerFields.querySelector('#loginSurname').value.trim();
           const phone = registerFields.querySelector('#loginPhone').value.trim();
           const email = loginForm.querySelector('#loginEmail').value.trim();
-          const password = loginForm.querySelector('#loginPassword').value;
-          const smsCode = registerFields.querySelector('#smsCode').value.trim();
+          const password = registerFields.querySelector('#registerPassword').value;
+          const passwordRepeat = registerFields.querySelector('#registerPasswordRepeat').value;
+          const registerCode = registerFields.querySelector('#registerCode').value.trim();
           loginError.textContent = '';
           loginError.style.display = 'none';
           if (!name || !surname) {
@@ -589,19 +621,43 @@
             loginError.style.display = 'block';
             return;
           }
-          if (!smsCode) {
-            loginError.textContent = 'Vnesite prejeto SMS kodo.';
+          if (!/[A-Z]/.test(password)) {
+            loginError.textContent = 'Geslo mora vsebovati vsaj eno veliko začetnico.';
+            loginError.style.display = 'block';
+            return;
+          }
+          if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+            loginError.textContent = 'Geslo mora vsebovati vsaj en poseben znak.';
+            loginError.style.display = 'block';
+            return;
+          }
+          if (password !== passwordRepeat) {
+            loginError.textContent = 'Gesli se ne ujemata.';
+            loginError.style.display = 'block';
+            return;
+          }
+          if (!registerCode) {
+            loginError.textContent = 'Vnesite prejeto kodo.';
             loginError.style.display = 'block';
             return;
           }
           loginError.textContent = 'Preverjam kodo ...';
           loginError.style.display = 'block';
           try {
-            const verifyRes = await fetch('/.netlify/functions/verify-code', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ phone, code: smsCode, countryCode: '+386' })
-            });
+            let verifyRes;
+            if (codeMethod === 'sms') {
+              verifyRes = await fetch('/.netlify/functions/verify-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, code: registerCode, countryCode: '+386' })
+              });
+            } else {
+              verifyRes = await fetch('/.netlify/functions/verify-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code: registerCode })
+              });
+            }
             const verifyData = await verifyRes.json();
             if (!verifyData.ok || !verifyData.verified) {
               loginError.textContent = 'Koda ni pravilna.';
@@ -631,7 +687,7 @@
                 window.location.reload();
               }, 800);
             } else {
-              loginError.textContent = 'Napaka: ' + (result?.error?.message || 'Neznana napaka.');
+              loginError.textContent = 'Napaka: ' + (result?.error?.message || 'Uporabnik s tem emailom že obstaja ali je napaka v podatkih.');
             }
           } catch (err) {
             loginError.textContent = 'Napaka: ' + err.message;
@@ -679,10 +735,18 @@
               window.location.reload();
             }, 800);
           } else {
-            loginError.textContent = 'Napaka: ' + (result?.error?.message || 'Uporabnik ne obstaja ali je geslo napačno.');
+            if (result?.error?.message && result.error.message.toLowerCase().includes('user not found')) {
+              loginError.textContent = 'Uporabnik s tem emailom ne obstaja. Preverite email ali se registrirajte.';
+            } else if (result?.error?.message && result.error.message.toLowerCase().includes('invalid login credentials')) {
+              loginError.textContent = 'Geslo ni pravilno. Poskusite znova ali uporabite pozabljeno geslo.';
+            } else {
+              loginError.textContent = 'Napaka: ' + (result?.error?.message || 'Neznana napaka.');
+            }
+            loginError.style.display = 'block';
           }
         } catch (e) {
           loginError.textContent = 'Napaka: ' + e.message;
+          loginError.style.display = 'block';
         }
       });
     }

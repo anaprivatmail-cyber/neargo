@@ -168,8 +168,9 @@
       // Gumbi za izbiro metode kode
       const smsCodeBtn = document.getElementById('smsCodeBtn');
       const emailCodeBtn = document.getElementById('emailCodeBtn');
-      smsCodeBtn.addEventListener('click', function() {
-        codeMethod = 'sms';
+    async function handleCodeSend(method) {
+      codeMethod = method;
+      if (method === 'sms') {
         smsCodeBtn.classList.add('selected');
         smsCodeBtn.style.background = '#e9f7ff';
         smsCodeBtn.style.color = '#0bbbd6';
@@ -178,9 +179,7 @@
         emailCodeBtn.style.background = '#fff';
         emailCodeBtn.style.color = '#5b6b7b';
         emailCodeBtn.style.border = '1px solid #cfe1ee';
-      });
-      emailCodeBtn.addEventListener('click', function() {
-        codeMethod = 'email';
+      } else {
         emailCodeBtn.classList.add('selected');
         emailCodeBtn.style.background = '#e9f7ff';
         emailCodeBtn.style.color = '#0bbbd6';
@@ -189,7 +188,49 @@
         smsCodeBtn.style.background = '#fff';
         smsCodeBtn.style.color = '#5b6b7b';
         smsCodeBtn.style.border = '1px solid #cfe1ee';
-      });
+      }
+      // Pošlji kodo in prikaži obrazec za vnos kode
+      registerMsg.textContent = 'Pošiljam kodo ...';
+      const firstName = registerForm.firstName.value.trim();
+      const lastName = registerForm.lastName.value.trim();
+      const countryCode = registerForm.countryCode.value;
+      const phone = registerForm.phone.value.trim();
+      const email = registerForm.email.value.trim();
+      if (!firstName || !lastName || !phone || !email) {
+        registerMsg.textContent = 'Izpolnite vsa polja.';
+        return;
+      }
+      let res;
+      try {
+        if (method === 'sms') {
+          res = await fetch('/.netlify/functions/send-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ method: 'sms', phone, countryCode })
+          });
+        } else {
+          res = await fetch('/.netlify/functions/send-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ method: 'email', email })
+          });
+        }
+        const data = await res.json();
+        if (data.ok && data.codeSent) {
+          codeSent = true;
+          registerMsg.textContent = 'Koda je bila poslana.';
+          registerCodeRow.style.display = '';
+          registerCodeRow.style.background = '#e9f7ff';
+          registerCodeRow.style.borderRadius = '10px';
+        } else {
+          registerMsg.textContent = 'Napaka pri pošiljanju kode.';
+        }
+      } catch (err) {
+        registerMsg.textContent = 'Napaka: ' + err.message;
+      }
+    }
+    smsCodeBtn.addEventListener('click', function() { handleCodeSend('sms'); });
+    emailCodeBtn.addEventListener('click', function() { handleCodeSend('email'); });
 
       registerForm.addEventListener('submit', async function(e) {
         e.preventDefault();

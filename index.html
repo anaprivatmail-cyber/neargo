@@ -1,3 +1,157 @@
+<!-- OBRAZEC: Dogodek / Storitev -->
+<section class="card panel" id="orgPanel" style="display:none">
+  <div class="title">Objavi dogodek ali storitev</div>
+  <div class="row row--3">
+    <input id="orgName" placeholder="Ime organizatorja / ponudnika *" required>
+    <input id="orgFullName" placeholder="Ime in priimek (kontaktna oseba) *" required>
+    <input id="orgEmail" type="email" placeholder="E-pošta za potrditev *" required>
+  </div>
+  <div class="row row--3">
+    <input id="eventName" placeholder="Naslov (dogodek ali storitev) *" required>
+    <input id="venue" placeholder="Lokacija (ime prizorišča ali salona) *" required>
+    <input id="city2" placeholder="Mesto/kraj *" required>
+  </div>
+  <div class="row row--3">
+    <select id="country" required>
+      <option value="">Država (izberi) *</option>
+      <option value="SI" selected>Slovenija (SI)</option>
+      <option value="AT">Avstrija (AT)</option>
+      <!-- ... -->
+    </select>
+    <input id="start" type="datetime-local" required>
+    <input id="end" type="datetime-local" required>
+  </div>
+  <div class="row row--3">
+    <input id="url" placeholder="Povezava za več info / nakup (če obstaja)">
+    <select id="category" required>
+      <option value="">Kategorija *</option>
+      <option value="sport">Šport</option>
+      <option value="kultura">Kultura</option>
+      <!-- ... -->
+    </select>
+    <input id="price" type="number" min="0" step="0.01" placeholder="Cena (€)">
+  </div>
+  <div class="row">
+    <textarea id="desc" placeholder="Opis *" maxlength="800" required></textarea>
+    <div class="muted" id="descCount" style="font-size:12px; text-align:right">0 / 800</div>
+  </div>
+  <div class="row">
+    <div class="file-wrap">
+      <input id="image" type="file" accept="image/*">
+      <span id="fileName" class="file-name">Fotografija ni izbrana</span>
+      <img id="imgPreview" alt="" style="display:none;width:56px;height:56px;border-radius:8px;border:1px solid var(--chipborder);object-fit:cover">
+    </div>
+  </div>
+  <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
+    <button class="btn" id="btnPreviewEvent" type="button" style="background:#11a67a;color:#fff;">Predogled</button>
+    <button class="btn" id="btnSubmitEvent" type="button">Objavi</button>
+    <span id="orgMsg" class="muted" style="margin-left:10px"></span>
+  </div>
+</section>
+<!-- Modal za predogled dogodka/storitve -->
+<div id="previewModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:2000;align-items:center;justify-content:center;">
+  <div style="background:#fff;padding:32px 28px;border-radius:18px;max-width:400px;width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.13);margin:auto;">
+    <div id="previewContent"></div>
+    <button id="closePreviewModal" class="btn btn-mini btn-outline" style="width:100%;margin-top:14px">Zapri</button>
+  </div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+// Predogled slike
+$("#image")?.addEventListener("change", (ev) => {
+  const f = ev.target.files?.[0];
+  const lbl = $("#fileName");
+  const prev = $("#imgPreview");
+  if (lbl) lbl.textContent = f ? f.name : "Fotografija ni izbrana";
+  if (f && prev) {
+    const r = new FileReader();
+    r.onload = () => { prev.src = r.result; prev.style.display = "block"; };
+    r.readAsDataURL(f);
+  }
+});
+// Predogled dogodka/storitve
+$("#btnPreviewEvent")?.addEventListener("click", () => {
+  const title = $("#eventName")?.value || '';
+  const desc = $("#desc")?.value || '';
+  const img = $("#imgPreview")?.src || 'https://picsum.photos/600/400';
+  const start = $("#start")?.value || '';
+  const end = $("#end")?.value || '';
+  const venue = $("#venue")?.value || '';
+  const price = $("#price")?.value || '';
+  const category = $("#category")?.value || '';
+  $("#previewContent").innerHTML = `
+    <img src="${img}" alt="" style="width:100%;max-width:320px;border-radius:12px;margin-bottom:12px;object-fit:cover">
+    <h2 style="margin:0 0 8px 0;font-size:1.3em;color:#0bbbd6;">${title}</h2>
+    <div style="color:#5b6b7b;font-size:14px;margin-bottom:6px">${venue}</div>
+    <div style="color:#5b6b7b;font-size:14px;margin-bottom:6px">${start ? 'Začetek: ' + start : ''} ${end ? '<br>Končanje: ' + end : ''}</div>
+    <div style="color:#5b6b7b;font-size:14px;margin-bottom:6px">Kategorija: ${category}</div>
+    <div style="color:#0bbbd6;font-weight:700;font-size:16px;margin-bottom:8px;">${price ? 'Cena: ' + price + ' €' : ''}</div>
+    <div style="margin-bottom:8px;color:#222;font-size:15px;">${desc}</div>
+  `;
+  $("#previewModal").style.display = "flex";
+});
+$("#closePreviewModal")?.addEventListener("click", () => {
+  $("#previewModal").style.display = "none";
+});
+// Oddaja dogodka
+$("#btnSubmitEvent")?.addEventListener("click", async (ev) => {
+  ev.preventDefault();
+  const orgMsg = $("#orgMsg");
+  if (orgMsg) orgMsg.textContent = "";
+  // Validacija obveznih polj
+  const must = ["#orgName", "#orgFullName", "#orgEmail", "#eventName", "#venue", "#city2", "#country", "#start", "#end", "#category", "#desc"];
+  for (const sel of must) {
+    const el = $(sel);
+    if (!el?.value.trim()) {
+      orgMsg.textContent = "❌ Izpolni obvezna polja z *.";
+      orgMsg.style.color = "var(--bad)";
+      el?.focus();
+      return;
+    }
+  }
+  // Upload slike (če je)
+  let IMAGE_URL = null;
+  const f = $("#image")?.files?.[0] || null;
+  if (f) {
+    try {
+      const up = new FormData(); up.append("file", f);
+      const ur = await fetch("/api/provider-upload", { method: "POST", body: up }).then(x => x.json()).catch(() => null);
+      if (ur && ur.ok && (ur.url || ur.imagePublicUrl)) IMAGE_URL = ur.url || ur.imagePublicUrl;
+    } catch {}
+  }
+  // Pripravi payload
+  const payload = {
+    orgName: $("#orgName")?.value.trim(),
+    orgFullName: $("#orgFullName")?.value.trim(),
+    orgEmail: $("#orgEmail")?.value.trim(),
+    eventName: $("#eventName")?.value.trim(),
+    venue: $("#venue")?.value.trim(),
+    city: $("#city2")?.value.trim(),
+    country: $("#country")?.value,
+    start: $("#start")?.value,
+    end: $("#end")?.value,
+    category: $("#category")?.value,
+    price: $("#price")?.value,
+    desc: $("#desc")?.value.trim(),
+    imagePublicUrl: IMAGE_URL
+    // Dodaj ostala polja po potrebi
+  };
+  // Pošlji na backend
+  const res = await fetch("/api/provider-submit", {
+    method: "POST",
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(x => x.json()).catch(() => null);
+  if (res && res.ok) {
+    orgMsg.textContent = "✅ Dogodek oddan. E‑mail poslan.";
+    orgMsg.style.color = "var(--ok)";
+    setTimeout(() => { orgMsg.textContent = ""; }, 6000);
+  } else {
+    orgMsg.textContent = "❌ Napaka: " + (res?.error || "Oddaja ni uspela.");
+    orgMsg.style.color = "var(--bad)";
+  }
+});
+</script>
 <!doctype html>
 <html lang="sl">
 <head>

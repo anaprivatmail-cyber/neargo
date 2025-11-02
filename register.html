@@ -31,28 +31,53 @@
       <input type="email" id="regEmail" placeholder="E-pošta" required>
       <input type="password" id="regPassword" placeholder="Geslo" required>
       <input type="password" id="regPassword2" placeholder="Ponovi geslo" required>
+      <div style="margin-bottom:10px">
+        <select id="regCountry" style="width:100%;padding:10px;border-radius:8px;border:1px solid #cfe1ee;font-size:15px;margin-bottom:6px">
+          <option value="+386">Slovenija (+386)</option>
+          <option value="+385">Hrvaška (+385)</option>
+          <option value="+43">Avstrija (+43)</option>
+          <option value="+49">Nemčija (+49)</option>
+          <option value="+39">Italija (+39)</option>
+          <option value="+1">ZDA (+1)</option>
+          <option value="+44">Velika Britanija (+44)</option>
+          <option value="+33">Francija (+33)</option>
+        </select>
+        <input type="tel" id="regPhone" placeholder="Telefonska številka" required>
+      </div>
       <button type="submit" class="btn">Registracija</button>
     </form>
     <div id="regError" class="error" style="display:none"></div>
     <div class="muted"><a href="/organizers.html">Nazaj na prijavo</a></div>
   </div>
   <script>
+    function formatPhone(phone, countryCode) {
+      let num = String(phone).replace(/\s|\-|\(|\)/g, '');
+      if (num.startsWith('+')) return num;
+      if (num.startsWith('00')) return '+' + num.slice(2);
+      if (num.startsWith('0')) return countryCode + num.slice(1);
+      return countryCode + num;
+    }
     document.getElementById('registerForm').addEventListener('submit', function(ev) {
       ev.preventDefault();
       var email = document.getElementById('regEmail').value.trim();
       var pw1 = document.getElementById('regPassword').value;
       var pw2 = document.getElementById('regPassword2').value;
+      var phone = document.getElementById('regPhone').value.trim();
+      var countryCode = document.getElementById('regCountry').value;
       var err = '';
-      if (!email || !pw1 || !pw2) err = 'Vnesite vse podatke.';
+      if (!email || !pw1 || !pw2 || !phone) err = 'Vnesite vse podatke.';
       else if (pw1.length < 6) err = 'Geslo mora imeti vsaj 6 znakov.';
       else if (pw1 !== pw2) err = 'Gesli se ne ujemata.';
+      else if (!/^\d{6,}$/.test(phone.replace(/\D/g, ''))) err = 'Vnesite veljavno telefonsko številko.';
       if (err) {
         document.getElementById('regError').textContent = err;
         document.getElementById('regError').style.display = 'block';
         return;
       }
-      // Simulacija uspešne registracije
-      alert('Registracija uspešna!');
+      // Pretvori telefonsko številko v mednarodni format
+      var formattedPhone = formatPhone(phone, countryCode);
+      // Simulacija uspešne registracije (pošlji podatke naprej)
+      alert('Registracija uspešna!\nTelefon: ' + formattedPhone);
       window.location.href = '/organizers.html';
     });
   </script>

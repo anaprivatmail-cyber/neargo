@@ -12,12 +12,13 @@
     <form id="login-form">
       <input type="email" name="email" placeholder="E-pošta" autocomplete="email" required>
       <input type="password" name="password" placeholder="Geslo" autocomplete="current-password" required>
-      <button type="submit" id="loginBtn">Prijava</button>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button type="submit" id="loginBtn" style="flex:1;">Prijava</button>
+        <button type="button" id="showRegisterBtn" style="flex:1;background:#fff;color:#0bbbd6;border:1px solid #0bbbd6;">Registracija</button>
+      </div>
       <div id="login-message" style="color:#d64c4c;margin-top:8px;"></div>
       <div style="margin-top:14px;text-align:center;font-size:14px;">
         <a href="#" id="forgotPasswordLink" style="color:#0bbbd6;margin-right:10px">Pozabljeno geslo?</a>
-        <span>ali</span>
-        <a href="#" id="registerLink" style="color:#0bbbd6;margin-left:10px">Še niste registrirani?</a>
       </div>
     </form>
     <div id="register-section" style="display:none;margin-top:28px;">
@@ -98,11 +99,12 @@
       }
     });
 
-    registerLink.addEventListener('click', function(e) {
+    // Gumb za prikaz registracije
+    const showRegisterBtn = document.getElementById('showRegisterBtn');
+    showRegisterBtn.addEventListener('click', function(e) {
       e.preventDefault();
       loginForm.style.display = 'none';
       registerSection.style.display = 'block';
-      // Tukaj bo prikazan razširjen obrazec za registracijo v drugi fazi
     });
 
     forgotPasswordLink.addEventListener('click', function(e) {

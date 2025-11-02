@@ -532,8 +532,14 @@
           <button type="button" id="backToLoginBtn" class="btn btn-outline" style="width:100%;margin-bottom:8px">Nazaj na prijavo</button>
           <button type="button" id="registerSubmitBtn" class="btn btn-primary" style="width:100%;margin-bottom:8px">Registracija</button>
         `;
+        // Skrij polje za geslo v login formi
         const passwordInput = loginForm.querySelector('#loginPassword');
-        passwordInput.insertAdjacentElement('afterend', registerFields);
+        if (passwordInput) passwordInput.style.display = 'none';
+        // Skrij gumb za prijavo
+        loginForm.querySelector('button[type="submit"]').style.display = 'none';
+        // Vstavi registerFields za email
+        const emailInput = loginForm.querySelector('#loginEmail');
+        emailInput.insertAdjacentElement('afterend', registerFields);
 
         let codeMethod = 'sms';
         registerFields.querySelectorAll('input[name="codeMethod"]').forEach(radio => {
@@ -674,6 +680,11 @@
           try {
             // Supabase signup
             const { testSignUpEmail } = window;
+            if (typeof testSignUpEmail !== 'function') {
+              loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
+              loginError.style.display = 'block';
+              return;
+            }
             const result = await testSignUpEmail(email, password, {
               data: {
                 first_name: name,
@@ -691,6 +702,7 @@
             }
           } catch (err) {
             loginError.textContent = 'Napaka: ' + err.message;
+            loginError.style.display = 'block';
           }
         };
 
@@ -700,6 +712,8 @@
           registerFields = null;
           showRegisterBtn.style.display = '';
           loginForm.querySelector('button[type="submit"]').style.display = '';
+          const passwordInput = loginForm.querySelector('#loginPassword');
+          if (passwordInput) passwordInput.style.display = '';
           loginError.textContent = '';
           loginError.style.display = 'none';
         };
@@ -709,6 +723,9 @@
         e.preventDefault();
         createRegisterFields();
         showRegisterBtn.style.display = 'none';
+        // Skrij polje za geslo
+        const passwordInput = loginForm.querySelector('#loginPassword');
+        if (passwordInput) passwordInput.style.display = 'none';
         loginForm.querySelector('button[type="submit"]').style.display = 'none';
       });
 
@@ -728,6 +745,11 @@
         loginError.style.display = 'block';
         try {
           const { testSignInEmail } = window;
+          if (typeof testSignInEmail !== 'function') {
+            loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
+            loginError.style.display = 'block';
+            return;
+          }
           let result = await testSignInEmail(email, password);
           if (result?.data?.user) {
             loginError.textContent = 'Prijava uspešna!';

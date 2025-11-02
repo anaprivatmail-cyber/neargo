@@ -69,12 +69,18 @@ export const handler = async (event) => {
     const dataUrl = await qrDataUrl(token);
 
     const html = `
-      <div style="font:16px/1.5 Arial,sans-serif;color:#111">
-        <h2 style="margin:0 0 6px">Vaš kupon</h2>
-        <p style="margin:0 0 8px"><strong>${escapeHtml(title)}</strong></p>
-        <p style="margin:0 0 10px">Skenirajte QR na mestu vnovčitve ali odprite <a href="${viewUrl}">${viewUrl}</a>.</p>
-        <img alt="QR" src="${dataUrl}" style="width:220px;height:220px;display:block;margin:10px 0;border:0"/>
-        <div style="font:12px/1.4 monospace;color:#666">${token}</div>
+      <div style="font-family:Arial,sans-serif;font-size:16px;color:#222;background:#f9f9f9;padding:24px;border-radius:8px;max-width:420px;margin:auto;">
+        <div style="text-align:center;margin-bottom:16px;">
+          <img src='https://getneargo.com/assets/icons/other.svg' alt='NearGo' style='height:48px;'>
+          <h2 style="margin:8px 0 0 0;font-size:1.5em;color:#2a7be4;">NearGo</h2>
+        </div>
+        <p style="margin:0 0 8px;font-size:1.1em;color:#222;">Prejeli ste kupon:</p>
+        <div style="font-size:1.2em;font-weight:bold;letter-spacing:1px;margin:8px 0 16px 0;color:#2a7be4;">${escapeHtml(title)}</div>
+        <p style="margin:0 0 10px">Skenirajte QR kodo na mestu vnovčitve ali odprite <a href="${viewUrl}" style="color:#2a7be4;text-decoration:underline;">${viewUrl}</a>.</p>
+        <img alt="QR" src="${dataUrl}" style="width:220px;height:220px;display:block;margin:10px auto 16px auto;border:0"/>
+        <div style="font:12px/1.4 monospace;color:#666;text-align:center;margin-bottom:12px;">${token}</div>
+        <hr style="margin:24px 0;border:none;border-top:1px solid #eee;">
+        <small style="color:#888;">Ekipa NearGo – Hvala za zaupanje!<br>Za pomoč ali vprašanja pišite na <a href='mailto:info@getneargo.com' style='color:#2a7be4;'>info@getneargo.com</a></small>
       </div>
     `;
 

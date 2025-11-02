@@ -44,7 +44,18 @@
         </select>
         <input type="tel" id="regPhone" placeholder="Telefonska številka" required>
       </div>
-      <button type="submit" class="btn">Registracija</button>
+      <div style="margin-bottom:10px">
+        <label style="font-size:15px;">Način potrditve:</label><br>
+        <select id="regMethod" style="width:100%;padding:10px;border-radius:8px;border:1px solid #cfe1ee;font-size:15px;margin-bottom:6px">
+          <option value="email">Email</option>
+          <option value="sms">SMS</option>
+        </select>
+      </div>
+      <button type="button" class="btn" id="btnSendCode">Pošlji potrditveno kodo</button>
+      <div id="codeSection" style="display:none;margin-top:10px;">
+        <input type="text" id="regCode" placeholder="Vnesi potrditveno kodo" style="margin-bottom:8px;">
+        <button type="button" class="btn" id="btnVerifyCode">Potrdi kodo in dokončaj registracijo</button>
+      </div>
     </form>
     <div id="regError" class="error" style="display:none"></div>
     <div class="muted"><a href="/organizers.html">Nazaj na prijavo</a></div>
@@ -57,28 +68,78 @@
       if (num.startsWith('0')) return countryCode + num.slice(1);
       return countryCode + num;
     }
-    document.getElementById('registerForm').addEventListener('submit', function(ev) {
-      ev.preventDefault();
+    const btnSendCode = document.getElementById('btnSendCode');
+    const btnVerifyCode = document.getElementById('btnVerifyCode');
+    const codeSection = document.getElementById('codeSection');
+    const regError = document.getElementById('regError');
+    btnSendCode.addEventListener('click', async function() {
+      regError.style.display = 'none';
       var email = document.getElementById('regEmail').value.trim();
       var pw1 = document.getElementById('regPassword').value;
       var pw2 = document.getElementById('regPassword2').value;
       var phone = document.getElementById('regPhone').value.trim();
       var countryCode = document.getElementById('regCountry').value;
+      var method = document.getElementById('regMethod').value;
       var err = '';
       if (!email || !pw1 || !pw2 || !phone) err = 'Vnesite vse podatke.';
       else if (pw1.length < 6) err = 'Geslo mora imeti vsaj 6 znakov.';
       else if (pw1 !== pw2) err = 'Gesli se ne ujemata.';
       else if (!/^\d{6,}$/.test(phone.replace(/\D/g, ''))) err = 'Vnesite veljavno telefonsko številko.';
       if (err) {
-        document.getElementById('regError').textContent = err;
-        document.getElementById('regError').style.display = 'block';
+        regError.textContent = err;
+        regError.style.display = 'block';
         return;
       }
-      // Pretvori telefonsko številko v mednarodni format
       var formattedPhone = formatPhone(phone, countryCode);
-      // Simulacija uspešne registracije (pošlji podatke naprej)
-      alert('Registracija uspešna!\nTelefon: ' + formattedPhone);
-      window.location.href = '/organizers.html';
+      // Pošlji zahtevo za kodo
+      try {
+        const res = await fetch('/.netlify/functions/send-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ method, email, phone: formattedPhone, countryCode })
+        });
+        const data = await res.json();
+        if (data.ok && data.codeSent) {
+          codeSection.style.display = 'block';
+          btnSendCode.disabled = true;
+        } else {
+          regError.textContent = data.error || 'Napaka pri pošiljanju kode.';
+          regError.style.display = 'block';
+        }
+      } catch (e) {
+        regError.textContent = 'Napaka pri pošiljanju kode.';
+        regError.style.display = 'block';
+      }
+    });
+
+    btnVerifyCode.addEventListener('click', async function() {
+      regError.style.display = 'none';
+      var email = document.getElementById('regEmail').value.trim();
+      var code = document.getElementById('regCode').value.trim();
+      if (!code) {
+        regError.textContent = 'Vnesite potrditveno kodo.';
+        regError.style.display = 'block';
+        return;
+      }
+      // Preveri kodo prek backend
+      try {
+        const res = await fetch('/.netlify/functions/send-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ method: 'verify', email, code })
+        });
+        const data = await res.json();
+        if (data.ok && data.codeValid) {
+          alert('Registracija uspešna!');
+          window.location.href = '/organizers.html';
+        } else {
+          regError.textContent = data.error || 'Koda ni pravilna ali je potekla.';
+          regError.style.display = 'block';
+        }
+      } catch (e) {
+        regError.textContent = 'Napaka pri preverjanju kode.';
+        regError.style.display = 'block';
+      }
     });
   </script>
 </body>

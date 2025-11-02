@@ -518,16 +518,24 @@
         registerFields = document.createElement('div');
         registerFields.id = 'registerFields';
         registerFields.innerHTML = `
-          <input type="text" id="loginName" placeholder="Ime" required style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
-          <input type="text" id="loginSurname" placeholder="Priimek" required style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
-          <input type="tel" id="loginPhone" placeholder="Telefonska številka (za SMS prijavo)" style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
-          <input type="password" id="registerPassword" placeholder="Geslo (min. 6 znakov, velika začetnica, posebni znak)" required style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
-          <input type="password" id="registerPasswordRepeat" placeholder="Ponovite geslo" required style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
+          <input type="text" id="loginName" placeholder="Ime" required style="margin-bottom:8px;">
+          <input type="text" id="loginSurname" placeholder="Priimek" required style="margin-bottom:8px;">
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <select id="countryCode" style="width:90px;">
+              <option value="+386">+386</option>
+              <option value="+385">+385</option>
+              <option value="+43">+43</option>
+              <option value="+49">+49</option>
+            </select>
+            <input type="tel" id="loginPhone" placeholder="Telefonska številka" style="flex:1;">
+          </div>
+          <input type="password" id="registerPassword" placeholder="Geslo (min. 6 znakov, velika začetnica, posebni znak)" required style="margin-bottom:8px;">
+          <input type="password" id="registerPasswordRepeat" placeholder="Ponovite geslo" required style="margin-bottom:8px;">
           <div style="display:flex;gap:10px;margin-bottom:8px;">
             <button type="button" id="sendSmsCodeBtn" class="btn btn-outline" style="flex:1;">Preveri s SMS kodo</button>
             <button type="button" id="sendEmailCodeBtn" class="btn btn-outline" style="flex:1;">Preveri z email kodo</button>
           </div>
-          <input type="text" id="registerCode" placeholder="Vnesite kodo" style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;display:none;">
+          <input type="text" id="registerCode" placeholder="Vnesite kodo" style="margin-bottom:8px;display:none;">
           <button type="button" id="backToLoginBtn" class="btn btn-outline" style="width:100%;margin-bottom:8px">Nazaj na prijavo</button>
           <button type="button" id="registerSubmitBtn" class="btn btn-primary" style="width:100%;margin-bottom:8px">Registracija</button>
         `;
@@ -542,9 +550,8 @@
 
         // Pošlji SMS kodo
         registerFields.querySelector('#sendSmsCodeBtn').onclick = async function() {
+          const countryCode = registerFields.querySelector('#countryCode').value;
           const phone = registerFields.querySelector('#loginPhone').value.trim();
-          loginError.textContent = '';
-          loginError.style.display = 'none';
           if (!/^\d{6,}$/.test(phone.replace(/\D/g, ''))) {
             loginError.textContent = 'Vnesite veljavno telefonsko številko.';
             loginError.style.display = 'block';
@@ -556,12 +563,13 @@
             const res = await fetch('/.netlify/functions/send-code', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ method: 'sms', phone, countryCode: '+386' })
+              body: JSON.stringify({ method: 'sms', phone, countryCode })
             });
             const data = await res.json();
             if (data.ok && data.codeSent) {
               loginError.textContent = 'Koda je bila poslana na SMS.';
               registerFields.querySelector('#registerCode').style.display = '';
+              registerFields.querySelector('#registerCode').previousSend = 'sms';
             } else {
               loginError.textContent = 'Napaka pri pošiljanju SMS kode.';
             }
@@ -572,8 +580,6 @@
         // Pošlji email kodo
         registerFields.querySelector('#sendEmailCodeBtn').onclick = async function() {
           const email = loginForm.querySelector('#loginEmail').value.trim();
-          loginError.textContent = '';
-          loginError.style.display = 'none';
           if (!email.match(/^[^@]+@[^@]+\.[^@]+$/)) {
             loginError.textContent = 'Vnesite veljaven email naslov.';
             loginError.style.display = 'block';
@@ -591,6 +597,7 @@
             if (data.ok && data.codeSent) {
               loginError.textContent = 'Koda je bila poslana na email.';
               registerFields.querySelector('#registerCode').style.display = '';
+              registerFields.querySelector('#registerCode').previousSend = 'email';
             } else {
               loginError.textContent = 'Napaka pri pošiljanju email kode.';
             }
@@ -603,6 +610,7 @@
         registerFields.querySelector('#registerSubmitBtn').onclick = async function() {
           const name = registerFields.querySelector('#loginName').value.trim();
           const surname = registerFields.querySelector('#loginSurname').value.trim();
+          const countryCode = registerFields.querySelector('#countryCode').value;
           const phone = registerFields.querySelector('#loginPhone').value.trim();
           const email = loginForm.querySelector('#loginEmail').value.trim();
           const password = registerFields.querySelector('#registerPassword').value;
@@ -654,12 +662,11 @@
           loginError.style.display = 'block';
           try {
             let verifyRes;
-            // Preveri kodo glede na zadnji klik
             if (registerFields.querySelector('#registerCode').previousSend === 'sms') {
               verifyRes = await fetch('/.netlify/functions/verify-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, code: registerCode, countryCode: '+386' })
+                body: JSON.stringify({ phone, code: registerCode, countryCode })
               });
             } else {
               verifyRes = await fetch('/.netlify/functions/verify-code', {
@@ -693,7 +700,7 @@
               data: {
                 first_name: name,
                 last_name: surname,
-                phone: '+386' + phone
+                phone: countryCode + phone
               }
             });
             if (result?.data?.user) {
@@ -702,20 +709,16 @@
                 window.location.reload();
               }, 800);
             } else {
-              loginError.textContent = 'Napaka: ' + (result?.error?.message || 'Uporabnik s tem emailom že obstaja ali je napaka v podatkih.');
+              if (result?.error?.message && result.error.message.toLowerCase().includes('user already registered')) {
+                loginError.textContent = 'Uporabnik s tem emailom že obstaja.';
+              } else {
+                loginError.textContent = 'Napaka: ' + (result?.error?.message || 'Napaka v podatkih.');
+              }
             }
           } catch (err) {
             loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
             loginError.style.display = 'block';
           }
-        };
-
-        // Shrani zadnji način pošiljanja kode
-        registerFields.querySelector('#sendSmsCodeBtn').onclick = function() {
-          registerFields.querySelector('#registerCode').previousSend = 'sms';
-        };
-        registerFields.querySelector('#sendEmailCodeBtn').onclick = function() {
-          registerFields.querySelector('#registerCode').previousSend = 'email';
         };
 
         // Nazaj na prijavo
@@ -770,7 +773,7 @@
             }, 800);
           } else {
             if (result?.error?.message && result.error.message.toLowerCase().includes('user not found')) {
-              loginError.textContent = 'Uporabnik s tem emailom ne obstaja. Preverite email ali se registrirajte.';
+              loginError.textContent = 'Uporabnik s tem emailom ne obstaja.';
             } else if (result?.error?.message && result.error.message.toLowerCase().includes('invalid login credentials')) {
               loginError.textContent = 'Geslo ni pravilno. Poskusite znova ali uporabite pozabljeno geslo.';
             } else {
@@ -932,6 +935,9 @@
       googleBtn.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;width:100%"><img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="height:18px;vertical-align:middle;margin-right:8px"> Google</span>';
       googleBtn.style.justifyContent = 'center';
     }
+    // Odstrani "Še niste registrirani?"
+    const registerLink = document.getElementById('registerLink');
+    if (registerLink) registerLink.style.display = 'none';
   </script>
 </body>
   </html>

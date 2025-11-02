@@ -35,6 +35,7 @@
   </header>
   <div class="wrap">
     <div class="card">
+      <div id="greeting" style="font-size:1.25em;font-weight:700;color:#0bbbd6;margin-bottom:12px;"></div>
       <h1>Moje vstopnice & kuponi</h1>
       <div class="row">
         <input id="email" placeholder="vnesi e-pošto (za dostavo vstopnic)">
@@ -95,6 +96,18 @@
   </div>
 
   <script>
+    // Prikaz pozdrava z imenom
+    document.addEventListener('DOMContentLoaded', function() {
+      const greeting = document.getElementById('greeting');
+      let name = localStorage.getItem('user_name') || '';
+      if (!name) {
+        // Poskusi pridobiti iz profila ali iz emaila
+        name = localStorage.getItem('user_email') || '';
+      }
+      if (name && greeting) {
+        greeting.textContent = `Pozdravljeni${name ? ', ' + name : ''}!`;
+      }
+    });
     const $ = s => document.querySelector(s);
     const msg = $("#msg"), emailInput = $("#email"), list = $("#list");
 

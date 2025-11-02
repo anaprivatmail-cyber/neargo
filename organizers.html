@@ -143,48 +143,64 @@
         <script>
         document.addEventListener('DOMContentLoaded', function() {
           var publishBtn = document.getElementById('hubPublish');
+          var loginModal = document.getElementById('loginModal');
+          var closeLoginModal = document.getElementById('closeLoginModal');
           if (publishBtn) {
             publishBtn.onclick = function(e) {
               var loggedIn = !!localStorage.getItem('user_email') || !!localStorage.getItem('user_token');
               if (!loggedIn) {
-                window.location.href = '/login.html?redirect=organizers';
+                if (loginModal) loginModal.style.display = 'flex';
                 e.preventDefault();
                 return false;
               }
               // ...obstoječa logika za objavo dogodka...
             };
           }
+          if (closeLoginModal) {
+            closeLoginModal.onclick = function() {
+              loginModal.style.display = 'none';
+            };
+          }
+          // Zapri modal ob kliku na ozadje
+          if (loginModal) {
+            loginModal.onclick = function(e) {
+              if (e.target === loginModal) loginModal.style.display = 'none';
+            };
+          }
         });
         </script>
         <!-- Login modal (hidden by default) -->
         <div id="loginModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:9999;align-items:center;justify-content:center;">
-          <div style="background:#fff;padding:28px 22px;border-radius:16px;max-width:340px;width:90vw;box-shadow:0 4px 32px rgba(0,0,0,0.13);margin:auto;">
-            <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:12px;">
+          <div style="background:#fff;padding:32px 28px;border-radius:18px;max-width:400px;width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.13);margin:auto;">
+            <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:18px;">
               <a href="/" class="brand" aria-label="NearGo" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
-                <svg viewBox="0 0 32 32" aria-hidden="true" style="width:38px;height:38px;">
+                <svg viewBox="0 0 32 32" aria-hidden="true" style="width:42px;height:42px;">
                   <defs><radialGradient id="g1" cx="50%" cy="50%"><stop offset="0%" stop-color="#0bbbd6"/><stop offset="100%" stop-color="#7de3f0"/></radialGradient></defs>
                   <circle cx="16" cy="16" r="13" class="ring" fill="none" stroke="url(#g1)" stroke-width="2"/>
                   <circle cx="16" cy="16" r="8" class="ring" fill="none" stroke="url(#g1)" stroke-width="2" opacity=".9"/>
                   <circle cx="16" cy="16" r="3.2" class="dot pulse"/>
                 </svg>
-                <span style="font-weight:900;font-size:22px;color:#14202b;letter-spacing:-1px;">NearGo</span>
+                <span style="font-weight:900;font-size:24px;color:#14202b;letter-spacing:-1px;">NearGo</span>
               </a>
             </div>
-            <div style="margin-bottom:18px;text-align:center;color:var(--muted);font-size:15px;">Za objavo dogodka/storitve se prijaviš hitro in varno:</div>
+            <div style="margin-bottom:18px;text-align:center;color:#0bbbd6;font-size:17px;font-weight:700;">Prijava ali registracija za objavo dogodka/storitve</div>
+            <div style="margin-bottom:18px;text-align:center;color:#5b6b7b;font-size:15px;">Izberi način prijave:</div>
             <button id="loginGoogle" style="width:100%;margin-bottom:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="height:18px;vertical-align:middle;margin-right:8px"> Google</button>
             <button id="loginApple" style="width:100%;margin-bottom:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" style="height:18px;vertical-align:middle;margin-right:8px"> Apple</button>
-            <form id="loginEmailForm" style="margin-top:10px">
-              <input type="email" id="loginEmail" placeholder="E-pošta" required style="margin-bottom:8px">
-              <input type="password" id="loginPassword" placeholder="Geslo" required style="margin-bottom:8px">
-              <button type="submit" class="btn btn-primary" style="width:100%">Prijava</button>
+            <div style="margin:16px 0 10px 0;text-align:center;color:#888;font-size:14px;">ali</div>
+            <form id="loginEmailForm" style="margin-top:0">
+              <input type="email" id="loginEmail" placeholder="E-pošta" required style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
+              <input type="password" id="loginPassword" placeholder="Geslo" required style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
+              <button type="submit" class="btn btn-primary" style="width:100%;margin-bottom:8px">Prijava</button>
             </form>
             <button id="registerBtn" class="btn btn-outline" style="width:100%;margin-top:8px">Registracija</button>
-            <div id="loginError" style="display:none;color:var(--bad);font-size:14px;margin-top:8px;text-align:center"></div>
-            <div id="forgotRow" style="display:none;margin-top:6px;text-align:center;font-size:13px;">
-              <a href="#" id="forgotPasswordLink" style="color:var(--primary);margin-right:10px">Pozabljeno geslo?</a>
+            <div id="loginError" style="display:none;color:#d64c4c;font-size:14px;margin-top:8px;text-align:center"></div>
+            <div id="forgotRow" style="margin-top:6px;text-align:center;font-size:13px;">
+              <a href="#" id="forgotPasswordLink" style="color:#0bbbd6;margin-right:10px">Pozabljeno geslo?</a>
               <span>ali</span>
-              <a href="#" id="registerLink" style="color:var(--primary);margin-left:10px">Še niste registrirani?</a>
+              <a href="#" id="registerLink" style="color:#0bbbd6;margin-left:10px">Še niste registrirani?</a>
             </div>
+            <div style="margin:18px 0 0 0;text-align:center;color:#11a67a;font-size:14px;font-weight:700;">Za varnost in nagrade je potrebna prijava.</div>
             <button id="closeLoginModal" class="btn btn-mini btn-outline" style="width:100%;margin-top:14px">Prekliči</button>
           </div>
         </div>

@@ -130,11 +130,8 @@
   }
 
   function buildMenuItems(identity){
+    // Build basic menu items. Do NOT include any Premium item inside the dropdown.
     const items = MENU_CORE.map(it=>({ ...it }));
-    const premiumItem = identity?.premium
-      ? { id: 'mi-premium', label: 'Premium aktivno', url: '/premium.html', icon: '💎', badge: 'AKTIVNO' }
-      : { id: 'mi-premium', label: 'Postani Premium', url: '/premium.html', icon: '💎', badge: 'Novo' };
-    items.splice(1, 0, premiumItem);
     items.push({ ...MENU_ORGANIZER });
     return items;
   }

@@ -1,52 +1,68 @@
-// assets/header-account.js
-// Lightweight header account dropdown that shows a short menu when clicking the avatar
-console.debug('[header-account] script loaded');
-// Supports both `#btnAccount` and legacy `#btnMine` anchors.
+// assets/header-account.js — polished, accessible account dropdown
+// Features:
+// - Injects scoped styles for a clean dropdown
+// - Inline SVG icons for consistent look
+// - Keyboard navigation (ArrowUp/Down, Enter, Escape)
+// - Uses Supabase client when available for sign-out, falls back to logout endpoint
+// - Works with #btnAccount or legacy #btnMine
+console.debug('[header-account] module loaded');
 
 (function(){
   'use strict';
 
-  // Restored original menu items (from initial implementation):
-  // - 'Moje' opens the main user page
-  // - 'Nagrade' links to rewardsHistory
-  // - 'Premium obvestila' links to premium notifications
-  // - 'Uredi profil' anchors to profile editing
-  // - 'Odjava' triggers sign out
+  // Inline SVG icons (simple, compact)
+  const ICONS = {
+    user: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20c0-3.313 2.687-6 6-6h4c3.313 0 6 2.687 6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    gift: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 12v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3l1.5 3 3-1.5-1.5 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    bell: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 17h5l-1.403-1.403A2.997 2.997 0 0 1 18 13V10a6 6 0 1 0-12 0v3c0 .737-.293 1.44-.813 1.97L4 17h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    edit: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 21v-3.75L14.81 5.44a2 2 0 0 1 2.83 0l1.92 1.92a2 2 0 0 1 0 2.83L7.75 21H3z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    door: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 21h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 21V7a2 2 0 0 1 2-2h6v16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" fill="currentColor"/></svg>'
+  };
+
   const MENU_ITEMS = [
-    { id: 'mi-my', label: 'Moje', url: '/my.html' },
-    { id: 'mi-rewards', label: 'Nagrade', url: '/my.html#rewardsHistory' },
-    { id: 'mi-premium', label: 'Premium obvestila', url: '/premium.html#earlyNotifySection' },
-    { id: 'mi-edit', label: 'Uredi profil', url: '/my.html#profile' },
-    { id: 'mi-signout', label: 'Odjava', action: 'signout' }
+    { id: 'mi-my', label: 'Moje', url: '/my.html', icon: ICONS.user },
+    { id: 'mi-rewards', label: 'Nagrade', url: '/my.html#rewardsHistory', icon: ICONS.gift },
+    { id: 'mi-premium', label: 'Premium obvestila', url: '/premium.html#earlyNotifySection', icon: ICONS.bell },
+    { id: 'mi-edit', label: 'Uredi profil', url: '/my.html#profile', icon: ICONS.edit },
+    { id: 'mi-signout', label: 'Odjava', action: 'signout', icon: ICONS.door }
   ];
+
+  function injectStyles(){
+    if (document.getElementById('account-menu-styles')) return;
+    const css = `
+      .account-menu{position:absolute; min-width:220px; background:var(--card); border:1px solid var(--chipborder); border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.12); padding:6px; z-index:2200; font-weight:800}
+      .account-menu .account-menu-item{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:var(--text); text-decoration:none}
+      .account-menu .account-menu-item:focus, .account-menu .account-menu-item:hover{outline:none; background:rgba(11,187,214,.06)}
+      .account-menu .account-menu-item svg{flex:0 0 20px; height:20px}
+      @media (max-width:520px){ .account-menu{min-width:180px} }
+    `;
+    const s = document.createElement('style'); s.id = 'account-menu-styles'; s.appendChild(document.createTextNode(css)); document.head.appendChild(s);
+  }
 
   async function getSupabase(){
     if (window.supabase) return window.supabase;
-    try{ const mod = await import('/assets/supabase-client.js'); return mod.supabase; }catch(e){ return null; }
+    try{ const mod = await import('/assets/supabase-client.js'); return mod.supabase; }catch(e){ console.warn('[header-account] supabase import failed', e); return null; }
   }
 
-  function buildMenu(){
+  function createMenu(){
     let menu = document.getElementById('accountMenu');
     if (menu) return menu;
+    injectStyles();
     menu = document.createElement('div');
     menu.id = 'accountMenu';
     menu.className = 'account-menu';
-    menu.style.position = 'absolute';
-    menu.style.minWidth = '220px';
-    menu.style.background = 'var(--card)';
-    menu.style.border = '1px solid var(--chipborder)';
-    menu.style.borderRadius = '12px';
-    menu.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
-    menu.style.padding = '6px';
-    menu.style.zIndex = 2000;
+    menu.setAttribute('role','menu');
     menu.hidden = true;
 
     MENU_ITEMS.forEach(it=>{
       const a = document.createElement('a');
-      a.id = it.id; a.href = it.url; a.className = 'account-menu-item';
-      a.style.display = 'flex'; a.style.alignItems = 'center'; a.style.gap = '10px'; a.style.padding = '8px 10px'; a.style.borderRadius='8px';
-      a.style.color = 'var(--text)'; a.style.textDecoration='none';
-      a.innerHTML = `<span style="font-size:18px">${it.icon}</span><span style="font-weight:800">${it.label}</span>`;
+      a.href = it.url || '#';
+      a.id = it.id || '';
+      a.className = 'account-menu-item';
+      a.setAttribute('role','menuitem');
+      a.setAttribute('tabindex','-1');
+      a.dataset.action = it.action || '';
+      a.innerHTML = `<span aria-hidden="true">${it.icon || ''}</span><span style="font-weight:800">${it.label}</span>`;
       menu.appendChild(a);
     });
 
@@ -54,119 +70,94 @@ console.debug('[header-account] script loaded');
     return menu;
   }
 
+  function position(menu, anchor){
+    const rect = anchor.getBoundingClientRect();
+    menu.style.top = (rect.bottom + 8 + window.scrollY) + 'px';
+    const preferredLeft = rect.left + window.scrollX;
+    const maxLeft = Math.max(8, document.documentElement.clientWidth - (menu.offsetWidth || 240) - 8 + window.scrollX);
+    menu.style.left = Math.min(preferredLeft, maxLeft) + 'px';
+  }
+
+  async function signOutSequence(){
+    const supabase = await getSupabase();
+    try{
+      if (supabase?.auth?.signOut){ await supabase.auth.signOut(); window.location.reload(); return; }
+    }catch(e){ console.warn('[header-account] supabase signOut failed', e); }
+    // Fallback to logout endpoint
+    try{ window.location.href = '/.netlify/functions/logout'; }catch(e){ console.warn('logout redirect failed', e); }
+  }
+
   async function render(){
     const supabase = await getSupabase();
     const sessionRes = await (supabase?.auth?.getSession ? supabase.auth.getSession() : Promise.resolve({ data: { session: null } }));
     const isLoggedIn = !!sessionRes?.data?.session?.user?.id;
     console.debug('[header-account] render()', { isLoggedIn });
+
     const btn = document.getElementById('btnAccount') || document.getElementById('btnMine');
-    const menu = buildMenu();
-    if (!btn) { console.debug('[header-account] no button found (#btnAccount or #btnMine)'); return; }
+    if (!btn){ console.debug('[header-account] no avatar button (#btnAccount or #btnMine)'); return; }
 
-    // Always attach the click handler so the menu can be tested even when
-    // the user isn't logged in. If not logged in, clicking a menu link
-    // will redirect to the login flow.
-
+    const menu = createMenu();
     btn.setAttribute('aria-haspopup','true');
-    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-expanded','false');
 
-    // Capture-phase handler: runs before other click handlers and stops
-    // propagation so other scripts (e.g. app.js) can't override the toggle.
-    function __neargo_avatar_capture_handler(ev){
-      try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
-      console.debug('[header-account] avatar clicked (capture), menu.hidden before:', menu.hidden);
-      const rect = btn.getBoundingClientRect();
-      menu.style.top = (rect.bottom + 6) + 'px';
-      const preferredLeft = rect.left;
-      const maxLeft = Math.max(8, window.innerWidth - (menu.offsetWidth || 240) - 8);
-      menu.style.left = Math.min(preferredLeft, maxLeft) + 'px';
-      menu.style.right = 'auto';
-      menu.hidden = !menu.hidden;
-      btn.setAttribute('aria-expanded', String(!menu.hidden));
-      console.debug('[header-account] menu.hidden after (capture):', menu.hidden);
-    }
-    btn.addEventListener('click', __neargo_avatar_capture_handler, { capture: true });
-    // Reposition the menu each time the user clicks the avatar (handles scroll/resize)
-    btn.addEventListener('click', (e)=>{
-      e.preventDefault();
-      console.debug('[header-account] avatar clicked, menu.hidden before:', menu.hidden);
-  const rect = btn.getBoundingClientRect();
-  // position menu under the button using left/top (more reliable across layouts)
-  menu.style.top = (rect.bottom + 6) + 'px';
-  // Align menu left edge with button's left edge, but ensure it doesn't overflow right edge
-  const preferredLeft = rect.left;
-  const maxLeft = Math.max(8, window.innerWidth - (menu.offsetWidth || 240) - 8);
-  menu.style.left = Math.min(preferredLeft, maxLeft) + 'px';
-  // Clear right in case it was set previously
-  menu.style.right = 'auto';
-      menu.hidden = !menu.hidden;
-      btn.setAttribute('aria-expanded', String(!menu.hidden));
-      console.debug('[header-account] menu.hidden after:', menu.hidden);
-    });
-
-    // Intercept clicks on menu links when not logged in so we can direct
-    // users to the login flow instead of navigating away.
-    menu.addEventListener('click', (e)=>{
-      const a = e.target.closest('a');
-      if (!a) return;
-      if (!isLoggedIn){
-        e.preventDefault();
-        if (window.redirectToLogin) {
-          try{ window.redirectToLogin({ action: 'points', url: a.href }); }catch(_){ location.href = '/login.html'; }
-        } else if (window.Auth) {
-          try{ Auth.open(); }catch(_){ location.href = '/login.html'; }
-        } else {
-          location.href = '/login.html';
-        }
+    // Toggle function
+    const toggle = (show) => {
+      if (!menu) return;
+      menu.hidden = !show;
+      btn.setAttribute('aria-expanded', String(show));
+      if (show){ // focus first item
+        const first = menu.querySelector('[role="menuitem"]');
+        first && first.setAttribute('tabindex','0') && first.focus();
+      } else {
+        // reset tabindex
+        menu.querySelectorAll('[role="menuitem"]').forEach(n=>n.setAttribute('tabindex','-1'));
       }
+    };
+
+    // Primary click handler (capture to beat other handlers)
+    function onAvatarClick(ev){
+      try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
+      const willOpen = menu.hidden === true;
+      position(menu, btn);
+      toggle(willOpen);
+    }
+    btn.addEventListener('click', onAvatarClick, { capture:true });
+
+    // Click on menu items
+    menu.addEventListener('click', async (e)=>{
+      const a = e.target.closest('[role="menuitem"]');
+      if (!a) return;
+      const action = a.dataset.action;
+      if (action === 'signout'){
+        e.preventDefault();
+        await signOutSequence();
+        return;
+      }
+      // If not logged in, redirect to login first
+      if (!isLoggedIn){ e.preventDefault(); try{ window.redirectToLogin ? window.redirectToLogin({ action:'nav', url: a.href }) : (location.href='/login.html'); }catch(_){ location.href='/login.html'; } return; }
+      // allow navigation otherwise
     });
 
-    // Delegated capture handler on document to ensure avatar clicks are
-    // handled even if other scripts attach handlers that prevent default
-    // or stop propagation. We use a short debounce to avoid double-toggles.
-    let __neargo_last_toggle = 0;
-    function __neargo_delegated_avatar_click(ev){
-      const btnEl = ev.target.closest('#btnAccount,#btnMine');
-      if (!btnEl) return;
-      // avoid double toggle within 50ms
-      const now = Date.now();
-      if (now - __neargo_last_toggle < 50) return;
-      __neargo_last_toggle = now;
-      try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
-      console.debug('[header-account] delegated avatar click (capture)');
-      const rect = btnEl.getBoundingClientRect();
-      menu.style.top = (rect.bottom + 6) + 'px';
-      const preferredLeft = rect.left;
-      const maxLeft = Math.max(8, window.innerWidth - (menu.offsetWidth || 240) - 8);
-      menu.style.left = Math.min(preferredLeft, maxLeft) + 'px';
-      menu.style.right = 'auto';
-      menu.hidden = !menu.hidden;
-      try{ btnEl.setAttribute('aria-expanded', String(!menu.hidden)); }catch(_){ }
-    }
-    document.addEventListener('click', __neargo_delegated_avatar_click, { capture: true });
+    // Keyboard navigation inside the menu
+    menu.addEventListener('keydown', (e)=>{
+      const items = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+      const idx = items.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown'){ e.preventDefault(); const next = items[(idx+1)%items.length]; next.focus(); }
+      else if (e.key === 'ArrowUp'){ e.preventDefault(); const prev = items[(idx-1+items.length)%items.length]; prev.focus(); }
+      else if (e.key === 'Escape'){ toggle(false); btn.focus(); }
+      else if (e.key === 'Enter'){ document.activeElement && document.activeElement.click(); }
+    });
 
-    // Click outside to close
-    document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && !btn.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded','false'); } });
+    // Close when clicking outside
+    document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && !btn.contains(e.target)) { toggle(false); } });
 
-    // Fallback simple onclick toggle (from the older working implementation)
-    // Keeps behavior minimal: toggle menu visibility on click.
-    try{
-      btn.onclick = function(e){
-        try{ e.preventDefault(); }catch(_){}
-        if (!menu) return;
-        const open = menu.hidden === false;
-        menu.hidden = !open;
-        try{ btn.setAttribute('aria-expanded', String(!menu.hidden)); }catch(_){}
-      };
-    }catch(_){ }
+    // Fallback onclick for older handlers
+    try{ btn.onclick = (e)=>{ try{ e.preventDefault(); }catch(_){ } position(menu, btn); toggle(menu.hidden === true); }; }catch(_){ }
+
+    // Watch auth changes to re-render state if needed
+    try{ if (supabase?.auth?.onAuthStateChange) supabase.auth.onAuthStateChange(()=>render()); }catch(_){ }
   }
-  // Ensure render runs whether DOMContentLoaded already fired or not
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', render);
-  } else {
-    // DOM already ready
-    setTimeout(render, 0);
-  }
-  (async ()=>{ const s = await getSupabase(); s?.auth?.onAuthStateChange && s.auth.onAuthStateChange(()=>render()); })();
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render); else setTimeout(render,0);
 
 })();

@@ -22,17 +22,36 @@ export const handler = async (event) => {
     if (!email) return bad('missing_email');
     if (!points || points <= 0) return bad('invalid_points');
 
-    // read current points
+    // Try to resolve user_id using admin API
+    let userId = null;
+    try{
+      const adminRes = await supa.auth.admin.getUserByEmail(email);
+      if (adminRes?.data?.user && adminRes.data.user.id) userId = adminRes.data.user.id;
+    }catch(e){ /* ignore, fallback to email-based path */ }
+
+    // If we have userId, try calling atomic RPC convert_points
+    if (userId){
+      try{
+        const rpc = await supa.rpc('convert_points', { p_user_id: userId, p_points: points, p_rate: POINT_TO_DOLLAR });
+        if (rpc && rpc.data) {
+          return ok(Object.assign({ ok:true }, rpc.data));
+        }
+      }catch(rpcErr){
+        console.warn('convert_points rpc failed, falling back to legacy logic', rpcErr.message || rpcErr);
+      }
+    }
+
+    // Legacy fallback (email-keyed user_points) — non-atomic
     const { data: up, error: upErr } = await supa.from('user_points').select('points').eq('email', email).single();
     if (upErr) return bad('db_error_read:'+upErr.message,500);
     const current = (up && up.points) || 0;
     if (current < points) return bad('insufficient_points',402);
 
-    // deduct points (non-transactional — race conditions possible; consider RPC for atomicity)
+    // deduct points (non-transactional)
     const { error: decErr } = await supa.from('user_points').update({ points: current - points }).eq('email', email);
     if (decErr) return bad('db_error_update:'+decErr.message,500);
 
-    const converted_amount = Math.round(points * POINT_TO_DOLLAR * 100) / 100; // dollars
+    const converted_amount = Math.round(points * POINT_TO_DOLLAR * 100) / 100; // euros
     const ledger = {
       email,
       type: 'convert',

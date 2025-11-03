@@ -21,7 +21,29 @@ export const handler = async (event) => {
     if (!points || points <= 0) return bad('invalid_points');
     if (!reward_code) return bad('missing_reward_code');
 
-    // check points
+    // Try to resolve user_id using admin API
+    let userId = null;
+    try{
+      const adminRes = await supa.auth.admin.getUserByEmail(email);
+      if (adminRes?.data?.user && adminRes.data.user.id) userId = adminRes.data.user.id;
+    }catch(e){ /* ignore, fallback to email-based path */ }
+
+    // If we have userId and the RPC exists, prefer calling the atomic RPC redeem_points
+    if (userId){
+      try{
+        const rpc = await supa.rpc('redeem_points', { p_user_id: userId, p_points: points, p_reward_code: reward_code });
+        // rpc returns json; check for ok
+        if (rpc && rpc.data) {
+          return ok(Object.assign({ ok:true }, rpc.data));
+        }
+        // if unexpected shape, continue to fallback
+      }catch(rpcErr){
+        // If function doesn't exist or RPC failed, we will fallback to legacy path
+        console.warn('redeem_points rpc failed, falling back to legacy logic', rpcErr.message || rpcErr);
+      }
+    }
+
+    // Legacy fallback (email-keyed user_points) — non-atomic, retained for backward compatibility
     const { data: up, error: upErr } = await supa.from('user_points').select('points').eq('email', email).single();
     if (upErr) return bad('db_error_read:'+upErr.message,500);
     const current = (up && up.points) || 0;

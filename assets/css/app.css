@@ -132,3 +132,21 @@ footer{text-align:center; color:var(--muted); margin-top:18px; font-size:14px}
   50% { background:#d4edda; color:#11a67a; transform:scale(1.07); opacity:.98; }
   100% { background:inherit; color:inherit; transform:scale(1); opacity:1; }
 }
+
+/* Reward popup */
+.reward-popup {
+  position: fixed; bottom: 20px; right: 20px; z-index:1200;
+  background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 14px 18px; transform: translateY(30px); opacity: 0;
+  transition: all .4s ease; font-size: 15px; line-height: 1.4;
+  display:flex; gap:12px; align-items:center; min-width:200px;
+}
+.reward-popup.show { transform: translateY(0); opacity: 1; }
+.reward-popup .points { font-weight: 700; color: #00b894; font-size:18px }
+.reward-popup .text { color:#374151; font-size:14px }
+
+/* mini confetti */
+.mini-confetti{ position: fixed; right: 20px; bottom: 70px; width: 120px; height: 120px; pointer-events:none; overflow:visible; z-index:1199 }
+.mini-confetti-piece{ position:absolute; width:8px; height:12px; border-radius:2px; opacity:0.95; transform-origin:center; top:10px }
+.mini-confetti.fall .mini-confetti-piece{ animation: confettiFall 1.8s ease-out forwards }
+@keyframes confettiFall{ 0%{ transform: translateY(0) rotate(0deg); opacity:1 } 100%{ transform: translateY(220px) rotate(360deg); opacity:0 } }

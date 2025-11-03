@@ -63,14 +63,7 @@ export const handler = async (event) => {
       };
     });
 
-    return ok({ 
-      ok: true, 
-      items, 
-      email: user.email || null,
-      premium: !!user.premium,
-      provider: !!user.provider,
-      points: user.points || 0 
-    });
+    return ok({ ok:true, items });
   }catch(e){
     return bad(String(e?.message || e), 500);
   }

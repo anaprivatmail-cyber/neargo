@@ -1,6 +1,46 @@
 // netlify/functions/provider-edit.js
 import { createClient } from '@supabase/supabase-js';
-// ...veljavna logika za Netlify funkcijo...
+
+const CORS = {
+            <script type="module">
+            import { SERVICE_CATEGORIES } from '../../assets/categories.js';
+            (function(){
+              function renderChips(){
+                const cats = SERVICE_CATEGORIES;
+                const wrap = document.getElementById("providerEditCategoryChips");
+                const input = document.getElementById("category");
+                if(!wrap || !input) return;
+                wrap.innerHTML = "";
+                cats.forEach(function(cat){
+                  const chip = document.createElement("button");
+                  chip.className = "chip cat" + (input.value === cat.key ? " active" : "");
+                  chip.type = "button";
+                  chip.setAttribute("data-cat", cat.key);
+                  chip.innerHTML = '<span class="cat-icon">'+cat.emoji+'</span>' + '<span class="cat-label" style="display:none;">'+cat.label+'</span>';
+                  chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+                  chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+                  chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
+                  chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+                  chip.addEventListener("click", function(){
+                    const all = wrap.querySelectorAll(".cat");
+                    all.forEach(function(b){ b.classList.remove("active"); b.querySelector(".cat-label").style.display = "none"; });
+                    chip.classList.add("active");
+                    chip.querySelector(".cat-label").style.display = "block";
+                    input.value = cat.key;
+                  });
+                  wrap.appendChild(chip);
+                });
+              }
+              document.addEventListener("DOMContentLoaded", renderChips);
+            })();
+  const out = {};
+  for (const k of allowed) if (k in p) out[k] = p[k];
+  if ('featured' in out) out.featured = !!(out.featured === true || out.featured === 'on' || out.featured === 'true' || out.featured === 1 || out.featured === '1');
+  if ('price' in out && out.price !== '' && out.price != null) out.price = Number(out.price);
+  if ('stock' in out && out.stock !== '' && out.stock != null) out.stock = Number(out.stock);
+  if ('maxPerOrder' in out && out.maxPerOrder !== '' && out.maxPerOrder != null) out.maxPerOrder = Number(out.maxPerOrder);
+  return out;
+}
 async function geocodeIfNeeded(supabase, city, country){
   const cityQ = String(city || '').trim();
   const countryQ = String(country || '').trim().toUpperCase();

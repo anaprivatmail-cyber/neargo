@@ -6,6 +6,8 @@
 // - Uses Supabase client when available for sign-out, falls back to logout endpoint
 // - Works with #btnAccount or legacy #btnMine
 console.debug('[header-account] module loaded');
+// mark that the module succeeded to load so fallback won't run unnecessarily
+try{ window.__header_account_loaded = true; }catch(_){ }
 
 (function(){
   'use strict';

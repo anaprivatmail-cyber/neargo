@@ -2106,8 +2106,9 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
   <script>
   (function(){
     try{
-      // If the module version already created the account menu, don't run fallback.
-      if (document.getElementById('accountMenu')) return;
+      // If the ES module loaded successfully, it set window.__header_account_loaded.
+      // Only run this fallback when that flag is not present (module failed to load).
+      if (window.__header_account_loaded) return;
       // Recreate the button to clear any stale handlers.
       const old = document.getElementById('btnMine') || document.getElementById('btnAccount');
       if (old){ const clone = old.cloneNode(true); old.replaceWith(clone); }

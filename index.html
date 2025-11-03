@@ -11,6 +11,7 @@
   <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0bbbd6">
+  <script src="assets/header-account.js" type="module"></script>
   <script>
     window.SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
@@ -415,15 +416,28 @@
         <div id="accountMenu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--card);border:1px solid var(--chipborder);border-radius:12px;box-shadow:var(--shadow);padding:8px;z-index:10000;min-width:180px;">
           <ul style="list-style:none;padding:0;margin:0;">
             <li><a href="/my.html" title="Vaš profil in nastavitve" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">👤</span> Moj profil</a></li>
-            <li><a href="/my.html" title="Pregled vseh nakupov in kuponov" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">🎟️</span> Moji nakupi / kuponi</a></li>
-            <li><a href="/my.html#favorites" title="Vaši najljubši dogodki in storitve" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">⭐</span> Najljubše</a></li>
-            <li><a href="/my.html#notifications" title="Obvestila in sporočila" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">🔔</span> Obvestila</a></li>
-            <li id="menuPremium" style="display:none;"><a href="/premium.html" title="Vaša naročnina in ugodnosti" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">💎</span> Premium ugodnosti</a></li>
-            <li id="menuUpgrade" style="display:none;"><a href="/premium.html" title="Nadgradite na Premium" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">⬆️</span> Nadgradi na Premium</a></li>
-            <li id="menuProvider" style="display:none;"><a href="/org-stats.html" title="Portal za ponudnike in analitika" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">🏢</span> Portal ponudnika</a></li>
-            <li><a href="/my.html#settings" title="Nastavitve računa" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">⚙️</span> Nastavitve</a></li>
-            <li id="menuLogin" style="display:none;"><a href="/login.html" title="Prijava ali registracija" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">🔑</span> Prijava / Registracija</a></li>
-            <li id="menuLogout" style="display:none;"><a href="#" title="Odjava iz računa" style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;" onclick="logoutUser();return false;"><span style="font-size:18px;margin-right:8px;">🚪</span> Odjava</a></li>
+            <li><a href="/my.html#purchases" title="Moja izbira: kupljeni kuponi in vstopnice. Oglejte si vse vaše nakupe in unovčene kode." style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">🎟️</span> Moja izbira</a></li>
+            <li><a href="/my.html#favorites" title="Najljubše dogodke in storitve lahko shranite za hiter dostop." style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">⭐</span> Najljubše</a></li>
+            <li><a href="/my.html#notifications" title="Obvestila in sporočila. Prejemajte pomembne informacije in promocije." style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">🔔</span> Obvestila</a></li>
+            <li style="position:relative;">
+              <a href="/my.html#rewards" title="Nagrade, točke in ugodnosti. Zbirajte točke z aktivnostmi in jih unovčite za Premium, kupon ali vstopnico." style="display:flex;align-items:center;padding:8px 12px 0 12px;border-radius:8px;font-weight:800;color:inherit;">
+                <span style="font-size:20px;margin-right:8px;">🎁</span> Nagrade
+              </a>
+              <div id="pointsSliderWrap" style="margin:6px 0 0 38px;">
+                <label for="pointsSlider" style="font-size:13px;color:var(--muted);font-weight:700;">Vaše točke</label>
+                <input type="range" id="pointsSlider" min="0" max="1000" value="0" step="1" style="width:120px;vertical-align:middle;" title="Prikaz trenutnih točk. Zbirajte točke z aktivnostmi.">
+                <span id="pointsValue" style="font-size:13px;font-weight:900;color:var(--brand);margin-left:8px;">0</span>
+                <span id="pointsEuro" style="font-size:13px;color:var(--muted);margin-left:8px;">(0 €)</span>
+                <span id="pointsGoal" style="font-size:13px;color:var(--ok);margin-left:8px;">do nagrade</span>
+              </div>
+              <span style="display:block;padding:0 12px 8px 38px;font-size:13px;color:var(--muted);">Zbiraj točke z ogledom dogodkov, povabili, nakupi in drugimi aktivnostmi. Točke lahko unovčiš za Premium, kupon ali vstopnico. Vsakih 100 točk = 1 €.</span>
+            </li>
+            <li id="mi-upgrade"><a href="/premium/upgrade.html" title="Nadgradite na Premium in odklenite dodatne ugodnosti." style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">⬆️</span> Nadgradi na Premium</a></li>
+            <li id="mi-manage" hidden><a href="/premium/manage.html" title="Upravljaj Premium naročnino in nastavitve." style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">💎</span> Upravljaj Premium</a></li>
+            <li id="menuProvider" style="display:none;"><a href="/org-stats.html" title="Portal za ponudnike in analitiko. Dostop do statistike in upravljanja dogodkov." style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">🏢</span> Portal ponudnika</a></li>
+            <li><a href="/my.html#settings" title="Nastavitve računa in zasebnosti." style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">⚙️</span> Nastavitve</a></li>
+            <li id="menuLogin" style="display:none;"><a href="/login.html" title="Prijava ali registracija. Ustvarite ali dostopajte do svojega računa." style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;"><span style="font-size:18px;margin-right:8px;">🔑</span> Prijava / Registracija</a></li>
+            <li id="menuLogout" style="display:none;"><a href="#" title="Odjava iz računa. Zapustite svoj profil varno." style="display:flex;align-items:center;padding:8px 12px;border-radius:8px;font-weight:800;color:inherit;" onclick="logoutUser();return false;"><span style="font-size:18px;margin-right:8px;">🚪</span> Odjava</a></li>
           </ul>
         </div>
       </div>

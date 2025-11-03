@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Premium naročnina – NearGo</title>
+  <link rel="stylesheet" href="assets/app.css">
+  <style>
+    body { background: linear-gradient(180deg, #e9f7ff 0%, #fff0f0 100%); color: #14202b; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 16px rgba(11,187,214,.08); padding: 18px; margin: 18px 0; }
+    .title { font-weight: 900; font-size: 1.3em; color: #0bbbd6; margin-bottom: 10px; }
+    .btn { background: #0bbbd6; color: #fff; border: none; padding: 10px 18px; border-radius: 14px; font-weight: 900; cursor: pointer; font-size: 16px; }
+    .btn.coral { background: #ff6b6b; }
+    .premium-badge { background: linear-gradient(135deg, #ff6b6b 0%, #ff8a80 100%); color: #fff; padding: 4px 8px; border-radius: 12px; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <section class="card">
+    <div class="title">Premium naročnina <span class="premium-badge">Premium</span></div>
+    <div style="font-size:15px;color:#5b6b7b;margin-bottom:10px;">Odklenite ekskluzivne ugodnosti: dodatni popusti, prednostna obvestila, posebne promocije in več.</div>
+    <button class="btn coral" onclick="window.location.href='/premium/upgrade.html'">Nadgradi na Premium</button>
+    <button class="btn" onclick="window.location.href='/premium/manage.html'">Upravljaj Premium</button>
+  </section>
+  <section class="card">
+    <div class="title">Prednosti Premium članstva</div>
+    <ul style="padding-left:18px;color:#5b6b7b;font-size:15px;">
+      <li>Dodatni popusti na dogodke in storitve.</li>
+      <li>Prednostna obvestila o novostih.</li>
+      <li>Ekskluzivni kuponi in vstopnice.</li>
+      <li>Brezplačna promocija dogodkov za ponudnike.</li>
+    </ul>
+  </section>
+  <script src="assets/app-logic.js"></script>
+</body>
+</html>

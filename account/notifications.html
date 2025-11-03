@@ -1,6 +1,53 @@
 <!doctype html>
 <html lang="sl">
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Predhodna obvestila — NearGo</title>
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <style>.wrap{max-width:900px;margin:18px auto;padding:12px}.muted{color:#6b7b8b} .inline{display:flex;gap:8px;align-items:center}</style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="/account/account.html" class="btn link">← Nazaj</a>
+    <h1>Predhodna obvestila</h1>
+    <p class="muted">Nastavite preference: Dogodki ali Storitve, lokacija in radij, največ 2 kategoriji.</p>
+
+    <form id="prefs" style="margin-top:14px">
+      <div class="row">
+        <label class="inline"><input type="radio" name="mode" value="event" checked> Dogodki</label>
+        <label class="inline"><input type="radio" name="mode" value="service"> Storitve</label>
+      </div>
+
+      <div class="row">
+        <div>Izberi kategorije (max 2):</div>
+        <label><input type="checkbox" name="cat" value="koncert"> Koncerti</label>
+        <label><input type="checkbox" name="cat" value="kultura"> Kultura</label>
+        <label><input type="checkbox" name="cat" value="hrana"> Hrana</label>
+      </div>
+
+      <div class="row">
+        <label>Lokacija (lat): <input id="lat" name="lat" placeholder="46.05"></label>
+        <label>Lokacija (lng): <input id="lng" name="lng" placeholder="14.51"></label>
+      </div>
+
+      <div class="row">
+        <label>Radij (km): <input id="radius" name="radius" type="range" min="1" max="100" value="5"> <span id="radiusLbl">5 km</span></label>
+      </div>
+
+      <div class="row">
+        <button class="btn" type="submit">Shrani</button>
+        <span id="info" class="muted"></span>
+      </div>
+    </form>
+  </div>
+
+  <script type="module" src="/account/notifications.js"></script>
+</body>
+</html>
+<!doctype html>
+<html lang="sl">
+<head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Moja izbira – Predhodna obvestila</title>

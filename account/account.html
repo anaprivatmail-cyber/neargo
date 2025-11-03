@@ -1,6 +1,32 @@
 <!doctype html>
 <html lang="sl">
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Račun — NearGo</title>
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <style> .wrap{max-width:900px;margin:18px auto;padding:12px} .row{margin-bottom:12px} .muted{color:#6b7b8b} </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="/" class="btn link">← Nazaj</a>
+    <h1>Račun</h1>
+    <div id="status" class="muted">Nalaganje…</div>
+
+    <div id="profile" style="margin-top:14px"></div>
+
+    <div style="margin-top:18px">
+      <a id="btnManagePremium" class="btn secondary" href="/premium.html">Upravljaj Premium</a>
+      <button id="btnSignOut" class="btn link">Odjava</button>
+    </div>
+  </div>
+
+  <script type="module" src="/account/account.js"></script>
+</body>
+</html>
+<!doctype html>
+<html lang="sl">
+<head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Moje – Profil</title>

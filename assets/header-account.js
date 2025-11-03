@@ -67,9 +67,15 @@
     // Reposition the menu each time the user clicks the avatar (handles scroll/resize)
     btn.addEventListener('click', (e)=>{
       e.preventDefault();
-      const rect = btn.getBoundingClientRect();
-      menu.style.top = (rect.bottom + 6) + 'px';
-      menu.style.right = (window.innerWidth - rect.right + 12) + 'px';
+  const rect = btn.getBoundingClientRect();
+  // position menu under the button using left/top (more reliable across layouts)
+  menu.style.top = (rect.bottom + 6) + 'px';
+  // Align menu left edge with button's left edge, but ensure it doesn't overflow right edge
+  const preferredLeft = rect.left;
+  const maxLeft = Math.max(8, window.innerWidth - (menu.offsetWidth || 240) - 8);
+  menu.style.left = Math.min(preferredLeft, maxLeft) + 'px';
+  // Clear right in case it was set previously
+  menu.style.right = 'auto';
       menu.hidden = !menu.hidden;
       btn.setAttribute('aria-expanded', String(!menu.hidden));
     });

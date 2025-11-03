@@ -143,6 +143,18 @@ console.debug('[header-account] script loaded');
 
     // Click outside to close
     document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && !btn.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded','false'); } });
+
+    // Fallback simple onclick toggle (from the older working implementation)
+    // Keeps behavior minimal: toggle menu visibility on click.
+    try{
+      btn.onclick = function(e){
+        try{ e.preventDefault(); }catch(_){}
+        if (!menu) return;
+        const open = menu.hidden === false;
+        menu.hidden = !open;
+        try{ btn.setAttribute('aria-expanded', String(!menu.hidden)); }catch(_){}
+      };
+    }catch(_){ }
   }
   // Ensure render runs whether DOMContentLoaded already fired or not
   if (document.readyState === 'loading') {

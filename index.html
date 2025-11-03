@@ -78,6 +78,16 @@
     .lang-menu button{display:block; width:100%; text-align:left; border:none; background:transparent; padding:8px 8px; border-radius:10px; font-weight:800; cursor:pointer;}
     .lang-menu button:hover{background:rgba(11,187,214,.08)}
 
+    /* ACCOUNT MENU */
+    .pill.account{ position:relative; cursor:pointer; }
+    .account-menu{
+      position:absolute; top:calc(100% + 6px); right:0;
+      background:var(--card); border:1px solid var(--chipborder); border-radius:12px; box-shadow:var(--shadow);
+      padding:6px; display:none; z-index:10000; min-width:180px;
+    }
+    .account-menu a{display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:10px 12px; border-radius:10px; font-weight:800; cursor:pointer; text-decoration:none; color:inherit;}
+    .account-menu a:hover{background:rgba(11,187,214,.08)}
+
     /* LAYOUT */
     main{max-width:1100px; margin:0 auto; padding:12px 14px 64px}
     main > section{margin-top:14px}
@@ -405,10 +415,20 @@
     </div>
     <div style="display:flex;gap:10px;align-items:center;">
       <a class="pill premium-badge" id="btnPremiumTop" href="/premium.html">Premium</a>
-      <a class="pill" id="btnMine" href="/my.html" title="Moje vstopnice & kuponi" style="min-width:50px;text-align:center;padding:6px 10px;font-size:18px;">
+      <div class="pill account" id="accountWrap" title="Moj račun" style="min-width:50px;text-align:center;padding:6px 10px;font-size:18px;">
         <span style="font-size:20px;vertical-align:middle;">👤</span>
         <span id="pointsBadge" class="badge" style="margin-left:4px;display:none;font-size:11px;">0</span>
-      </a>
+        <div class="account-menu" id="accountMenu">
+          <a href="#" data-action="my">
+            <span style="font-size:18px;">📋</span>
+            <span>Moje vstopnice & kuponi</span>
+          </a>
+          <a href="#" data-action="logout">
+            <span style="font-size:18px;">🚪</span>
+            <span>Odjava</span>
+          </a>
+        </div>
+      </div>
     </div>
   </div>
       </div>
@@ -2090,6 +2110,7 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
 
   </script>
   <script src="assets/app-logic.js"></script>
+  <script src="assets/header-account.js"></script>
   <div style="margin:2em 0">
   <h3>Test vpis / registracija (debug)</h3>
   <input id="testEmail" type="email" placeholder="Email" style="margin-right:8px">

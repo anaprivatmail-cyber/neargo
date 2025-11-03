@@ -57,11 +57,6 @@
     const menu = buildMenu();
     if (!btn) return;
 
-    // position menu relative to button each time (handles responsive layout)
-    const rect = btn.getBoundingClientRect();
-    menu.style.top = (rect.bottom + 6) + 'px';
-    menu.style.right = (window.innerWidth - rect.right + 12) + 'px';
-
     if (!isLoggedIn){
       btn.addEventListener('click', (e)=>{ e.preventDefault(); window.Auth ? Auth.open() : location.href='/login.html'; });
       return;
@@ -69,7 +64,17 @@
 
     btn.setAttribute('aria-haspopup','true');
     btn.setAttribute('aria-expanded', 'false');
-    btn.addEventListener('click', (e)=>{ e.preventDefault(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); });
+    // Reposition the menu each time the user clicks the avatar (handles scroll/resize)
+    btn.addEventListener('click', (e)=>{
+      e.preventDefault();
+      const rect = btn.getBoundingClientRect();
+      menu.style.top = (rect.bottom + 6) + 'px';
+      menu.style.right = (window.innerWidth - rect.right + 12) + 'px';
+      menu.hidden = !menu.hidden;
+      btn.setAttribute('aria-expanded', String(!menu.hidden));
+    });
+
+    // Click outside to close
     document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && !btn.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded','false'); } });
   }
 

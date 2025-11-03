@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Moja izbira – Predhodna obvestila</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <style>.wrap{max-width:900px;margin:20px auto;padding:14px}.card{background:#fff;border:1px solid #e6eef7;padding:14px;border-radius:12px}</style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="card">
+      <h1>Moja izbira</h1>
+      <p class="muted">Nastavite katere vrste obvestil želite prejemati.</p>
+      <div id="quotaInfo" class="muted">Preostale menjave ta mesec: ...</div>
+      <form id="notifyForm">
+        <fieldset>
+          <legend>Tip</legend>
+          <label><input type="radio" name="type" value="events" checked> Dogodki</label>
+          <label><input type="radio" name="type" value="services"> Storitve</label>
+        </fieldset>
+        <fieldset>
+          <legend>Kategorije (do 2)</legend>
+          <div id="cats"></div>
+        </fieldset>
+        <label>Lokacija <input id="notifLocation" placeholder="Mesto ali koordinate"></label>
+        <label>Radij (km) <input id="notifRadius" type="range" min="1" max="400" value="30"></label>
+        <div style="margin-top:12px;"><button id="saveNotify" class="btn">Shrani</button></div>
+        <div id="notifyMsg" class="muted"></div>
+      </form>
+    </div>
+  </main>
+  <script>
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const cats = ['Koncerti','Kulinarika','Šport','Kultura','Družina','Sejmi','Ostalo'];
+      const catsWrap = document.getElementById('cats');
+      cats.forEach(c=>{
+        const id = 'cat_'+c.replace(/\s+/g,'_');
+        const el = document.createElement('label');
+        el.innerHTML = `<input type="checkbox" id="${id}" value="${c}"> ${c}`;
+        catsWrap.appendChild(el);
+      });
+      // Load prefs via function
+      async function load(){
+        const em = localStorage.getItem('user_email')||'';
+        if(!em){ document.getElementById('notifyMsg').textContent='Vpišite email v Moj profil.'; return; }
+        try{
+          const res = await fetch('/.netlify/functions/notifications-prefs-get?email='+encodeURIComponent(em));
+          const data = await res.json();
+          if (data && data.ok && data.prefs){
+            document.getElementById('notifLocation').value = data.prefs.location||'';
+            document.getElementById('notifRadius').value = data.prefs.radius||30;
+            (data.prefs.categories||[]).forEach(cat=>{ const cb = document.querySelector(`#cat_${cat.replace(/\s+/g,'_')}`); if(cb) cb.checked=true; });
+          }
+        }catch(e){ console.warn(e); }
+      }
+      load();
+      document.getElementById('saveNotify').onclick = async (e)=>{
+        e.preventDefault();
+        const em = localStorage.getItem('user_email')||''; if(!em){ document.getElementById('notifyMsg').textContent='Vpišite email.'; return; }
+        const selected = Array.from(document.querySelectorAll('#cats input:checked')).map(i=>i.value).slice(0,2);
+        if (selected.length>2){ document.getElementById('notifyMsg').textContent='Izberite največ 2 kategoriji.'; return; }
+        const payload = { email: em, categories: selected, location: document.getElementById('notifLocation').value, radius: Number(document.getElementById('notifRadius').value) };
+        try{
+          const r = await fetch('/.netlify/functions/notifications-prefs-upsert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(x=>x.json());
+          if(r && r.ok) document.getElementById('notifyMsg').textContent='Shranjeno.';
+          else document.getElementById('notifyMsg').textContent='Napaka pri shranjevanju.';
+        }catch(e){ document.getElementById('notifyMsg').textContent='Napaka pri povezavi.'; }
+      };
+    });
+  </script>
+</body>
+</html>

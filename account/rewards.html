@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Moje – Nagrade</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <style>.wrap{max-width:980px;margin:20px auto;padding:14px}.card{background:#fff;border:1px solid #e6eef7;padding:14px;border-radius:12px}</style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="card">
+      <h1>Nagrade</h1>
+      <div id="balance" style="margin-bottom:12px;">Nalagam stanje točk...</div>
+      <section id="convert">
+        <h2>Pretvori točke v kredite</h2>
+        <label>Točke <input id="convertPoints" type="number" min="1" value="100"></label>
+        <div style="margin-top:8px;"><button id="btnConvert" class="btn">Pretvori</button></div>
+        <div id="convertMsg" class="muted"></div>
+      </section>
+      <hr>
+      <section id="redeem">
+        <h2>Unovči</h2>
+        <select id="redeemType"><option value="flash">Flash kupon (100 točk)</option><option value="premium">Premium mesec (500 točk)</option></select>
+        <div style="margin-top:8px;"><button id="btnRedeem" class="btn">Unovči</button></div>
+        <div id="redeemMsg" class="muted"></div>
+      </section>
+      <hr>
+      <section id="history">
+        <h2>Zgodovina</h2>
+        <div id="historyList" class="muted">Nalagam zgodovino...</div>
+      </section>
+      <hr>
+      <section id="referral">
+        <h2>Povabi prijatelje</h2>
+        <input id="refLink" readonly value="Pridobivam ..." style="width:70%">
+        <button id="copyRef" class="btn mini">Kopiraj</button>
+        <div id="refMsg" class="muted"></div>
+      </section>
+    </div>
+  </main>
+  <script>
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const em = localStorage.getItem('user_email')||'';
+      async function load(){
+        if(!em) return;
+        try{
+          const r = await fetch('/.netlify/functions/rewards-history?email='+encodeURIComponent(em));
+          const data = await r.json();
+          if(data && data.ok){
+            document.getElementById('historyList').innerHTML = (data.rows||[]).map(x=>`<div>${x.inserted_at}: ${x.type} (${x.points} točk)</div>`).join('') || 'Ni zgodovine.';
+          }
+        }catch(e){ console.warn(e); }
+      }
+      load();
+
+      document.getElementById('btnConvert').onclick = async ()=>{
+        const pts = Number(document.getElementById('convertPoints').value||0); if(!pts) return;
+        const r = await fetch('/.netlify/functions/rewards-convert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,points:pts})}).then(x=>x.json());
+        document.getElementById('convertMsg').textContent = r && r.ok ? 'Pretvorjeno.' : 'Napaka pri pretvorbi.';
+      };
+
+      document.getElementById('btnRedeem').onclick = async ()=>{
+        const type = document.getElementById('redeemType').value;
+        const r = await fetch('/.netlify/functions/rewards-redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,type})}).then(x=>x.json());
+        document.getElementById('redeemMsg').textContent = r && r.ok ? 'Unovčeno.' : (r?.error || 'Napaka pri unovčenju.');
+      };
+
+      document.getElementById('copyRef').onclick = ()=>{ const inp = document.getElementById('refLink'); inp.select(); document.execCommand('copy'); document.getElementById('refMsg').textContent='Kopirano.'; };
+      // load referral link
+      (async ()=>{ try{ const r = await fetch('/.netlify/functions/referral?email='+encodeURIComponent(em)).then(x=>x.json()); if(r && r.ok) document.getElementById('refLink').value = r.link || ''; }catch(e){} })();
+    });
+  </script>
+</body>
+</html>

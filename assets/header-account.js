@@ -36,6 +36,9 @@
     const link = e.target && e.target.closest ? e.target.closest('a[data-action]') : null;
     if (!link) return;
     
+    // Prevent default anchor behavior (scrolling to top)
+    e.preventDefault();
+    
     const action = link.getAttribute('data-action');
     
     // Close menu after clicking any item
@@ -45,9 +48,9 @@
     if (action === 'my') {
       window.location.href = '/my.html';
     } else if (action === 'logout') {
-      // Handle logout - placeholder for now
+      // TODO: Implement actual logout functionality
       if (window._toast) {
-        window._toast('Odjava uspešna', true);
+        window._toast('Funkcija odjave bo na voljo kmalu', false);
       }
       // In production, would call logout API
     }

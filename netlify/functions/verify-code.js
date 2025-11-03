@@ -1,38 +1,91 @@
-// Netlify function: verify-code.js
-// Preveri SMS/email kodo za prijavo/registracijo
+import { createClient } from '@supabase/supabase-js';
 
-const { createClient } = require('@supabase/supabase-js');
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
 
-exports.handler = async function(event) {
-  const body = JSON.parse(event.body || '{}');
-  const { phone, email, code, countryCode } = body;
-  let query = {};
-  if (phone) query.phone = phone;
-  if (email) query.email = email;
+const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+  : null;
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST,OPTIONS'
+};
+
+const json = (status, body) => ({
+  statusCode: status,
+  headers: { 'content-type': 'application/json; charset=utf-8', ...CORS_HEADERS },
+  body: JSON.stringify(body)
+});
+
+const WINDOW_MS = 10 * 60 * 1000; // 10 minut
+
+const sanitizePhone = (value) => {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits || null;
+};
+
+const normalizeEmail = (value) => {
+  const mail = String(value || '').trim().toLowerCase();
+  return mail || null;
+};
+
+export const handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS_HEADERS, body: '' };
+  if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  if (!supabase) return json(500, { ok: false, error: 'Supabase ni konfiguriran.' });
+
+  let payload;
+  try {
+    payload = JSON.parse(event.body || '{}');
+  } catch {
+    return json(400, { ok: false, error: 'Neveljaven JSON.' });
+  }
+
+  const code = String(payload.code || '').trim();
+  const phone = sanitizePhone(payload.phone);
+  const email = normalizeEmail(payload.email);
+  const countryCode = String(payload.countryCode || '').trim();
+
   if (!code || (!phone && !email)) {
-    return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Manjkajoči podatki.' }) };
+    return json(400, { ok: false, error: 'Manjkajoči podatki.' });
   }
-  // Poišči kodo v bazi, ne starejšo od 10 min in še ne uporabljeno
-  const { data, error } = await supabase
-    .from('verif_codes')
-    .select('*')
-    .eq('code', code)
-    .eq(phone ? 'phone' : 'email', phone ? phone : email)
-    .eq('used', false)
-    .gte('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
-    .order('created_at', { ascending: false })
-    .limit(1);
-  if (error || !data || !data.length) {
-    return { statusCode: 401, body: JSON.stringify({ ok: false, verified: false, error: 'Koda ni pravilna ali je potekla.' }) };
+
+  const windowStart = new Date(Date.now() - WINDOW_MS).toISOString();
+
+  try {
+    let query = supabase.from('verif_codes')
+      .select('*')
+      .eq('code', code)
+      .eq('used', false)
+      .gte('created_at', windowStart)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (phone) {
+      query = query.eq('phone', phone);
+      if (countryCode) query = query.eq('country_code', countryCode);
+    } else {
+      query = query.eq('email', email);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data || !data.length) {
+      return json(401, { ok: false, verified: false, error: 'Koda ni pravilna ali je potekla.' });
+    }
+
+    const record = data[0];
+    const { error: updateErr } = await supabase
+      .from('verif_codes')
+      .update({ used: true, used_at: new Date().toISOString() })
+      .eq('id', record.id);
+
+    if (updateErr) throw updateErr;
+
+    return json(200, { ok: true, verified: true });
+  } catch (err) {
+    console.error('[verify-code] error:', err?.message || err);
+    return json(500, { ok: false, verified: false, error: 'Preverjanje ni uspelo.' });
   }
-  // Označi kodo kot uporabljeno
-  await supabase.from('verif_codes').update({ used: true }).eq('id', data[0].id);
-  // TODO: Ustvari sejo/token za uporabnika
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ ok: true, verified: true, redirect: '/my.html' })
-  };
 };

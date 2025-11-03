@@ -13,6 +13,14 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0bbbd6">
 
+  <script type="module">
+    import { supabase, testSignInEmail, testSignInGoogle, testSignUpEmail } from '/assets/supabase-client.js';
+    if (!window.supabase) window.supabase = supabase;
+    window.testSignInEmail = testSignInEmail;
+    window.testSignInGoogle = testSignInGoogle;
+    window.testSignUpEmail = testSignUpEmail;
+  </script>
+
   <style>
     /* ====== DESIGN TOKENS (ohranjeni + akcent coral) ====== */
     :root{
@@ -134,42 +142,13 @@
         <!-- Prednosti v alinejah nad gumbom -->
         <div style="margin-bottom:12px">
           <ul style="margin:0 0 0 0;padding-left:18px; color:var(--muted);font-size:15px;list-style:none;">
-            <li style="margin-bottom:6px">📈 Večja prepoznavnost in večji promet</li>
-            <li style="margin-bottom:6px">🕒 Zapolnitev prostih terminov</li>
-            <li style="margin-bottom:6px">⚡ Objava v nekaj trenutkih</li>
+            <li style="margin-bottom:6px">📈 <strong>Večja prepoznavnost in večji promet</strong></li>
+            <li style="margin-bottom:6px">🕒 <strong>Zapolnitev prostih terminov</strong></li>
+            <li style="margin-bottom:6px">⚡ <strong>Objava v nekaj trenutkih</strong></li>
           </ul>
         </div>
-        <button class="btn btn-accent" id="hubPublish" style="width:100%; font-size:18px;">Objavi dogodek ali storitev</button>
-
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-          var publishBtn = document.getElementById('hubPublish');
-          var loginModal = document.getElementById('loginModal');
-          var closeLoginModal = document.getElementById('closeLoginModal');
-          if (publishBtn) {
-            publishBtn.onclick = function(e) {
-              var loggedIn = !!localStorage.getItem('user_email') || !!localStorage.getItem('user_token');
-              if (!loggedIn) {
-                if (loginModal) loginModal.style.display = 'flex';
-                e.preventDefault();
-                return false;
-              }
-              // ...obstoječa logika za objavo dogodka...
-            };
-          }
-          if (closeLoginModal) {
-            closeLoginModal.onclick = function() {
-              loginModal.style.display = 'none';
-            };
-          }
-          // Zapri modal ob kliku na ozadje
-          if (loginModal) {
-            loginModal.onclick = function(e) {
-              if (e.target === loginModal) loginModal.style.display = 'none';
-            };
-          }
-        });
-        </script>
+    <button class="btn btn-accent" id="hubPublish" style="width:100%; font-size:18px;">Objavi dogodek ali storitev</button>
+    <div id="providerAuthState" class="muted" style="margin-top:8px;text-align:center;font-size:13px"></div>
         <!-- Login modal (hidden by default) -->
         <div id="loginModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:9999;align-items:center;justify-content:center;">
           <div style="background:#fff;padding:32px 28px;border-radius:18px;max-width:400px;width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.13);margin:auto;">
@@ -198,9 +177,11 @@
               </div>
             </form>
             <div id="loginError" style="display:none;color:#d64c4c;font-size:14px;margin-top:8px;text-align:center"></div>
+            <div id="confirmPending" style="display:none;margin-top:8px;text-align:center">
+              <button type="button" id="resendConfirmBtn" class="btn btn-mini btn-outline" style="width:100%">Ponovno pošlji potrditveni e-mail</button>
+            </div>
             <div id="forgotRow" style="margin-top:6px;text-align:center;font-size:13px;">
               <a href="#" id="forgotPasswordLink" style="color:#0bbbd6;margin-right:10px">Pozabljeno geslo?</a>
-              <span>ali</span>
               <a href="#" id="registerLink" style="color:#0bbbd6;margin-left:10px">Še niste registrirani?</a>
             </div>
             <button id="closeLoginModal" class="btn btn-mini btn-outline" style="width:100%;margin-top:14px">Prekliči</button>
@@ -442,66 +423,247 @@
       const e = $("#" + id);
       if (e) { e.style.display = "block"; e.scrollIntoView({ behavior: "smooth", block: "start" }); }
     }
-    let loginShown = false;
-    $("#hubPublish")?.addEventListener("click", (e) => {
-      if (!loginShown) {
-        loginShown = true;
-        const modal = $("#loginModal");
-        if (modal) modal.style.display = "flex";
-        return;
+    const loginModalEl = $("#loginModal");
+    const loginError = document.getElementById('loginError');
+    const confirmPendingWrap = document.getElementById('confirmPending');
+    const resendConfirmBtn = document.getElementById('resendConfirmBtn');
+    const forgotLinks = document.getElementById('forgotRow');
+
+    function showLoginFeedback(text, kind = 'error') {
+      if (!loginError) return;
+      const palette = {
+        error: '#d64c4c',
+        success: '#0bbbd6',
+        info: '#0bbbd6'
+      };
+      loginError.textContent = text || '';
+      loginError.style.display = text ? 'block' : 'none';
+      loginError.style.color = palette[kind] || palette.error;
+    }
+
+    function clearLoginFeedback() {
+      showLoginFeedback('', 'error');
+    }
+
+    function hideConfirmPending() {
+      if (confirmPendingWrap) confirmPendingWrap.style.display = 'none';
+      if (resendConfirmBtn) {
+        resendConfirmBtn.dataset.email = '';
+        resendConfirmBtn.disabled = false;
+        resendConfirmBtn.textContent = 'Ponovno pošlji potrditveni e-mail';
       }
-      showPanel('orgPanel');
+      if (forgotLinks) forgotLinks.style.display = '';
+    }
+
+    function showConfirmPending(email) {
+      if (!confirmPendingWrap || !resendConfirmBtn) return;
+      confirmPendingWrap.style.display = 'block';
+      if (email) resendConfirmBtn.dataset.email = email;
+      resendConfirmBtn.disabled = false;
+      resendConfirmBtn.textContent = 'Ponovno pošlji potrditveni e-mail';
+      if (forgotLinks) forgotLinks.style.display = 'none';
+    }
+
+    hideConfirmPending();
+    const authStateEl = document.getElementById('providerAuthState');
+
+    ["orgName","orgFullName","orgEmail"].forEach(id => {
+      const node = document.getElementById(id);
+      if (!node) return;
+      node.addEventListener('input', () => { node.dataset.userEdited = '1'; });
     });
 
+    function setIfPristine(node, value){
+      if (!node || !value || node.dataset.userEdited === '1') return;
+      if (!node.value || node.value.trim() === '') node.value = value;
+    }
+
+    function updateAuthStateMessage(user){
+      if (!authStateEl) return;
+      if (user && user.email){
+        const meta = user.user_metadata || {};
+        const fullName = (meta.full_name || [meta.first_name, meta.last_name].filter(Boolean).join(' ') || meta.name || meta.display_name || '').trim();
+        authStateEl.textContent = fullName ? `Prijavljeni kot ${fullName} (${user.email}).` : `Prijavljeni kot ${user.email}.`;
+      } else {
+        authStateEl.textContent = 'Za objavo se prijavite ali ustvarite račun.';
+      }
+    }
+
+    function syncLocalIdentity(user, session){
+      const email = (user?.email || '').trim();
+      if (email){
+        try { localStorage.setItem('user_email', email); } catch {}
+      } else {
+        try { localStorage.removeItem('user_email'); } catch {}
+      }
+
+      const meta = user?.user_metadata || {};
+      const fullNameValue = (meta.full_name || [meta.first_name, meta.last_name].filter(Boolean).join(' ') || meta.name || meta.display_name || '').trim();
+      if (fullNameValue){
+        try { localStorage.setItem('user_name', fullNameValue); } catch {}
+      } else if (!user){
+        try { localStorage.removeItem('user_name'); } catch {}
+      }
+
+      const token = session?.access_token || '';
+      if (token){
+        try { localStorage.setItem('user_token', token); } catch {}
+      } else {
+        try { localStorage.removeItem('user_token'); } catch {}
+      }
+    }
+
+    function applyUserProfile(user){
+      if (!user) return;
+      const meta = user.user_metadata || {};
+      const fullName = (meta.full_name || [meta.first_name, meta.last_name].filter(Boolean).join(' ') || meta.name || meta.display_name || '').trim();
+      const orgName = (meta.organization || meta.company || meta.org_name || '').trim();
+      setIfPristine(document.getElementById('orgEmail'), user.email || localStorage.getItem('user_email'));
+      setIfPristine(document.getElementById('orgFullName'), fullName || localStorage.getItem('user_name'));
+      if (orgName) setIfPristine(document.getElementById('orgName'), orgName);
+    }
+
+    async function refreshProviderSession(){
+      let user = null;
+      let session = null;
+      try{
+        const client = window.supabase;
+        if (client?.auth?.getSession){
+          const { data } = await client.auth.getSession();
+          session = data?.session || null;
+          user = session?.user || null;
+          syncLocalIdentity(user, session);
+        }
+      }catch(e){}
+      if (!user){
+        const storedToken = localStorage.getItem('user_token');
+        if (storedToken){
+          const storedEmail = localStorage.getItem('user_email');
+          const storedName = localStorage.getItem('user_name');
+          if (storedEmail){
+            user = {
+              email: storedEmail,
+              user_metadata: { full_name: storedName || '' }
+            };
+          }
+        }
+      }
+      if (user){
+        applyUserProfile(user);
+      } else {
+        syncLocalIdentity(null, null);
+      }
+      updateAuthStateMessage(user);
+      return user;
+    }
+
+    async function handlePublishClick(ev){
+      ev?.preventDefault?.();
+      const user = await refreshProviderSession();
+      if (user){
+        if (loginModalEl) loginModalEl.style.display = 'none';
+        hideConfirmPending();
+        clearLoginFeedback();
+        showPanel('orgPanel');
+      }else{
+        if (loginModalEl) loginModalEl.style.display = 'flex';
+        hideConfirmPending();
+        clearLoginFeedback();
+      }
+    }
+
+    updateAuthStateMessage(null);
+
+    (async () => {
+      const currentUser = await refreshProviderSession();
+      if (currentUser) showPanel('orgPanel');
+    })();
+
+    if (window.supabase?.auth?.onAuthStateChange){
+      window.supabase.auth.onAuthStateChange(async (_event, session) => {
+        const supaUser = session?.user || null;
+        syncLocalIdentity(supaUser, session);
+        if (supaUser){
+          applyUserProfile(supaUser);
+          updateAuthStateMessage(supaUser);
+          hideConfirmPending();
+          clearLoginFeedback();
+          if (loginModalEl) loginModalEl.style.display = 'none';
+          showPanel('orgPanel');
+        } else {
+          updateAuthStateMessage(null);
+          hideConfirmPending();
+          const panel = document.getElementById('orgPanel');
+          if (panel) panel.style.display = 'none';
+        }
+      });
+    }
+
+    $("#hubPublish")?.addEventListener("click", handlePublishClick);
+
     $("#closeLoginModal")?.addEventListener("click", () => {
-      const modal = $("#loginModal");
-      if (modal) modal.style.display = "none";
+      if (loginModalEl) loginModalEl.style.display = "none";
+      hideConfirmPending();
+      clearLoginFeedback();
+    });
+
+    loginModalEl?.addEventListener('click', (ev) => {
+      if (ev.target === loginModalEl) loginModalEl.style.display = 'none';
+      if (ev.target === loginModalEl) {
+        hideConfirmPending();
+        clearLoginFeedback();
+      }
+    });
+
+    resendConfirmBtn?.addEventListener('click', async (ev) => {
+      ev.preventDefault();
+      const emailFromBtn = resendConfirmBtn.dataset.email || '';
+      const fallbackEmail = loginForm?.querySelector('#loginEmail')?.value.trim() || '';
+      const email = emailFromBtn || fallbackEmail;
+      if (!email) {
+        showLoginFeedback('Najprej vnesite e-poštni naslov.', 'error');
+        return;
+      }
+      try {
+        resendConfirmBtn.disabled = true;
+        resendConfirmBtn.textContent = 'Pošiljam ...';
+        showLoginFeedback('Pošiljam novo potrditveno sporočilo ...', 'info');
+        const client = window.supabase;
+        if (!client?.auth?.resend) throw new Error('Resend metoda ni na voljo.');
+        const { error } = await client.auth.resend({ type: 'signup', email });
+        if (error) throw error;
+        showLoginFeedback('Novo potrditveno sporočilo je poslano. Preverite svoj e-poštni predal.', 'success');
+        resendConfirmBtn.textContent = 'Poslano ✔';
+      } catch (err) {
+        showLoginFeedback('Ponovno pošiljanje ni uspelo: ' + (err?.message || err || 'neznana napaka'), 'error');
+        resendConfirmBtn.textContent = 'Poskusi znova';
+        resendConfirmBtn.disabled = false;
+        return;
+      }
+      setTimeout(() => {
+        resendConfirmBtn.disabled = false;
+        resendConfirmBtn.textContent = 'Ponovno pošlji potrditveni e-mail';
+      }, 6000);
     });
 
     $("#loginGoogle")?.addEventListener("click", () => {
-      // TODO: Integrate Google login
-      alert("Google prijava (demo)");
-      $("#loginModal").style.display = "none";
-      showPanel('orgPanel');
+      hideConfirmPending();
+      showLoginFeedback('Prijava z Google bo na voljo v kratkem.', 'info');
     });
     $("#loginApple")?.addEventListener("click", () => {
-      // TODO: Integrate Apple login
-      alert("Apple prijava (demo)");
-      $("#loginModal").style.display = "none";
-      showPanel('orgPanel');
-    });
-    $("#loginEmailForm")?.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      // Simulacija preverjanja gesla in emaila
-      const email = $("#loginEmail").value.trim();
-      const password = $("#loginPassword").value;
-      // Demo: napačno geslo ali neobstoječi uporabnik
-      let errorMsg = "";
-      if (!email || !password) {
-        errorMsg = "Vnesite e-pošto in geslo.";
-      } else if (email !== "demo@neargo.com" || password !== "demo123") {
-        errorMsg = "Napačno geslo ali uporabnik ne obstaja.";
-      }
-      if (errorMsg) {
-        $("#loginError").textContent = errorMsg;
-        $("#loginError").style.display = "block";
-        $("#forgotRow").style.display = "block";
-        return;
-      }
-      $("#loginError").style.display = "none";
-      $("#forgotRow").style.display = "none";
-      $("#loginModal").style.display = "none";
-      showPanel('orgPanel');
-    });
-    $("#registerBtn")?.addEventListener("click", () => {
-      window.location.href = "/register.html";
+      hideConfirmPending();
+      showLoginFeedback('Prijava z Apple bo na voljo v kratkem.', 'info');
     });
     $("#registerLink")?.addEventListener("click", (e) => {
       e.preventDefault();
+      hideConfirmPending();
+      clearLoginFeedback();
       window.location.href = "/register.html";
     });
     $("#forgotPasswordLink")?.addEventListener("click", (e) => {
       e.preventDefault();
+      hideConfirmPending();
+      clearLoginFeedback();
       window.location.href = "/forgot-password.html";
     });
     $("#closeProviderTerms")?.addEventListener("click", () => showPanel('orgPanel'));
@@ -511,7 +673,6 @@
     const loginForm = document.getElementById('loginEmailForm');
     const showRegisterBtn = document.getElementById('showRegisterBtn');
     let registerFields = null;
-    const loginError = document.getElementById('loginError');
 
     if (loginForm && showRegisterBtn) {
       function createRegisterFields() {
@@ -554,12 +715,10 @@
           const countryCode = registerFields.querySelector('#countryCode').value;
           const phone = registerFields.querySelector('#loginPhone').value.trim();
           if (!/^\d{6,}$/.test(phone.replace(/\D/g, ''))) {
-            loginError.textContent = 'Vnesite veljavno telefonsko številko.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Vnesite veljavno telefonsko številko.', 'error');
             return;
           }
-          loginError.textContent = 'Pošiljam SMS kodo ...';
-          loginError.style.display = 'block';
+          showLoginFeedback('Pošiljam SMS kodo ...', 'info');
           try {
             const res = await fetch('/.netlify/functions/send-code', {
               method: 'POST',
@@ -568,26 +727,24 @@
             });
             const data = await res.json();
             if (data.ok && data.codeSent) {
-              loginError.textContent = 'Koda je bila poslana na SMS.';
+              showLoginFeedback('Koda je bila poslana na SMS.', 'success');
               registerFields.querySelector('#registerCode').style.display = '';
               registerFields.querySelector('#registerCode').previousSend = 'sms';
             } else {
-              loginError.textContent = 'Napaka pri pošiljanju SMS kode.';
+              showLoginFeedback('Napaka pri pošiljanju SMS kode.', 'error');
             }
           } catch (e) {
-            loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
+            showLoginFeedback('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
           }
         };
         // Pošlji email kodo
         registerFields.querySelector('#sendEmailCodeBtn').onclick = async function() {
           const email = loginForm.querySelector('#loginEmail').value.trim();
           if (!email.match(/^[^@]+@[^@]+\.[^@]+$/)) {
-            loginError.textContent = 'Vnesite veljaven email naslov.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Vnesite veljaven email naslov.', 'error');
             return;
           }
-          loginError.textContent = 'Pošiljam email kodo ...';
-          loginError.style.display = 'block';
+          showLoginFeedback('Pošiljam email kodo ...', 'info');
           try {
             const res = await fetch('/.netlify/functions/send-code', {
               method: 'POST',
@@ -596,14 +753,14 @@
             });
             const data = await res.json();
             if (data.ok && data.codeSent) {
-              loginError.textContent = 'Koda je bila poslana na email.';
+              showLoginFeedback('Koda je bila poslana na email.', 'success');
               registerFields.querySelector('#registerCode').style.display = '';
               registerFields.querySelector('#registerCode').previousSend = 'email';
             } else {
-              loginError.textContent = 'Napaka pri pošiljanju email kode.';
+              showLoginFeedback('Napaka pri pošiljanju email kode.', 'error');
             }
           } catch (e) {
-            loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
+            showLoginFeedback('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
           }
         };
 
@@ -617,50 +774,41 @@
           const password = registerFields.querySelector('#registerPassword').value;
           const passwordRepeat = registerFields.querySelector('#registerPasswordRepeat').value;
           const registerCode = registerFields.querySelector('#registerCode').value.trim();
-          loginError.textContent = '';
-          loginError.style.display = 'none';
+          clearLoginFeedback();
+          hideConfirmPending();
           if (!name || !surname) {
-            loginError.textContent = 'Vnesite ime in priimek.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Vnesite ime in priimek.', 'error');
             return;
           }
           if (!/^\d{6,}$/.test(phone.replace(/\D/g, ''))) {
-            loginError.textContent = 'Vnesite veljavno telefonsko številko.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Vnesite veljavno telefonsko številko.', 'error');
             return;
           }
           if (!email.match(/^[^@]+@[^@]+\.[^@]+$/)) {
-            loginError.textContent = 'Vnesite veljaven email naslov.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Vnesite veljaven email naslov.', 'error');
             return;
           }
           if (password.length < 6) {
-            loginError.textContent = 'Geslo mora imeti vsaj 6 znakov.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Geslo mora imeti vsaj 6 znakov.', 'error');
             return;
           }
           if (!/[A-Z]/.test(password)) {
-            loginError.textContent = 'Geslo mora vsebovati vsaj eno veliko začetnico.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Geslo mora vsebovati vsaj eno veliko začetnico.', 'error');
             return;
           }
           if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-            loginError.textContent = 'Geslo mora vsebovati vsaj en poseben znak.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Geslo mora vsebovati vsaj en poseben znak.', 'error');
             return;
           }
           if (password !== passwordRepeat) {
-            loginError.textContent = 'Gesli se ne ujemata.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Gesli se ne ujemata.', 'error');
             return;
           }
           if (!registerCode) {
-            loginError.textContent = 'Vnesite prejeto kodo.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Vnesite prejeto kodo.', 'error');
             return;
           }
-          loginError.textContent = 'Preverjam kodo ...';
-          loginError.style.display = 'block';
+          showLoginFeedback('Preverjam kodo ...', 'info');
           try {
             let verifyRes;
             if (registerFields.querySelector('#registerCode').previousSend === 'sms') {
@@ -678,23 +826,19 @@
             }
             const verifyData = await verifyRes.json();
             if (!verifyData.ok || !verifyData.verified) {
-              loginError.textContent = 'Koda ni pravilna.';
-              loginError.style.display = 'block';
+              showLoginFeedback('Koda ni pravilna.', 'error');
               return;
             }
           } catch (err) {
-            loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
             return;
           }
-          loginError.textContent = 'Registriram ...';
-          loginError.style.display = 'block';
+          showLoginFeedback('Registriram ...', 'info');
           try {
             // Supabase signup
             const { testSignUpEmail } = window;
             if (typeof testSignUpEmail !== 'function') {
-              loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
-              loginError.style.display = 'block';
+              showLoginFeedback('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
               return;
             }
             const result = await testSignUpEmail(email, password, {
@@ -705,20 +849,33 @@
               }
             });
             if (result?.data?.user) {
-              loginError.textContent = 'Registracija uspešna!';
-              setTimeout(() => {
-                window.location.reload();
-              }, 800);
+              const fullName = [name, surname].filter(Boolean).join(' ').trim();
+              const token = result?.data?.session?.access_token;
+              const session = result?.data?.session || null;
+              if (token) { try { localStorage.setItem('user_token', token); } catch {} }
+              if (session) {
+                showLoginFeedback('Registracija uspešna!', 'success');
+                try { localStorage.setItem('user_email', email); } catch {}
+                if (fullName) { try { localStorage.setItem('user_name', fullName); } catch {} }
+                setTimeout(async () => {
+                  if (loginModalEl) loginModalEl.style.display = 'none';
+                  hideConfirmPending();
+                  await refreshProviderSession();
+                  showPanel('orgPanel');
+                }, 600);
+              } else {
+                showLoginFeedback('Registracija uspešna! Preverite svoj e-poštni predal za potrditev računa.', 'success');
+                showConfirmPending(email);
+              }
             } else {
               if (result?.error?.message && result.error.message.toLowerCase().includes('user already registered')) {
-                loginError.textContent = 'Uporabnik s tem emailom že obstaja.';
+                showLoginFeedback('Uporabnik s tem emailom že obstaja.', 'error');
               } else {
-                loginError.textContent = 'Napaka: ' + (result?.error?.message || 'Napaka v podatkih.');
+                showLoginFeedback('Napaka: ' + (result?.error?.message || 'Napaka v podatkih.'), 'error');
               }
             }
           } catch (err) {
-            loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
           }
         };
 
@@ -730,8 +887,8 @@
           loginForm.querySelector('button[type="submit"]').style.display = '';
           const passwordInput = loginForm.querySelector('#loginPassword');
           if (passwordInput) passwordInput.style.display = '';
-          loginError.textContent = '';
-          loginError.style.display = 'none';
+          clearLoginFeedback();
+          hideConfirmPending();
         };
       }
 
@@ -743,6 +900,8 @@
         const passwordInput = loginForm.querySelector('#loginPassword');
         if (passwordInput) passwordInput.style.display = 'none';
         loginForm.querySelector('button[type="submit"]').style.display = 'none';
+        hideConfirmPending();
+        clearLoginFeedback();
       });
 
       // Login
@@ -750,41 +909,49 @@
         e.preventDefault();
         const email = loginForm.querySelector('#loginEmail').value.trim();
         const password = loginForm.querySelector('#loginPassword').value;
-        loginError.textContent = '';
-        loginError.style.display = 'none';
+        clearLoginFeedback();
+        hideConfirmPending();
         if (!email || !password) {
-          loginError.textContent = 'Vnesite email in geslo.';
-          loginError.style.display = 'block';
+          showLoginFeedback('Vnesite email in geslo.', 'error');
           return;
         }
-        loginError.textContent = 'Prijavljam ...';
-        loginError.style.display = 'block';
+        showLoginFeedback('Prijavljam ...', 'info');
         try {
           const { testSignInEmail } = window;
           if (typeof testSignInEmail !== 'function') {
-            loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
-            loginError.style.display = 'block';
+            showLoginFeedback('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
             return;
           }
           let result = await testSignInEmail(email, password);
           if (result?.data?.user) {
-            loginError.textContent = 'Prijava uspešna!';
-            setTimeout(() => {
-              window.location.reload();
-            }, 800);
+            showLoginFeedback('Prijava uspešna!', 'success');
+            try { localStorage.setItem('user_email', result.data.user?.email || email); } catch {}
+            const meta = result.data.user?.user_metadata || {};
+            const fullName = (meta.full_name || [meta.first_name, meta.last_name].filter(Boolean).join(' ') || meta.name || meta.display_name || '').trim();
+            if (fullName) { try { localStorage.setItem('user_name', fullName); } catch {} }
+            const token = result.data.session?.access_token;
+            if (token) { try { localStorage.setItem('user_token', token); } catch {} }
+            setTimeout(async () => {
+              if (loginModalEl) loginModalEl.style.display = 'none';
+              hideConfirmPending();
+              await refreshProviderSession();
+              showPanel('orgPanel');
+            }, 600);
           } else {
-            if (result?.error?.message && result.error.message.toLowerCase().includes('user not found')) {
-              loginError.textContent = 'Uporabnik s tem emailom ne obstaja.';
-            } else if (result?.error?.message && result.error.message.toLowerCase().includes('invalid login credentials')) {
-              loginError.textContent = 'Geslo ni pravilno. Poskusite znova ali uporabite pozabljeno geslo.';
+            const errMsg = (result?.error?.message || '').toLowerCase();
+            if (errMsg.includes('user not found')) {
+              showLoginFeedback('Uporabnik s tem emailom ne obstaja.', 'error');
+            } else if (errMsg.includes('invalid login credentials')) {
+              showLoginFeedback('Geslo ni pravilno. Poskusite znova ali uporabite pozabljeno geslo.', 'error');
+            } else if (errMsg.includes('confirm') && errMsg.includes('email')) {
+              showLoginFeedback('E-pošta je registrirana, vendar je potrebno potrditi račun. Preverite e-poštni predal ali kliknite na ponovni pošiljanje.', 'info');
+              showConfirmPending(email);
             } else {
-              loginError.textContent = 'Napaka: ' + (result?.error?.message || 'Neznana napaka.');
+              showLoginFeedback('Napaka: ' + (result?.error?.message || 'Neznana napaka.'), 'error');
             }
-            loginError.style.display = 'block';
           }
         } catch (e) {
-          loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
-          loginError.style.display = 'block';
+          showLoginFeedback('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
         }
       });
     }

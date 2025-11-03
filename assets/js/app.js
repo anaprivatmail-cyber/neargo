@@ -645,3 +645,29 @@ async function refreshReferralProgress() {
   }
 }
 setInterval(refreshReferralProgress, 20000); // osveži vsakih 20s
+
+// Initialize rewards listener (realtime) and record-view helper on page load.
+(async function initRewardsAndRecord(){
+  try{
+    // dynamic import of supabase client (exports `supabase`)
+    const sc = await import('/assets/supabase-client.js');
+    const supabase = sc.supabase;
+    // get session and user id if logged in
+    let userId = null;
+    try{ const sess = await supabase.auth.getSession(); userId = sess?.data?.session?.user?.id; }catch(e){}
+
+    // init rewards realtime listener for logged-in users
+    if (userId){
+      try{
+        const rp = await import('/assets/rewards-popup.js');
+        rp.initRewardsListener(supabase, userId);
+      }catch(e){ console.warn('initRewardsListener failed', e); }
+    }
+
+    // init record view (no-op if not a details page)
+    try{
+      const rv = await import('/assets/record-view.js');
+      rv.initRecordView();
+    }catch(e){ /* ignore */ }
+  }catch(e){ console.warn('initRewardsAndRecord err', e); }
+})();

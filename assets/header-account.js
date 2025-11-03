@@ -318,11 +318,12 @@
   async function onButtonClick(event){
     // Show menu for everyone. If not logged in, show fallback identity and
     // replace the sign-out control with a login action.
-    event.preventDefault();
     // Prevent other click handlers (e.g. app.js) from intercepting this click
-    // and showing an upgrade/login prompt. stopImmediatePropagation ensures
-    // our behavior takes precedence.
-    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    // and showing an upgrade/login prompt. stopImmediatePropagation + stopPropagation
+    // ensure our behavior takes precedence.
+    try{ event.preventDefault(); }catch(e){}
+    try{ if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation(); }catch(e){}
+    try{ if (typeof event.stopPropagation === 'function') event.stopPropagation(); }catch(e){}
     await refreshSession();
     const identity = resolveIdentity();
     const loggedIn = hasIdentity(identity);
@@ -360,7 +361,9 @@
       button.style.zIndex = '3000';
       button.style.cursor = 'pointer';
     }catch(e){}
-    button.addEventListener('click', onButtonClick);
+    // Use capture phase so this handler runs before other bubble-phase handlers
+    // that might intercept the click and show the Premium prompt.
+    button.addEventListener('click', onButtonClick, true);
   }
 
   function observeButton(){

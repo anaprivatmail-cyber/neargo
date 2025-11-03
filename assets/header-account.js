@@ -1,212 +1,79 @@
-// Header account dropdown + dynamic folder-content loader
-// Behavior:
-// - Clicking the avatar (`#btnMine`) opens a small menu with list items.
-// - Clicking a menu item fetches the corresponding page and shows it in a right-side panel.
-// - Keeps href fallback (so links still work if JS unavailable).
+// assets/header-account.js
+// Lightweight header account dropdown that shows a short menu when clicking the avatar
+// Supports both `#btnAccount` and legacy `#btnMine` anchors.
 
 (function(){
-	'use strict';
+  'use strict';
 
-	const MENU_ID = 'nea-account-menu';
-	const PANEL_ID = 'nea-account-panel';
-	// Celoten predlagani meni (začne pri Nagrade)
-	const MENU_ITEMS = [
-		{label: 'Nagrade', url: '/my.html#rewardsHistory', icon: '🎁'},
-		{label: 'Unovči točke', url: '/my.html#pointsStore', icon: '🏬'},
-		{label: 'Napredek do nagrade', url: '/my.html#pointsProgressWrap', icon: '📈'},
-		{label: 'Moje vstopnice & kuponi', url: '/my.html', icon: '🎟️'},
-		{label: 'Vstopnice', url: '/my.html#tickets', icon: '🎫'},
-		{label: 'Kuponi', url: '/my.html#coupons', icon: '🏷️'},
-		{label: 'Zgodovina nakupov', url: '/my.html#purchases', icon: '🧾'},
-		{label: 'Premium obvestila', url: '/premium.html#earlyNotifySection', icon: '🔔'},
-		{label: 'Upravljanje Premium', url: '/premium.html#manage', icon: '⭐'},
-		{label: 'Uredi profil', url: '/my.html#profile', icon: '⚙️'},
-		{label: 'Nastavitve obvestil', url: '/my.html#notificationPrefs', icon: '🔧'},
-		{label: 'Povabi prijatelje', url: '/my.html#referralCard', icon: '🤝'},
-		{label: 'Pomoč & Kontakt', url: '/contact.html', icon: '❓'},
-		{label: 'Odjava', action: 'signout', icon: '🚪'}
-	];
+  const MENU_ITEMS = [
+    { id: 'mi-rewards', label: 'Nagrade', url: '/my.html#rewardsHistory', icon: '🎁' },
+    { id: 'mi-store', label: 'Unovči točke', url: '/my.html#pointsStore', icon: '🏬' },
+    { id: 'mi-progress', label: 'Napredek do nagrade', url: '/my.html#pointsProgressWrap', icon: '📈' },
+    { id: 'mi-my', label: 'Moje vstopnice & kuponi', url: '/my.html', icon: '🎟️' },
+    { id: 'mi-tickets', label: 'Vstopnice', url: '/my.html#tickets', icon: '🎫' },
+    { id: 'mi-coupons', label: 'Kuponi', url: '/my.html#coupons', icon: '🏷️' },
+    { id: 'mi-purchases', label: 'Zgodovina nakupov', url: '/my.html#purchases', icon: '🧾' }
+  ];
 
-	function addStyles(){
-		if (document.getElementById('nea-account-styles')) return;
-		const css = `
-			.nea-account-menu{position:absolute; z-index:12000; min-width:200px; background:var(--card); border:1px solid var(--chipborder); box-shadow:0 8px 30px rgba(0,0,0,.12); border-radius:12px; padding:6px;}
-			.nea-account-menu ul{list-style:none;margin:0;padding:6px;}
-			.nea-account-menu li{padding:8px 10px; cursor:pointer; border-radius:8px; font-weight:800}
-			.nea-account-menu li:hover, .nea-account-menu li:focus{background:rgba(11,187,214,.06)}
-			.nea-account-panel{position:fixed; right:16px; top:70px; bottom:16px; width:min(560px,86vw); background:var(--card); border:1px solid var(--chipborder); box-shadow:0 20px 60px rgba(0,0,0,.18); border-radius:12px; z-index:12000; overflow:auto; display:flex; flex-direction:column}
-			.nea-account-panel .bar{padding:10px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--chipborder); font-weight:900}
-			.nea-account-panel .content{padding:12px; overflow:auto}
-			@media(max-width:760px){ .nea-account-panel{ left:8px; right:8px; top:80px; bottom:8px; width:auto; border-radius:12px } }
-		`;
-		const s = document.createElement('style'); s.id='nea-account-styles'; s.appendChild(document.createTextNode(css));
-		document.head.appendChild(s);
-	}
+  async function getSupabase(){
+    if (window.supabase) return window.supabase;
+    try{ const mod = await import('/assets/supabase-client.js'); return mod.supabase; }catch(e){ return null; }
+  }
 
-	function createMenu(){
-		let existing = document.getElementById(MENU_ID);
-		if (existing) return existing;
-		const menu = document.createElement('div');
-		menu.id = MENU_ID; menu.className = 'nea-account-menu';
-		menu.setAttribute('role','menu');
-		const ul = document.createElement('ul');
-		MENU_ITEMS.forEach((it, idx)=>{
-			const li = document.createElement('li');
-			li.tabIndex = 0;
-			li.dataset.index = idx;
-			li.textContent = it.label;
-			li.addEventListener('click', onMenuItemClick);
-			li.addEventListener('keydown', (e)=>{ if (e.key==='Enter' || e.key===' ') onMenuItemClick.call(li,e); });
-			ul.appendChild(li);
-		});
-		menu.appendChild(ul);
-		document.body.appendChild(menu);
-		return menu;
-	}
+  function buildMenu(){
+    let menu = document.getElementById('accountMenu');
+    if (menu) return menu;
+    menu = document.createElement('div');
+    menu.id = 'accountMenu';
+    menu.className = 'account-menu';
+    menu.style.position = 'absolute';
+    menu.style.minWidth = '220px';
+    menu.style.background = 'var(--card)';
+    menu.style.border = '1px solid var(--chipborder)';
+    menu.style.borderRadius = '12px';
+    menu.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
+    menu.style.padding = '6px';
+    menu.style.zIndex = 2000;
+    menu.hidden = true;
 
-	function createPanel(){
-		let existing = document.getElementById(PANEL_ID);
-		if (existing) return existing;
-		const p = document.createElement('aside');
-		p.id = PANEL_ID; p.className = 'nea-account-panel';
-		p.innerHTML = `<div class="bar"><span>Moji podatki</span><div><button id="neaPanelClose" class="btn mini link">Zapri</button></div></div><div class="content" id="neaPanelContent">Nalagam …</div>`;
-		document.body.appendChild(p);
-		p.querySelector('#neaPanelClose').addEventListener('click', ()=>{ hidePanel(); });
-		return p;
-	}
+    MENU_ITEMS.forEach(it=>{
+      const a = document.createElement('a');
+      a.id = it.id; a.href = it.url; a.className = 'account-menu-item';
+      a.style.display = 'flex'; a.style.alignItems = 'center'; a.style.gap = '10px'; a.style.padding = '8px 10px'; a.style.borderRadius='8px';
+      a.style.color = 'var(--text)'; a.style.textDecoration='none';
+      a.innerHTML = `<span style="font-size:18px">${it.icon}</span><span style="font-weight:800">${it.label}</span>`;
+      menu.appendChild(a);
+    });
 
-	function positionMenu(menu, anchor){
-		const rect = anchor.getBoundingClientRect();
-		const docEl = document.documentElement;
-		// Prefer to place under the button, shift if close to right edge
-		const left = Math.min(rect.left, Math.max(8, docEl.clientWidth - menu.offsetWidth - 8));
-		menu.style.top = (rect.bottom + window.scrollY + 6) + 'px';
-		menu.style.left = (left + window.scrollX) + 'px';
-	}
+    document.body.appendChild(menu);
+    return menu;
+  }
 
-	function showMenu(anchor){
-		addStyles();
-		const menu = createMenu();
-		menu.style.display = 'block';
-		positionMenu(menu, anchor);
-		setTimeout(()=>{ menu.querySelector('li')?.focus(); }, 10);
-		document.addEventListener('click', outsideMenuClick);
-		document.addEventListener('keydown', menuKeyHandler);
-	}
+  async function render(){
+    const supabase = await getSupabase();
+    const sessionRes = await (supabase?.auth?.getSession ? supabase.auth.getSession() : Promise.resolve({ data: { session: null } }));
+    const isLoggedIn = !!sessionRes?.data?.session?.user?.id;
+    const btn = document.getElementById('btnAccount') || document.getElementById('btnMine');
+    const menu = buildMenu();
+    if (!btn) return;
 
-	function hideMenu(){
-		const menu = document.getElementById(MENU_ID);
-		if (menu) menu.style.display='none';
-		document.removeEventListener('click', outsideMenuClick);
-		document.removeEventListener('keydown', menuKeyHandler);
-	}
+    // position menu relative to button each time (handles responsive layout)
+    const rect = btn.getBoundingClientRect();
+    menu.style.top = (rect.bottom + 6) + 'px';
+    menu.style.right = (window.innerWidth - rect.right + 12) + 'px';
 
-	function outsideMenuClick(e){
-		const menu = document.getElementById(MENU_ID);
-		const anchor = document.getElementById('btnMine');
-		if (!menu) return;
-		if (menu.contains(e.target) || (anchor && anchor.contains(e.target))) return;
-		hideMenu();
-	}
+    if (!isLoggedIn){
+      btn.addEventListener('click', (e)=>{ e.preventDefault(); window.Auth ? Auth.open() : location.href='/login.html'; });
+      return;
+    }
 
-	function menuKeyHandler(e){
-		const menu = document.getElementById(MENU_ID);
-		if (!menu || menu.style.display==='none') return;
-		const items = Array.from(menu.querySelectorAll('li'));
-		const idx = items.indexOf(document.activeElement);
-		if (e.key==='ArrowDown') { e.preventDefault(); const next = items[Math.min(items.length-1, (idx+1)||0)]; next?.focus(); }
-		else if (e.key==='ArrowUp'){ e.preventDefault(); const prev = items[Math.max(0, (idx-1))]; prev?.focus(); }
-		else if (e.key==='Escape'){ hideMenu(); }
-	}
+    btn.setAttribute('aria-haspopup','true');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.addEventListener('click', (e)=>{ e.preventDefault(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); });
+    document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && !btn.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded','false'); } });
+  }
 
-	async function onMenuItemClick(e){
-		e.preventDefault();
-		const idx = Number(this.dataset.index);
-		const it = MENU_ITEMS[idx];
-		hideMenu();
-		if (!it) return;
-		if (it.action === 'signout') { await doSignOut(); return; }
-		// Load target into side panel
-		showPanel();
-		await loadIntoPanel(it.url);
-	}
+  document.addEventListener('DOMContentLoaded', ()=>{ render(); });
+  (async ()=>{ const s = await getSupabase(); s?.auth?.onAuthStateChange && s.auth.onAuthStateChange(()=>render()); })();
 
-	function showPanel(){
-		addStyles();
-		const p = createPanel();
-		p.style.display = 'flex';
-		p.scrollTop = 0;
-		document.body.classList.add('nea-account-panel-open');
-		// close on outside click
-		setTimeout(()=>{ document.addEventListener('click', outsidePanelClick); document.addEventListener('keydown', panelKeyHandler); }, 50);
-	}
-
-	function hidePanel(){
-		const p = document.getElementById(PANEL_ID);
-		if (!p) return;
-		p.style.display = 'none';
-		document.body.classList.remove('nea-account-panel-open');
-		document.removeEventListener('click', outsidePanelClick);
-		document.removeEventListener('keydown', panelKeyHandler);
-	}
-
-	function outsidePanelClick(e){
-		const p = document.getElementById(PANEL_ID);
-		const anchor = document.getElementById('btnMine');
-		if (!p) return;
-		if (p.contains(e.target) || (anchor && anchor.contains(e.target))) return;
-		hidePanel();
-	}
-
-	function panelKeyHandler(e){ if (e.key==='Escape') hidePanel(); }
-
-	async function loadIntoPanel(url){
-		const contentEl = document.getElementById('neaPanelContent');
-		if (!contentEl) return;
-		contentEl.innerHTML = 'Nalagam …';
-		try{
-			const res = await fetch(url, {cache:'no-store'});
-			if (!res.ok) throw new Error('Fetch failed');
-			const text = await res.text();
-			const parsed = new DOMParser().parseFromString(text, 'text/html');
-			// Prefer <main> content
-			const main = parsed.querySelector('main') || parsed.querySelector('body') || parsed.documentElement;
-			contentEl.innerHTML = '';
-			// Import child nodes safely
-			Array.from(main.childNodes).forEach(n=>{ contentEl.appendChild(document.importNode(n, true)); });
-		}catch(err){
-			contentEl.innerHTML = `<div style="padding:12px;color:var(--muted)">Ne morem naložiti vsebine. <a href="${url}" target="_blank">Odpri v novi zavihku</a>.</div>`;
-			console.warn('[header-account] load error', err);
-		}
-	}
-
-	async function doSignOut(){
-		// Try to use Supabase client module if available
-		try{
-			if (window.supabase){ await window.supabase.auth.signOut(); window.location.reload(); return; }
-			const mod = await import('/assets/supabase-client.js');
-			if (mod && mod.supabase){ await mod.supabase.auth.signOut(); window.location.reload(); return; }
-		}catch(e){ console.warn('Signout failed', e); }
-		// Fallback: open /logout endpoint if exists
-		try{ window.location.href = '/.netlify/functions/logout'; }catch(e){}
-	}
-
-	function attach(){
-		document.addEventListener('DOMContentLoaded', ()=>{
-			const btn = document.getElementById('btnMine');
-			if (!btn) return;
-			btn.addEventListener('click', (e)=>{
-				// prevent navigation; activate menu
-				e.preventDefault(); e.stopPropagation();
-				const menu = document.getElementById(MENU_ID);
-				if (menu && menu.style.display==='block') { hideMenu(); return; }
-				showMenu(btn);
-			});
-			// If user presses Enter when focusing the avatar
-			btn.addEventListener('keydown', (e)=>{ if (e.key==='Enter' || e.key===' ') { e.preventDefault(); btn.click(); } });
-		});
-	}
-
-	attach();
 })();
-

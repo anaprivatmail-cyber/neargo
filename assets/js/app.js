@@ -287,9 +287,11 @@ $("#btnPremiumTop")?.addEventListener("click",()=>{
   if (!isLoggedIn()) { redirectToLogin({action:'premium'}); return; }
   window.location.href = '/premium.html';
 });
-$("#btnMine")?.addEventListener("click",()=>{
+$("#btnMine")?.addEventListener("click",(e)=>{
+  // Prevent default navigation; if not logged-in redirect to login intent.
+  e.preventDefault();
   if (!isLoggedIn()) { redirectToLogin({action:'points'}); return; }
-  window.location.href = '/my.html';
+  // If logged in, header-account.js will handle toggling the small dropdown menu.
 });
 
 // Nakup kupona/vstopnice

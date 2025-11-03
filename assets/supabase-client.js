@@ -26,9 +26,17 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   }, 500);
 }
 
-export async function testSignUpEmail(email, password) {
+export async function testSignUpEmail(email, password, options = null) {
   try {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const payload = { email, password };
+    if (options && typeof options === 'object') {
+      if (options.options) {
+        payload.options = options.options;
+      } else {
+        payload.options = options;
+      }
+    }
+    const { data, error } = await supabase.auth.signUp(payload);
     return { data, error };
   } catch (e) {
     return { error: e };
@@ -51,4 +59,11 @@ export async function testSignInGoogle() {
   } catch (e) {
     return { error: e };
   }
+}
+
+if (typeof window !== 'undefined') {
+  window.supabase = supabase;
+  window.testSignUpEmail = testSignUpEmail;
+  window.testSignInEmail = testSignInEmail;
+  window.testSignInGoogle = testSignInGoogle;
 }

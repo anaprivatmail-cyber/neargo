@@ -405,7 +405,7 @@
     </div>
     <div style="display:flex;gap:10px;align-items:center;">
       <a class="pill premium-badge" id="btnPremiumTop" href="/premium.html">Premium</a>
-      <a class="pill" id="btnMine" href="#" role="button" aria-haspopup="true" aria-expanded="false" title="Moje vstopnice & kuponi" style="min-width:50px;text-align:center;padding:6px 10px;font-size:18px;">
+      <a class="pill" id="btnMine" href="#" role="button" aria-haspopup="true" aria-expanded="false" title="Moje vstopnice & kuponi" style="min-width:50px;text-align:center;padding:6px 10px;font-size:18px;" onclick="(function(e){try{e.preventDefault();}catch(_){ }var m=document.getElementById('accountMenu'); if(!m){ return; } m.hidden = !m.hidden; this.setAttribute('aria-expanded', String(!m.hidden));})(event)">
         <span style="font-size:20px;vertical-align:middle;">👤</span>
         <span id="pointsBadge" class="badge" style="margin-left:4px;display:none;font-size:11px;">0</span>
       </a>

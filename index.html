@@ -2091,6 +2091,64 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
 
   </script>
   <script type="module" src="assets/header-account.js"></script>
+  <!-- Fallback: simple non-module account menu toggle for environments where modules or
+       module imports fail (keeps look/functionality while we debug the module build). -->
+  <script>
+  (function(){
+    try{
+      // If the module version already created the account menu, don't run fallback.
+      if (document.getElementById('accountMenu')) return;
+      // Recreate the button to clear any stale handlers.
+      const old = document.getElementById('btnMine') || document.getElementById('btnAccount');
+      if (old){ const clone = old.cloneNode(true); old.replaceWith(clone); }
+      const btn = document.getElementById('btnMine') || document.getElementById('btnAccount');
+      if (!btn) return;
+
+      const ITEMS = [
+        { label: 'Moje vstopnice & kuponi', url: '/my.html' },
+        { label: 'Nagrade', url: '/my.html#rewardsHistory' },
+        { label: 'Unovči točke', url: '/my.html#pointsStore' }
+      ];
+
+      function ensureMenu(){
+        let m = document.getElementById('simpleAccountMenu');
+        if (m) return m;
+        m = document.createElement('div');
+        m.id = 'simpleAccountMenu';
+        m.style.position = 'absolute';
+        m.style.minWidth = '200px';
+        m.style.background = getComputedStyle(document.documentElement).getPropertyValue('--card') || '#fff';
+        m.style.border = '1px solid rgba(0,0,0,0.06)';
+        m.style.borderRadius = '12px';
+        m.style.padding = '6px';
+        m.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)';
+        m.style.zIndex = 9999;
+        m.hidden = true;
+        ITEMS.forEach(it=>{
+          const a = document.createElement('a');
+          a.href = it.url; a.textContent = it.label; a.style.display='block';
+          a.style.padding='8px 10px'; a.style.color='inherit'; a.style.textDecoration='none';
+          a.addEventListener('click', function(e){ /* let normal navigation happen */ });
+          m.appendChild(a);
+        });
+        document.body.appendChild(m);
+        return m;
+      }
+
+      const menu = ensureMenu();
+      btn.addEventListener('click', function(e){ try{ e.preventDefault(); e.stopPropagation(); }catch(_){ }
+        const rect = btn.getBoundingClientRect();
+        menu.style.top = (rect.bottom + 6) + 'px';
+        const preferredLeft = rect.left;
+        const maxLeft = Math.max(8, window.innerWidth - (menu.offsetWidth || 220) - 8);
+        menu.style.left = Math.min(preferredLeft, maxLeft) + 'px';
+        menu.hidden = !menu.hidden;
+      }, { passive: false });
+
+      document.addEventListener('click', function(ev){ if (!menu.contains(ev.target) && !btn.contains(ev.target)){ menu.hidden = true; } });
+    }catch(err){ console.error('account fallback failed', err); }
+  })();
+  </script>
   <script src="assets/app-logic.js"></script>
   <div style="margin:2em 0">
   <h3>Test vpis / registracija (debug)</h3>

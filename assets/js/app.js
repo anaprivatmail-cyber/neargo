@@ -287,10 +287,11 @@ $("#btnPremiumTop")?.addEventListener("click",()=>{
   if (!isLoggedIn()) { redirectToLogin({action:'premium'}); return; }
   window.location.href = '/premium.html';
 });
-$("#btnMine")?.addEventListener("click",()=>{
-  if (!isLoggedIn()) { redirectToLogin({action:'points'}); return; }
-  window.location.href = '/my.html';
-});
+// btnMine click handler moved to header-account.js to support dropdown menu
+// $("#btnMine")?.addEventListener("click",()=>{
+//   if (!isLoggedIn()) { redirectToLogin({action:'points'}); return; }
+//   window.location.href = '/my.html';
+// });
 
 // Nakup kupona/vstopnice
 document.addEventListener('click', function(e) {

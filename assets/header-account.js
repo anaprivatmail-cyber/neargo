@@ -354,6 +354,12 @@
     button.dataset.accountMenuBound = '1';
     button.setAttribute('aria-haspopup', 'true');
     button.setAttribute('aria-expanded', 'false');
+    // Ensure avatar is on top and receives clicks (avoid nearby Premium button intercepts)
+    try{
+      button.style.position = button.style.position || 'relative';
+      button.style.zIndex = '3000';
+      button.style.cursor = 'pointer';
+    }catch(e){}
     button.addEventListener('click', onButtonClick);
   }
 

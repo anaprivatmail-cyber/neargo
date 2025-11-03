@@ -48,8 +48,13 @@ try{ window.__header_account_loaded = true; }catch(_){ }
     try{ const mod = await import('/assets/supabase-client.js'); return mod.supabase; }catch(e){ console.warn('[header-account] supabase import failed', e); return null; }
   }
 
-  // Internal flags to avoid re-registering listeners on every render
-  let __ha_auth_registered = false;
+  // Internal flags to avoid re-registering listeners on every render.
+  // Use globals so multiple script evaluations (module + fallback, or
+  // hot-reloads) don't each register their own listener and cause
+  // runaway render loops.
+  if (typeof window.__ha_auth_registered === 'undefined') window.__ha_auth_registered = false;
+  if (typeof window.__ha_auth_subscription === 'undefined') window.__ha_auth_subscription = null;
+  if (typeof window.__ha_render_scheduled === 'undefined') window.__ha_render_scheduled = false;
 
   async function checkPremiumStatus(supabase, userId){
     // Try to detect active subscription in `premium_subscriptions` (safe, may be missing)
@@ -229,9 +234,23 @@ try{ window.__header_account_loaded = true; }catch(_){ }
 
     // Watch auth changes to re-render state if needed -- register only once
     try{
-      if (!__ha_auth_registered && supabase?.auth?.onAuthStateChange){
-        __ha_auth_registered = true;
-        supabase.auth.onAuthStateChange(()=>render());
+      // Register auth state change listener only once globally. If a
+      // previous subscription exists, reuse it. Debounce calls to render
+      // to avoid rapid duplicate invocations.
+      if (!window.__ha_auth_registered && supabase?.auth?.onAuthStateChange){
+        window.__ha_auth_registered = true;
+        // If the API returns an unsubscribe-able subscription, keep it so
+        // we can avoid double-registering on future reloads.
+        const maybe = supabase.auth.onAuthStateChange((event, session) => {
+          // Debounce render calls to collapse rapid successive events.
+          if (window.__ha_render_scheduled) return;
+          window.__ha_render_scheduled = true;
+          setTimeout(()=>{
+            window.__ha_render_scheduled = false;
+            try{ render(); }catch(_){ }
+          }, 50);
+        });
+        try{ window.__ha_auth_subscription = maybe?.data?.subscription || maybe; }catch(_){ /* ignore */ }
       }
     }catch(_){ }
   }

@@ -405,7 +405,6 @@
     </div>
     <div style="display:flex;gap:10px;align-items:center;">
       <a class="pill premium-badge" id="btnPremiumTop" href="/premium.html">Premium</a>
-      <!-- Recreated btnMine to ensure clean event handling (same look and place) -->
       <a class="pill" id="btnMine" href="#" role="button" aria-haspopup="true" aria-expanded="false" title="Moje vstopnice & kuponi" style="min-width:50px;text-align:center;padding:6px 10px;font-size:18px;">
         <span style="font-size:20px;vertical-align:middle;">👤</span>
         <span id="pointsBadge" class="badge" style="margin-left:4px;display:none;font-size:11px;">0</span>
@@ -2100,7 +2099,8 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
   }
   </script>
 
-  <script type="module" src="assets/header-account.js"></script>
+  <!-- header-account is cache-busted with a short commit hash to avoid long-edge cache issues -->
+  <script type="module" src="assets/header-account.js?v=8ba1827"></script>
   <!-- Fallback: simple non-module account menu toggle for environments where modules or
        module imports fail (keeps look/functionality while we debug the module build). -->
   <script>

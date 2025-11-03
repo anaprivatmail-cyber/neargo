@@ -9,12 +9,22 @@
 
 	const MENU_ID = 'nea-account-menu';
 	const PANEL_ID = 'nea-account-panel';
+	// Celoten predlagani meni (začne pri Nagrade)
 	const MENU_ITEMS = [
-		{label: 'Moje', url: '/my.html'},
-		{label: 'Nagrade', url: '/my.html#rewardsHistory'},
-		{label: 'Premium obvestila', url: '/premium.html#earlyNotifySection'},
-		{label: 'Uredi profil', url: '/my.html#profile'},
-		{label: 'Odjava', action: 'signout'}
+		{label: 'Nagrade', url: '/my.html#rewardsHistory', icon: '🎁'},
+		{label: 'Unovči točke', url: '/my.html#pointsStore', icon: '🏬'},
+		{label: 'Napredek do nagrade', url: '/my.html#pointsProgressWrap', icon: '📈'},
+		{label: 'Moje vstopnice & kuponi', url: '/my.html', icon: '🎟️'},
+		{label: 'Vstopnice', url: '/my.html#tickets', icon: '🎫'},
+		{label: 'Kuponi', url: '/my.html#coupons', icon: '🏷️'},
+		{label: 'Zgodovina nakupov', url: '/my.html#purchases', icon: '🧾'},
+		{label: 'Premium obvestila', url: '/premium.html#earlyNotifySection', icon: '🔔'},
+		{label: 'Upravljanje Premium', url: '/premium.html#manage', icon: '⭐'},
+		{label: 'Uredi profil', url: '/my.html#profile', icon: '⚙️'},
+		{label: 'Nastavitve obvestil', url: '/my.html#notificationPrefs', icon: '🔧'},
+		{label: 'Povabi prijatelje', url: '/my.html#referralCard', icon: '🤝'},
+		{label: 'Pomoč & Kontakt', url: '/contact.html', icon: '❓'},
+		{label: 'Odjava', action: 'signout', icon: '🚪'}
 	];
 
 	function addStyles(){

@@ -180,5 +180,13 @@ header .nav > .second-row{ justify-content:flex-start !important; }
 #langWrap{ order:1; }
 #btnMine{ order:2; margin-left:auto; }
 
+/* Ensure avatar is clickable and not covered by overlays */
+#btnMine, #btnAccount{
+  position:relative; /* preserve stacking context */
+  z-index: 1100; /* above header children but below menu which is 2000 */
+  pointer-events: auto !important;
+  cursor: pointer;
+}
+
 /* skrij native <select id="lang">, da ne bo dvojnega "SL" */
 #lang{ display:none !important; }

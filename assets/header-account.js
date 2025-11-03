@@ -116,6 +116,30 @@
       }
     });
 
+    // Delegated capture handler on document to ensure avatar clicks are
+    // handled even if other scripts attach handlers that prevent default
+    // or stop propagation. We use a short debounce to avoid double-toggles.
+    let __neargo_last_toggle = 0;
+    function __neargo_delegated_avatar_click(ev){
+      const btnEl = ev.target.closest('#btnAccount,#btnMine');
+      if (!btnEl) return;
+      // avoid double toggle within 50ms
+      const now = Date.now();
+      if (now - __neargo_last_toggle < 50) return;
+      __neargo_last_toggle = now;
+      try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
+      console.debug('[header-account] delegated avatar click (capture)');
+      const rect = btnEl.getBoundingClientRect();
+      menu.style.top = (rect.bottom + 6) + 'px';
+      const preferredLeft = rect.left;
+      const maxLeft = Math.max(8, window.innerWidth - (menu.offsetWidth || 240) - 8);
+      menu.style.left = Math.min(preferredLeft, maxLeft) + 'px';
+      menu.style.right = 'auto';
+      menu.hidden = !menu.hidden;
+      try{ btnEl.setAttribute('aria-expanded', String(!menu.hidden)); }catch(_){ }
+    }
+    document.addEventListener('click', __neargo_delegated_avatar_click, { capture: true });
+
     // Click outside to close
     document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && !btn.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded','false'); } });
   }

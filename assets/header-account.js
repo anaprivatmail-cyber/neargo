@@ -23,7 +23,7 @@ console.debug('[header-account] module loaded');
   // dynamically after we detect the user's premium status.
   const MENU_ITEMS = [
     { id: 'mi-account', label: 'Račun', url: '/account/account.html', icon: ICONS.user },
-    { id: 'mi-purchases', label: 'Moji nakupi / kuponi', url: '/my.html', icon: ICONS.gift },
+  { id: 'mi-purchases', label: 'Moji nakupi / kuponi', url: '/account/favorites.html', icon: ICONS.gift },
     { id: 'mi-rewards', label: 'Nagrade', url: '/account/rewards.html', icon: ICONS.gift },
     { id: 'mi-notifs', label: 'Predhodna obvestila', url: '/account/notifications.html', icon: ICONS.bell },
     { id: 'mi-signout', label: 'Odjava', action: 'signout', icon: ICONS.door }
@@ -152,7 +152,8 @@ console.debug('[header-account] module loaded');
         upgrade.className = 'account-menu-item';
         upgrade.setAttribute('role','menuitem');
         upgrade.setAttribute('tabindex','-1');
-        upgrade.href = '/premium/upgrade.html';
+  // point to the existing premium page for now
+  upgrade.href = '/premium.html';
         upgrade.innerHTML = `<span aria-hidden="true">${ICONS.gift}</span><span style="font-weight:800;color:var(--accent);">Nadgradi na Premium</span>`;
         // insert after account item if exists, otherwise append
         const acc = menu.querySelector('#mi-account');

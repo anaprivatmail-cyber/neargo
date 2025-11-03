@@ -58,10 +58,9 @@
     const menu = buildMenu();
     if (!btn) { console.debug('[header-account] no button found (#btnAccount or #btnMine)'); return; }
 
-    if (!isLoggedIn){
-      btn.addEventListener('click', (e)=>{ e.preventDefault(); window.Auth ? Auth.open() : location.href='/login.html'; });
-      return;
-    }
+    // Always attach the click handler so the menu can be tested even when
+    // the user isn't logged in. If not logged in, clicking a menu link
+    // will redirect to the login flow.
 
     btn.setAttribute('aria-haspopup','true');
     btn.setAttribute('aria-expanded', 'false');
@@ -81,6 +80,23 @@
       menu.hidden = !menu.hidden;
       btn.setAttribute('aria-expanded', String(!menu.hidden));
       console.debug('[header-account] menu.hidden after:', menu.hidden);
+    });
+
+    // Intercept clicks on menu links when not logged in so we can direct
+    // users to the login flow instead of navigating away.
+    menu.addEventListener('click', (e)=>{
+      const a = e.target.closest('a');
+      if (!a) return;
+      if (!isLoggedIn){
+        e.preventDefault();
+        if (window.redirectToLogin) {
+          try{ window.redirectToLogin({ action: 'points', url: a.href }); }catch(_){ location.href = '/login.html'; }
+        } else if (window.Auth) {
+          try{ Auth.open(); }catch(_){ location.href = '/login.html'; }
+        } else {
+          location.href = '/login.html';
+        }
+      }
     });
 
     // Click outside to close

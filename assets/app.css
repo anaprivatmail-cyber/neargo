@@ -55,6 +55,26 @@ header .nav > .second-row{
 }
 #langWrap.open .lang-menu{ display:flex }
 
+/* Account menu styling (built by header-account.js) */
+.account-menu{
+  transition: opacity .12s ease, transform .12s ease;
+  opacity: 1;
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.12);
+  overflow: hidden;
+}
+.account-menu[hidden]{
+  opacity: 0;
+  pointer-events: none;
+}
+.account-menu .account-menu-item{ display:block; }
+.account-menu .account-menu-item:hover{ background: rgba(0,0,0,0.04); }
+
+@media (max-width: 600px) {
+  .account-menu{ left:8px !important; right:8px !important; min-width: auto !important; width: calc(100% - 16px) !important; }
+}
+
 /* Vsebina pod glavo (JS nastavi točno višino) */
 main, #app{ padding-top: calc(var(--header-h,108px) + 8px) !important; }
 

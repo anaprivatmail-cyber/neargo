@@ -311,6 +311,10 @@
     // Show menu for everyone. If not logged in, show fallback identity and
     // replace the sign-out control with a login action.
     event.preventDefault();
+    // Prevent other click handlers (e.g. app.js) from intercepting this click
+    // and showing an upgrade/login prompt. stopImmediatePropagation ensures
+    // our behavior takes precedence.
+    if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
     await refreshSession();
     const identity = resolveIdentity();
     const loggedIn = hasIdentity(identity);

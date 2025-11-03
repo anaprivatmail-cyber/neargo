@@ -48,6 +48,9 @@ try{ window.__header_account_loaded = true; }catch(_){ }
     try{ const mod = await import('/assets/supabase-client.js'); return mod.supabase; }catch(e){ console.warn('[header-account] supabase import failed', e); return null; }
   }
 
+  // Internal flags to avoid re-registering listeners on every render
+  let __ha_auth_registered = false;
+
   async function checkPremiumStatus(supabase, userId){
     // Try to detect active subscription in `premium_subscriptions` (safe, may be missing)
     if (!supabase || !userId) return false;
@@ -177,48 +180,60 @@ try{ window.__header_account_loaded = true; }catch(_){ }
       }
     };
 
-    // Primary click handler (capture to beat other handlers)
-    function onAvatarClick(ev){
-      try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
-      const willOpen = menu.hidden === true;
-      position(menu, btn);
-      toggle(willOpen);
-    }
-    btn.addEventListener('click', onAvatarClick, { capture:true });
+    // Attach interactive handlers only once per menu to avoid duplicates
+    try{
+      if (!menu.dataset.initialized){
+        // Primary click handler (capture to beat other handlers)
+        function onAvatarClick(ev){
+          try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
+          const willOpen = menu.hidden === true;
+          position(menu, btn);
+          toggle(willOpen);
+        }
+        btn.addEventListener('click', onAvatarClick, { capture:true });
 
-    // Click on menu items
-    menu.addEventListener('click', async (e)=>{
-      const a = e.target.closest('[role="menuitem"]');
-      if (!a) return;
-      const action = a.dataset.action;
-      if (action === 'signout'){
-        e.preventDefault();
-        await signOutSequence();
-        return;
+        // Click on menu items
+        menu.addEventListener('click', async (e)=>{
+          const a = e.target.closest('[role="menuitem"]');
+          if (!a) return;
+          const action = a.dataset.action;
+          if (action === 'signout'){
+            e.preventDefault();
+            await signOutSequence();
+            return;
+          }
+          // If not logged in, redirect to login first
+          if (!isLoggedIn){ e.preventDefault(); try{ window.redirectToLogin ? window.redirectToLogin({ action:'nav', url: a.href }) : (location.href='/login.html'); }catch(_){ location.href='/login.html'; } return; }
+          // allow navigation otherwise
+        });
+
+        // Keyboard navigation inside the menu
+        menu.addEventListener('keydown', (e)=>{
+          const items = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+          const idx = items.indexOf(document.activeElement);
+          if (e.key === 'ArrowDown'){ e.preventDefault(); const next = items[(idx+1)%items.length]; next && next.focus(); }
+          else if (e.key === 'ArrowUp'){ e.preventDefault(); const prev = items[(idx-1+items.length)%items.length]; prev && prev.focus(); }
+          else if (e.key === 'Escape'){ toggle(false); btn.focus(); }
+          else if (e.key === 'Enter'){ document.activeElement && document.activeElement.click(); }
+        });
+
+        // Close when clicking outside
+        document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && !btn.contains(e.target)) { toggle(false); } });
+
+        // Fallback onclick for older handlers
+        try{ btn.onclick = (e)=>{ try{ e.preventDefault(); }catch(_){ } position(menu, btn); toggle(menu.hidden === true); }; }catch(_){ }
+
+        menu.dataset.initialized = '1';
       }
-      // If not logged in, redirect to login first
-      if (!isLoggedIn){ e.preventDefault(); try{ window.redirectToLogin ? window.redirectToLogin({ action:'nav', url: a.href }) : (location.href='/login.html'); }catch(_){ location.href='/login.html'; } return; }
-      // allow navigation otherwise
-    });
+    }catch(e){ console.warn('[header-account] attach handlers failed', e); }
 
-    // Keyboard navigation inside the menu
-    menu.addEventListener('keydown', (e)=>{
-      const items = Array.from(menu.querySelectorAll('[role="menuitem"]'));
-      const idx = items.indexOf(document.activeElement);
-      if (e.key === 'ArrowDown'){ e.preventDefault(); const next = items[(idx+1)%items.length]; next.focus(); }
-      else if (e.key === 'ArrowUp'){ e.preventDefault(); const prev = items[(idx-1+items.length)%items.length]; prev.focus(); }
-      else if (e.key === 'Escape'){ toggle(false); btn.focus(); }
-      else if (e.key === 'Enter'){ document.activeElement && document.activeElement.click(); }
-    });
-
-    // Close when clicking outside
-    document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && !btn.contains(e.target)) { toggle(false); } });
-
-    // Fallback onclick for older handlers
-    try{ btn.onclick = (e)=>{ try{ e.preventDefault(); }catch(_){ } position(menu, btn); toggle(menu.hidden === true); }; }catch(_){ }
-
-    // Watch auth changes to re-render state if needed
-    try{ if (supabase?.auth?.onAuthStateChange) supabase.auth.onAuthStateChange(()=>render()); }catch(_){ }
+    // Watch auth changes to re-render state if needed -- register only once
+    try{
+      if (!__ha_auth_registered && supabase?.auth?.onAuthStateChange){
+        __ha_auth_registered = true;
+        supabase.auth.onAuthStateChange(()=>render());
+      }
+    }catch(_){ }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render); else setTimeout(render,0);

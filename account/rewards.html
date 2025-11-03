@@ -1,40 +1,6 @@
 <!doctype html>
 <html lang="sl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Nagrade — NearGo</title>
-  <link rel="stylesheet" href="/assets/css/styles.css">
-  <style>.wrap{max-width:900px;margin:18px auto;padding:12px}.muted{color:#6b7b8b} .row{margin-bottom:12px}</style>
-</head>
-<body>
-  <div class="wrap">
-    <a href="/account/account.html" class="btn link">← Nazaj</a>
-    <h1>Nagrade</h1>
-    <div id="balance" class="card" style="margin-top:12px;padding:12px">Nalaganje stanja…</div>
-
-    <div class="card" style="margin-top:12px;padding:12px">
-      <h3>Pretvori točke v kredite</h3>
-      <div class="row"><input id="convertPoints" type="number" min="1" placeholder="Št. točk"></div>
-      <div class="row"><button id="btnConvert" class="btn">Pretvori</button><span id="convInfo" class="muted"></span></div>
-    </div>
-
-    <div class="card" style="margin-top:12px;padding:12px">
-      <h3>Vnovči kredite</h3>
-      <div class="row"><select id="redeemType"><option value="ticket">Ticket</option><option value="coupon">Coupon</option><option value="premium">Premium</option></select></div>
-      <div class="row"><input id="redeemAmount" type="number" min="0.01" step="0.01" placeholder="Znesek (€)"></div>
-      <div class="row"><button id="btnRedeem" class="btn">Vnovči</button><span id="redeemInfo" class="muted"></span></div>
-    </div>
-
-    <div style="margin-top:12px"><h3>Zgodovina</h3><div id="history" class="muted">Nalaganje…</div></div>
-  </div>
-
-  <script type="module" src="/account/rewards.js"></script>
-</body>
-</html>
-<!doctype html>
-<html lang="sl">
-<head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Moje – Nagrade</title>

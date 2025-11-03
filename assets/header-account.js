@@ -366,15 +366,37 @@
     button.addEventListener('click', onButtonClick, true);
   }
 
+  function prepareAccountButton(btn){
+    if (!btn) return null;
+    if (btn.dataset.accountMenuPrepared) return btn;
+    btn.dataset.accountMenuPrepared = '1';
+    try{
+      btn.removeAttribute('href');
+      btn.removeAttribute('title');
+      btn.removeAttribute('data-tooltip');
+      btn.classList.add('nea-account-btn');
+      btn.setAttribute('aria-label','Moj račun');
+      btn.setAttribute('role','button');
+      btn.setAttribute('tabindex','0');
+      if (btn.tagName !== 'BUTTON' && typeof btn.removeAttribute === 'function'){
+        btn.removeAttribute('onclick');
+      }
+      btn.style.cursor = 'pointer';
+      btn.style.position = btn.style.position || 'relative';
+      btn.style.zIndex = '3000';
+    }catch(e){}
+    return btn;
+  }
+
   function observeButton(){
-    const existing = document.getElementById('btnAccount') || document.getElementById('btnMine');
+    const existing = prepareAccountButton(document.getElementById('btnAccount') || document.getElementById('btnMine'));
     if (existing){
       bindButton(existing);
       return;
     }
     if (state.observer) return;
     state.observer = new MutationObserver(()=>{
-      const candidate = document.getElementById('btnAccount') || document.getElementById('btnMine');
+      const candidate = prepareAccountButton(document.getElementById('btnAccount') || document.getElementById('btnMine'));
       if (candidate){
         bindButton(candidate);
         state.observer.disconnect();
@@ -388,29 +410,29 @@
   // inject a minimal avatar button into the `.nav` container so the
   // menu can bind everywhere without editing each HTML file.
   function ensureAccountButton(){
-    if (document.getElementById('btnAccount') || document.getElementById('btnMine')) return;
     const nav = document.querySelector('.nav');
-    if (!nav) return;
+    if (!nav) return null;
+    const existing = document.getElementById('btnAccount') || document.getElementById('btnMine');
+    if (existing){
+      const prepared = prepareAccountButton(existing);
+      if (prepared) bindButton(prepared);
+      return prepared;
+    }
     try{
-      const a = document.createElement('a');
-      a.className = 'pill';
-      a.id = 'btnMine';
-      a.href = '#';
-      a.setAttribute('role','button');
-      a.setAttribute('aria-haspopup','true');
-      a.setAttribute('aria-expanded','false');
-      a.title = 'Moje vstopnice & kuponi';
-      a.style.marginLeft = 'auto';
-      a.style.display = 'inline-flex';
-      a.style.alignItems = 'center';
-      a.style.gap = '6px';
-      a.style.padding = '6px 10px';
-      a.style.fontSize = '18px';
-      a.innerHTML = '<span style="font-size:20px;vertical-align:middle;">👤</span>' +
-                    '<span id="pointsBadge" class="badge" style="margin-left:4px;display:none;font-size:11px;">0</span>';
-      nav.appendChild(a);
-      
-    }catch(e){/* ignore injection errors */}
+      const btn = document.createElement('button');
+      btn.id = 'btnMine';
+      btn.type = 'button';
+      btn.className = 'pill nea-account-btn';
+      btn.innerHTML = '<span aria-hidden="true" style="font-size:20px;">👤</span>';
+      btn.setAttribute('aria-label','Moj račun');
+      btn.setAttribute('aria-haspopup','true');
+      btn.setAttribute('aria-expanded','false');
+      btn.style.marginLeft = 'auto';
+      nav.appendChild(btn);
+      const prepared = prepareAccountButton(btn);
+      if (prepared) bindButton(prepared);
+      return prepared;
+    }catch(e){ return null; }
   }
 
   async function watchAuth(){
@@ -425,8 +447,8 @@
 
   function boot(){
     injectStyles();
-    ensureAccountButton();
-    observeButton();
+    const ensured = ensureAccountButton();
+    if (!ensured) observeButton();
     // Refresh session once
     refreshSession().catch(()=>{});
     watchAuth();

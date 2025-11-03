@@ -119,8 +119,13 @@
     // Click outside to close
     document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && !btn.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded','false'); } });
   }
-
-  document.addEventListener('DOMContentLoaded', ()=>{ render(); });
+  // Ensure render runs whether DOMContentLoaded already fired or not
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', render);
+  } else {
+    // DOM already ready
+    setTimeout(render, 0);
+  }
   (async ()=>{ const s = await getSupabase(); s?.auth?.onAuthStateChange && s.auth.onAuthStateChange(()=>render()); })();
 
 })();

@@ -53,9 +53,10 @@
     const supabase = await getSupabase();
     const sessionRes = await (supabase?.auth?.getSession ? supabase.auth.getSession() : Promise.resolve({ data: { session: null } }));
     const isLoggedIn = !!sessionRes?.data?.session?.user?.id;
+    console.debug('[header-account] render()', { isLoggedIn });
     const btn = document.getElementById('btnAccount') || document.getElementById('btnMine');
     const menu = buildMenu();
-    if (!btn) return;
+    if (!btn) { console.debug('[header-account] no button found (#btnAccount or #btnMine)'); return; }
 
     if (!isLoggedIn){
       btn.addEventListener('click', (e)=>{ e.preventDefault(); window.Auth ? Auth.open() : location.href='/login.html'; });
@@ -67,6 +68,7 @@
     // Reposition the menu each time the user clicks the avatar (handles scroll/resize)
     btn.addEventListener('click', (e)=>{
       e.preventDefault();
+      console.debug('[header-account] avatar clicked, menu.hidden before:', menu.hidden);
   const rect = btn.getBoundingClientRect();
   // position menu under the button using left/top (more reliable across layouts)
   menu.style.top = (rect.bottom + 6) + 'px';
@@ -78,6 +80,7 @@
   menu.style.right = 'auto';
       menu.hidden = !menu.hidden;
       btn.setAttribute('aria-expanded', String(!menu.hidden));
+      console.debug('[header-account] menu.hidden after:', menu.hidden);
     });
 
     // Click outside to close

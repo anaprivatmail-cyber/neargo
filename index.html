@@ -2115,9 +2115,13 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
       if (!btn) return;
 
       const ITEMS = [
-        { label: 'Moje vstopnice & kuponi', url: '/my.html' },
-        { label: 'Nagrade', url: '/my.html#rewardsHistory' },
-        { label: 'Unovči točke', url: '/my.html#pointsStore' }
+        { id: 'mi-rewards', label: 'Nagrade', url: '/my.html#rewardsHistory', icon: '🎁' },
+        { id: 'mi-store', label: 'Unovči točke', url: '/my.html#pointsStore', icon: '🏬' },
+        { id: 'mi-progress', label: 'Napredek do nagrade', url: '/my.html#pointsProgressWrap', icon: '📈' },
+        { id: 'mi-my', label: 'Moje vstopnice & kuponi', url: '/my.html', icon: '🎟️' },
+        { id: 'mi-tickets', label: 'Vstopnice', url: '/my.html#tickets', icon: '🎫' },
+        { id: 'mi-coupons', label: 'Kuponi', url: '/my.html#coupons', icon: '🏷️' },
+        { id: 'mi-purchases', label: 'Zgodovina nakupov', url: '/my.html#purchases', icon: '🧾' }
       ];
 
       function ensureMenu(){
@@ -2136,9 +2140,17 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
         m.hidden = true;
         ITEMS.forEach(it=>{
           const a = document.createElement('a');
-          a.href = it.url; a.textContent = it.label; a.style.display='block';
-          a.style.padding='8px 10px'; a.style.color='inherit'; a.style.textDecoration='none';
-          a.addEventListener('click', function(e){ /* let normal navigation happen */ });
+          a.id = it.id || '';
+          a.href = it.url;
+          a.className = 'account-menu-item';
+          a.style.display = 'flex';
+          a.style.alignItems = 'center';
+          a.style.gap = '10px';
+          a.style.padding = '8px 10px';
+          a.style.borderRadius = '8px';
+          a.style.color = 'inherit';
+          a.style.textDecoration = 'none';
+          a.innerHTML = `<span style="font-size:18px">${it.icon || ''}</span><span style="font-weight:800">${it.label}</span>`;
           m.appendChild(a);
         });
         document.body.appendChild(m);

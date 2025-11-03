@@ -64,6 +64,23 @@
 
     btn.setAttribute('aria-haspopup','true');
     btn.setAttribute('aria-expanded', 'false');
+
+    // Capture-phase handler: runs before other click handlers and stops
+    // propagation so other scripts (e.g. app.js) can't override the toggle.
+    function __neargo_avatar_capture_handler(ev){
+      try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
+      console.debug('[header-account] avatar clicked (capture), menu.hidden before:', menu.hidden);
+      const rect = btn.getBoundingClientRect();
+      menu.style.top = (rect.bottom + 6) + 'px';
+      const preferredLeft = rect.left;
+      const maxLeft = Math.max(8, window.innerWidth - (menu.offsetWidth || 240) - 8);
+      menu.style.left = Math.min(preferredLeft, maxLeft) + 'px';
+      menu.style.right = 'auto';
+      menu.hidden = !menu.hidden;
+      btn.setAttribute('aria-expanded', String(!menu.hidden));
+      console.debug('[header-account] menu.hidden after (capture):', menu.hidden);
+    }
+    btn.addEventListener('click', __neargo_avatar_capture_handler, { capture: true });
     // Reposition the menu each time the user clicks the avatar (handles scroll/resize)
     btn.addEventListener('click', (e)=>{
       e.preventDefault();

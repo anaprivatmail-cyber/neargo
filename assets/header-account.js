@@ -130,10 +130,18 @@
   }
 
   function buildMenuItems(identity){
-    // Build basic menu items. Do NOT include any Premium item inside the dropdown.
-    const items = MENU_CORE.map(it=>({ ...it }));
-    items.push({ ...MENU_ORGANIZER });
-    return items;
+    // Build the dropdown exactly as requested:
+    // - Nagrade -> /account/rewards.html
+    // - Moje -> /my.html
+    // - Predhodna obvestila -> /account/notifications.html
+    // - Nastavitve / Račun -> /account/account.html
+    // These pages already exist in the repo and are linked here.
+    return [
+      { id: 'mi-rewards', label: 'Nagrade', url: '/account/rewards.html', icon: '🏆' },
+      { id: 'mi-dashboard', label: 'Moje', url: '/my.html', icon: '🎟️' },
+      { id: 'mi-notifications', label: 'Predhodna obvestila', url: '/account/notifications.html', icon: '🔔' },
+      { id: 'mi-account', label: 'Nastavitve / Račun', url: '/account/account.html', icon: '⚙️' }
+    ];
   }
 
   

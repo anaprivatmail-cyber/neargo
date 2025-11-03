@@ -50,10 +50,11 @@
   function handleLogout(event) {
     event.preventDefault();
     
-    // Clear user data from localStorage
+    // Clear all user data from localStorage and sessionStorage
     localStorage.removeItem('user_email');
     localStorage.removeItem('user_name');
     localStorage.removeItem('supabase.auth.token');
+    sessionStorage.clear();
     
     // Show confirmation toast if available
     if (window._toast) {
@@ -63,10 +64,11 @@
     // Close menu
     accountMenu.style.display = 'none';
     
-    // Redirect to home after a short delay
+    // Redirect to home after toast is visible
+    const REDIRECT_DELAY_MS = 500;
     setTimeout(() => {
       window.location.href = '/';
-    }, 500);
+    }, REDIRECT_DELAY_MS);
   }
 
   // Handle settings click
@@ -118,6 +120,9 @@
       });
     });
 
+    // Observe only text changes in the badge
+    // Note: Observer will be automatically cleaned up when page unloads
+    // For SPAs, consider storing observer reference and calling disconnect() on component unmount
     observer.observe(pointsBadge, {
       characterData: true,
       childList: true,

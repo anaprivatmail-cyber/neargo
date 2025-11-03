@@ -4,6 +4,8 @@
 (function(){
   'use strict';
 
+  try{ window.__header_account_loaded = true; }catch(e){}
+
   const STYLE_ID = 'account-menu-styles';
   const MENU_CORE = [
     { id: 'mi-dashboard', label: 'Moje vstopnice & kuponi', url: '/my.html', icon: '�️' },
@@ -22,7 +24,8 @@
     supabasePromise: null,
     session: null,
     observer: null,
-    globalBound: false
+    globalBound: false,
+    docBound: false
   };
 
   const STYLE_CSS = `
@@ -316,6 +319,8 @@
   }
 
   async function onButtonClick(event){
+    if (event && event.__accountMenuHandled) return;
+    if (event) event.__accountMenuHandled = true;
     // Show menu for everyone. If not logged in, show fallback identity and
     // replace the sign-out control with a login action.
     // Prevent other click handlers (e.g. app.js) from intercepting this click
@@ -350,8 +355,9 @@
   }
 
   function bindButton(button){
-    if (!button || button.dataset.accountMenuBound) return;
+    if (!button) return;
     state.btn = button;
+    if (button.dataset.accountMenuBound) return;
     button.dataset.accountMenuBound = '1';
     button.setAttribute('aria-haspopup', 'true');
     button.setAttribute('aria-expanded', 'false');
@@ -364,6 +370,9 @@
     // Use capture phase so this handler runs before other bubble-phase handlers
     // that might intercept the click and show the Premium prompt.
     button.addEventListener('click', onButtonClick, true);
+    // Also register a bubble-phase listener as a safety net in case capture
+    // listeners are blocked or detached by other scripts.
+    button.addEventListener('click', onButtonClick, false);
   }
 
   function prepareAccountButton(btn){
@@ -445,10 +454,23 @@
     }
   }
 
+  function handleDocumentClick(event){
+    if (event?.__accountMenuHandled) return;
+    const target = event?.target?.closest?.('#btnMine, #btnAccount, .nea-account-btn');
+    if (!target) return;
+    const prepared = prepareAccountButton(target);
+    bindButton(prepared);
+    onButtonClick(event);
+  }
+
   function boot(){
     injectStyles();
     const ensured = ensureAccountButton();
     if (!ensured) observeButton();
+    if (!state.docBound){
+      document.addEventListener('click', handleDocumentClick, true);
+      state.docBound = true;
+    }
     // Refresh session once
     refreshSession().catch(()=>{});
     watchAuth();

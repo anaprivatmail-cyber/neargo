@@ -6,14 +6,18 @@ console.debug('[header-account] script loaded');
 (function(){
   'use strict';
 
+  // Restored original menu items (from initial implementation):
+  // - 'Moje' opens the main user page
+  // - 'Nagrade' links to rewardsHistory
+  // - 'Premium obvestila' links to premium notifications
+  // - 'Uredi profil' anchors to profile editing
+  // - 'Odjava' triggers sign out
   const MENU_ITEMS = [
-    { id: 'mi-rewards', label: 'Nagrade', url: '/my.html#rewardsHistory', icon: '🎁' },
-    { id: 'mi-store', label: 'Unovči točke', url: '/my.html#pointsStore', icon: '🏬' },
-    { id: 'mi-progress', label: 'Napredek do nagrade', url: '/my.html#pointsProgressWrap', icon: '📈' },
-    { id: 'mi-my', label: 'Moje vstopnice & kuponi', url: '/my.html', icon: '🎟️' },
-    { id: 'mi-tickets', label: 'Vstopnice', url: '/my.html#tickets', icon: '🎫' },
-    { id: 'mi-coupons', label: 'Kuponi', url: '/my.html#coupons', icon: '🏷️' },
-    { id: 'mi-purchases', label: 'Zgodovina nakupov', url: '/my.html#purchases', icon: '🧾' }
+    { id: 'mi-my', label: 'Moje', url: '/my.html' },
+    { id: 'mi-rewards', label: 'Nagrade', url: '/my.html#rewardsHistory' },
+    { id: 'mi-premium', label: 'Premium obvestila', url: '/premium.html#earlyNotifySection' },
+    { id: 'mi-edit', label: 'Uredi profil', url: '/my.html#profile' },
+    { id: 'mi-signout', label: 'Odjava', action: 'signout' }
   ];
 
   async function getSupabase(){

@@ -1,5 +1,6 @@
 // assets/header-account.js
 // Lightweight header account dropdown that shows a short menu when clicking the avatar
+console.debug('[header-account] script loaded');
 // Supports both `#btnAccount` and legacy `#btnMine` anchors.
 
 (function(){

@@ -19,11 +19,13 @@ console.debug('[header-account] module loaded');
     door: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 21h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 21V7a2 2 0 0 1 2-2h6v16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" fill="currentColor"/></svg>'
   };
 
+  // Base menu items. We'll tweak/render additional items (upgrade badge / CTA)
+  // dynamically after we detect the user's premium status.
   const MENU_ITEMS = [
-    { id: 'mi-my', label: 'Moje', url: '/my.html', icon: ICONS.user },
-    { id: 'mi-rewards', label: 'Nagrade', url: '/my.html#rewardsHistory', icon: ICONS.gift },
-    { id: 'mi-premium', label: 'Premium obvestila', url: '/premium.html#earlyNotifySection', icon: ICONS.bell },
-    { id: 'mi-edit', label: 'Uredi profil', url: '/my.html#profile', icon: ICONS.edit },
+    { id: 'mi-account', label: 'Račun', url: '/account/account.html', icon: ICONS.user },
+    { id: 'mi-purchases', label: 'Moji nakupi / kuponi', url: '/my.html', icon: ICONS.gift },
+    { id: 'mi-rewards', label: 'Nagrade', url: '/account/rewards.html', icon: ICONS.gift },
+    { id: 'mi-notifs', label: 'Predhodna obvestila', url: '/account/notifications.html', icon: ICONS.bell },
     { id: 'mi-signout', label: 'Odjava', action: 'signout', icon: ICONS.door }
   ];
 
@@ -42,6 +44,16 @@ console.debug('[header-account] module loaded');
   async function getSupabase(){
     if (window.supabase) return window.supabase;
     try{ const mod = await import('/assets/supabase-client.js'); return mod.supabase; }catch(e){ console.warn('[header-account] supabase import failed', e); return null; }
+  }
+
+  async function checkPremiumStatus(supabase, userId){
+    // Try to detect active subscription in `premium_subscriptions` (safe, may be missing)
+    if (!supabase || !userId) return false;
+    try{
+      const { data, error } = await supabase.from('premium_subscriptions').select('status').eq('user_id', userId).maybeSingle();
+      if (error){ console.warn('[header-account] premium query error', error); return false; }
+      return !!(data && data.status === 'active');
+    }catch(e){ console.warn('[header-account] premium check failed', e); return false; }
   }
 
   function createMenu(){
@@ -91,6 +103,19 @@ console.debug('[header-account] module loaded');
     const supabase = await getSupabase();
     const sessionRes = await (supabase?.auth?.getSession ? supabase.auth.getSession() : Promise.resolve({ data: { session: null } }));
     const isLoggedIn = !!sessionRes?.data?.session?.user?.id;
+    const userId = sessionRes?.data?.session?.user?.id || null;
+    // Determine premium flag (best-effort): query premium_subscriptions, fallback to user metadata
+    let isPremium = false;
+    if (isLoggedIn){
+      try{
+        isPremium = await checkPremiumStatus(supabase, userId);
+        // fallback: check user metadata (if project stores a quick flag)
+        if (!isPremium){
+          const um = sessionRes?.data?.session?.user?.user_metadata || {};
+          isPremium = !!(um && (um.premium === true || um.is_premium === true || um.premium_active === true));
+        }
+      }catch(_){ isPremium = false; }
+    }
     console.debug('[header-account] render()', { isLoggedIn });
 
     const btn = document.getElementById('btnAccount') || document.getElementById('btnMine');
@@ -99,6 +124,37 @@ console.debug('[header-account] module loaded');
     const menu = createMenu();
     btn.setAttribute('aria-haspopup','true');
     btn.setAttribute('aria-expanded','false');
+
+    // Update header-level Upgrade visibility (if present)
+    try{
+      const topBtn = document.getElementById('btnPremiumTop');
+      if (topBtn) topBtn.hidden = !!isPremium;
+    }catch(_){ }
+
+    // Update account item label to include star badge if premium
+    try{
+      const acc = menu.querySelector('#mi-account');
+      if (acc){
+        acc.innerHTML = `<span aria-hidden="true">${ICONS.user}</span><span style="font-weight:800">Račun ${isPremium? '<span class="premium-badge' + '" style="margin-left:8px;">⭐</span>' : ''}</span>`;
+      }
+    }catch(_){ }
+
+    // Add or remove in-menu CTA "Nadgradi na Premium" when not premium
+    try{
+      const existingUpgrade = menu.querySelector('#mi-upgrade');
+      if (!isPremium && !existingUpgrade){
+        const upgrade = document.createElement('a');
+        upgrade.id = 'mi-upgrade';
+        upgrade.className = 'account-menu-item';
+        upgrade.setAttribute('role','menuitem');
+        upgrade.setAttribute('tabindex','-1');
+        upgrade.href = '/premium/upgrade.html';
+        upgrade.innerHTML = `<span aria-hidden="true">${ICONS.gift}</span><span style="font-weight:800;color:var(--accent);">Nadgradi na Premium</span>`;
+        // insert after account item if exists, otherwise append
+        const acc = menu.querySelector('#mi-account');
+        if (acc && acc.nextSibling) menu.insertBefore(upgrade, acc.nextSibling); else menu.appendChild(upgrade);
+      } else if (isPremium && existingUpgrade){ existingUpgrade.remove(); }
+    }catch(_){ }
 
     // Toggle function
     const toggle = (show) => {

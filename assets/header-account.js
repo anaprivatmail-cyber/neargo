@@ -58,7 +58,11 @@ console.debug('[header-account] module loaded');
 
   function createMenu(){
     let menu = document.getElementById('accountMenu');
-    if (menu) return menu;
+    // If menu exists from a previous script version, clear it so we can render fresh items
+    if (menu){
+      try{ menu.innerHTML = ''; }catch(_){ /* ignore */ }
+      return menu;
+    }
     injectStyles();
     menu = document.createElement('div');
     menu.id = 'accountMenu';

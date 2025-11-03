@@ -1,260 +1,417 @@
-// assets/header-account.js — polished, accessible account dropdown
-// Features:
-// - Injects scoped styles for a clean dropdown
-// - Inline SVG icons for consistent look
-// - Keyboard navigation (ArrowUp/Down, Enter, Escape)
-// - Uses Supabase client when available for sign-out, falls back to logout endpoint
-// - Works with #btnAccount or legacy #btnMine
-console.debug('[header-account] module loaded');
-// mark that the module succeeded to load so fallback won't run unnecessarily
-try{ window.__header_account_loaded = true; }catch(_){ }
+// assets/header-account.js
+// Account dropdown for the header avatar. Shows quick links with icons and handles Supabase sign-out.
 
 (function(){
   'use strict';
 
-  // Inline SVG icons (simple, compact)
-  const ICONS = {
-    user: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 20c0-3.313 2.687-6 6-6h4c3.313 0 6 2.687 6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    gift: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 12v9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3l1.5 3 3-1.5-1.5 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    bell: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 17h5l-1.403-1.403A2.997 2.997 0 0 1 18 13V10a6 6 0 1 0-12 0v3c0 .737-.293 1.44-.813 1.97L4 17h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    edit: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 21v-3.75L14.81 5.44a2 2 0 0 1 2.83 0l1.92 1.92a2 2 0 0 1 0 2.83L7.75 21H3z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    door: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 21h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 21V7a2 2 0 0 1 2-2h6v16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" fill="currentColor"/></svg>'
+  const STYLE_ID = 'account-menu-styles';
+  const MENU_CORE = [
+    { id: 'mi-dashboard', label: 'Moje vstopnice & kuponi', url: '/my.html', icon: '�️' },
+    { id: 'mi-rewards', label: 'Točke & nagrade', url: '/account/rewards.html', icon: '�' },
+    { id: 'mi-favourites', label: 'Najljubše', url: '/account/favorites.html', icon: '⭐' },
+    { id: 'mi-notifications', label: 'Obvestila', url: '/account/notifications.html', icon: '🔔' },
+    { id: 'mi-inbox', label: 'Sporočila', url: '/account/inbox.html', icon: '💬' },
+    { id: 'mi-account', label: 'Profil & nastavitve', url: '/account/account.html', icon: '⚙️' }
+  ];
+  const MENU_ORGANIZER = { id: 'mi-organizers', label: 'Za organizatorje', url: '/organizers.html', icon: '🛠️' };
+
+  const state = {
+    menu: null,
+    btn: null,
+    supabase: null,
+    supabasePromise: null,
+    session: null,
+    observer: null,
+    globalBound: false
   };
 
-  // Base menu items. We'll tweak/render additional items (upgrade badge / CTA)
-  // dynamically after we detect the user's premium status.
-  const MENU_ITEMS = [
-    { id: 'mi-account', label: 'Račun', url: '/account/account.html', icon: ICONS.user },
-  { id: 'mi-purchases', label: 'Moji nakupi / kuponi', url: '/account/favorites.html', icon: ICONS.gift },
-    { id: 'mi-rewards', label: 'Nagrade', url: '/account/rewards.html', icon: ICONS.gift },
-    { id: 'mi-notifs', label: 'Predhodna obvestila', url: '/account/notifications.html', icon: ICONS.bell },
-    { id: 'mi-signout', label: 'Odjava', action: 'signout', icon: ICONS.door }
-  ];
+  const STYLE_CSS = `
+.account-menu{position:absolute;min-width:240px;max-width:320px;background:var(--card,#fff);border:1px solid var(--chipborder,#cfe1ee);border-radius:16px;box-shadow:0 18px 38px rgba(10,35,55,0.14);padding:8px;z-index:2200;font-family:inherit;color:var(--text,#0b1b2b);}
+.account-menu[hidden]{display:none;}
+.account-menu__header{display:flex;align-items:center;gap:12px;padding:10px 12px 12px;border-bottom:1px solid rgba(11,30,60,0.08);}
+.account-menu__avatar{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#0bbbd6,#7de3f0);color:#082f3f;font-weight:900;font-size:18px;display:flex;align-items:center;justify-content:center;}
+.account-menu__user{flex:1;min-width:0;}
+.account-menu__name{font-weight:900;font-size:15px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.account-menu__email{font-size:12px;color:var(--muted,#5b6b7b);margin-top:2px;word-break:break-all;}
+.account-menu__meta{font-size:12px;font-weight:800;color:var(--primary,#0bbbd6);margin-top:4px;}
+.account-menu__meta--premium{color:#d97706;}
+.account-menu__list{display:flex;flex-direction:column;padding:6px 2px;}
+.account-menu__item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;color:inherit;text-decoration:none;font-weight:750;transition:background .12s ease,transform .12s ease;}
+.account-menu__item:hover,.account-menu__item:focus{background:rgba(11,187,214,0.12);outline:none;transform:translateX(2px);}
+.account-menu__icon{font-size:18px;width:24px;text-align:center;flex:0 0 24px;}
+.account-menu__label{flex:1;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.account-menu__badge{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:rgba(11,187,214,0.15);color:var(--primary,#0bbbd6);}
+.account-menu__footer{padding:4px;}
+.account-menu__signout{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:0;background:none;font-weight:800;color:#d64c4c;cursor:pointer;transition:background .12s ease,transform .12s ease;}
+.account-menu__signout:hover,.account-menu__signout:focus{background:rgba(214,76,76,0.12);outline:none;transform:translateX(2px);}
+@media(max-width:640px){.account-menu{left:16px !important;right:16px !important;width:auto;min-width:0;}}
+`;
 
   function injectStyles(){
-    if (document.getElementById('account-menu-styles')) return;
-    const css = `
-      .account-menu{position:absolute; min-width:220px; background:var(--card); border:1px solid var(--chipborder); border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.12); padding:6px; z-index:2200; font-weight:800}
-      .account-menu .account-menu-item{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; color:var(--text); text-decoration:none}
-      .account-menu .account-menu-item:focus, .account-menu .account-menu-item:hover{outline:none; background:rgba(11,187,214,.06)}
-      .account-menu .account-menu-item svg{flex:0 0 20px; height:20px}
-      @media (max-width:520px){ .account-menu{min-width:180px} }
-    `;
-    const s = document.createElement('style'); s.id = 'account-menu-styles'; s.appendChild(document.createTextNode(css)); document.head.appendChild(s);
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = STYLE_CSS;
+    document.head.appendChild(style);
   }
 
   async function getSupabase(){
-    if (window.supabase) return window.supabase;
-    try{ const mod = await import('/assets/supabase-client.js'); return mod.supabase; }catch(e){ console.warn('[header-account] supabase import failed', e); return null; }
-  }
-
-  // Internal flags to avoid re-registering listeners on every render.
-  // Use globals so multiple script evaluations (module + fallback, or
-  // hot-reloads) don't each register their own listener and cause
-  // runaway render loops.
-  if (typeof window.__ha_auth_registered === 'undefined') window.__ha_auth_registered = false;
-  if (typeof window.__ha_auth_subscription === 'undefined') window.__ha_auth_subscription = null;
-  if (typeof window.__ha_render_scheduled === 'undefined') window.__ha_render_scheduled = false;
-
-  async function checkPremiumStatus(supabase, userId){
-    // Try to detect active subscription in `premium_subscriptions` (safe, may be missing)
-    if (!supabase || !userId) return false;
-    try{
-      const { data, error } = await supabase.from('premium_subscriptions').select('status').eq('user_id', userId).maybeSingle();
-      if (error){ console.warn('[header-account] premium query error', error); return false; }
-      return !!(data && data.status === 'active');
-    }catch(e){ console.warn('[header-account] premium check failed', e); return false; }
-  }
-
-  function createMenu(){
-    let menu = document.getElementById('accountMenu');
-    // If menu exists from a previous script version, clear it so we can render fresh items
-    if (menu){
-      try{ menu.innerHTML = ''; }catch(_){ /* ignore */ }
-      return menu;
+    if (state.supabase) return state.supabase;
+    if (window.supabase){ state.supabase = window.supabase; return state.supabase; }
+    if (!state.supabasePromise){
+      state.supabasePromise = import('/assets/supabase-client.js').then(mod=>mod.supabase).catch(()=>null);
     }
+    state.supabase = await state.supabasePromise;
+    return state.supabase;
+  }
+
+  async function refreshSession(){
+    const supabase = await getSupabase();
+    if (supabase?.auth?.getSession){
+      try{
+        const { data } = await supabase.auth.getSession();
+        state.session = data?.session || null;
+      }catch{
+        state.session = null;
+      }
+    }
+    return state.session;
+  }
+
+  function fallbackIdentity(){
+    return {
+      email: localStorage.getItem('user_email') || '',
+      name: localStorage.getItem('user_name') || ''
+    };
+  }
+
+  function resolvePoints(){
+    if (typeof window !== 'undefined' && Number.isFinite(window.MY_POINTS)) return Number(window.MY_POINTS);
+    const badge = document.getElementById('pointsBadge');
+    if (badge){
+      const parsed = parseInt(badge.textContent, 10);
+      if (!Number.isNaN(parsed)) return parsed;
+    }
+    const stored = localStorage.getItem('ng_points');
+    const parsedStored = stored ? parseInt(stored, 10) : NaN;
+    return Number.isNaN(parsedStored) ? null : parsedStored;
+  }
+
+  function resolveIdentity(){
+    const sessionUser = state.session?.user || null;
+    const fallback = fallbackIdentity();
+    const email = (sessionUser?.email || fallback.email || '').trim();
+    const metadataName = sessionUser?.user_metadata?.full_name
+      || sessionUser?.user_metadata?.name
+      || sessionUser?.user_metadata?.display_name
+      || '';
+    const emailName = email ? email.split('@')[0] : '';
+    const name = (metadataName || fallback.name || emailName || '').trim();
+    return {
+      email,
+      name,
+      premium: typeof window !== 'undefined' && window.IS_PREMIUM === true,
+      points: resolvePoints()
+    };
+  }
+
+  function hasIdentity(identity){
+    return !!(state.session?.user?.id || identity.email);
+  }
+
+  function initials(identity){
+    const source = identity.name || identity.email;
+    if (!source) return '🙂';
+    const parts = source.trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return (source[0] || '🙂').toUpperCase();
+    if (parts.length === 1) return parts[0].substring(0,2).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+
+  function buildMenuItems(identity){
+    const items = MENU_CORE.map(it=>({ ...it }));
+    const premiumItem = identity.premium
+      ? { id: 'mi-premium', label: 'Premium aktivno', url: '/premium.html', icon: '💎', badge: 'AKTIVNO' }
+      : { id: 'mi-premium', label: 'Postani Premium', url: '/premium.html', icon: '💎', badge: 'Novo' };
+    items.splice(1, 0, premiumItem);
+    items.push({ ...MENU_ORGANIZER });
+    return items;
+  }
+
+  function buildMenu(identity){
     injectStyles();
-    menu = document.createElement('div');
-    menu.id = 'accountMenu';
-    menu.className = 'account-menu';
-    menu.setAttribute('role','menu');
-    menu.hidden = true;
+    let { menu } = state;
+    if (!menu){
+      menu = document.createElement('div');
+      menu.id = 'accountMenu';
+      menu.className = 'account-menu';
+      menu.setAttribute('role', 'menu');
+      document.body.appendChild(menu);
+      state.menu = menu;
+    }
 
-    MENU_ITEMS.forEach(it=>{
-      const a = document.createElement('a');
-      a.href = it.url || '#';
-      a.id = it.id || '';
-      a.className = 'account-menu-item';
-      a.setAttribute('role','menuitem');
-      a.setAttribute('tabindex','-1');
-      a.dataset.action = it.action || '';
-      a.innerHTML = `<span aria-hidden="true">${it.icon || ''}</span><span style="font-weight:800">${it.label}</span>`;
-      menu.appendChild(a);
+    menu.innerHTML = '';
+
+    const header = document.createElement('div');
+    header.className = 'account-menu__header';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'account-menu__avatar';
+    avatar.textContent = initials(identity);
+
+    const userWrap = document.createElement('div');
+    userWrap.className = 'account-menu__user';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'account-menu__name';
+    nameEl.textContent = identity.name || 'Moj račun';
+
+    const emailEl = document.createElement('div');
+    emailEl.className = 'account-menu__email';
+    emailEl.textContent = identity.email || 'Dodaj e-pošto';
+
+    userWrap.appendChild(nameEl);
+    userWrap.appendChild(emailEl);
+
+    if (identity.points !== null && identity.points !== undefined){
+      const points = document.createElement('div');
+      points.className = 'account-menu__meta';
+      points.textContent = `${identity.points} točk`;
+      userWrap.appendChild(points);
+    }
+
+    if (identity.premium){
+      const premium = document.createElement('div');
+      premium.className = 'account-menu__meta account-menu__meta--premium';
+      premium.textContent = 'Premium aktivno';
+      userWrap.appendChild(premium);
+    }
+
+    header.appendChild(avatar);
+    header.appendChild(userWrap);
+    menu.appendChild(header);
+
+    const list = document.createElement('div');
+    list.className = 'account-menu__list';
+    buildMenuItems(identity).forEach(item => {
+      const link = document.createElement('a');
+      link.id = item.id;
+      link.href = item.url;
+      link.className = 'account-menu__item';
+      link.setAttribute('role', 'menuitem');
+      link.innerHTML = `\n        <span class="account-menu__icon">${item.icon}</span>\n        <span class="account-menu__label">${item.label}${item.badge ? `<span class="account-menu__badge">${item.badge}</span>` : ''}</span>`;
+      list.appendChild(link);
     });
+    menu.appendChild(list);
 
-    document.body.appendChild(menu);
+    const footer = document.createElement('div');
+    footer.className = 'account-menu__footer';
+    const signout = document.createElement('button');
+    signout.type = 'button';
+    signout.className = 'account-menu__signout';
+    signout.innerHTML = '<span class="account-menu__icon">🚪</span><span class="account-menu__label">Odjava</span>';
+    signout.addEventListener('click', handleSignOut, { once: true });
+    footer.appendChild(signout);
+    menu.appendChild(footer);
+
+    menu.hidden = true;
     return menu;
   }
 
-  function position(menu, anchor){
-    const rect = anchor.getBoundingClientRect();
-    menu.style.top = (rect.bottom + 8 + window.scrollY) + 'px';
-    const preferredLeft = rect.left + window.scrollX;
-    const maxLeft = Math.max(8, document.documentElement.clientWidth - (menu.offsetWidth || 240) - 8 + window.scrollX);
-    menu.style.left = Math.min(preferredLeft, maxLeft) + 'px';
+  function reposition(){
+    if (!state.menu || !state.btn || state.menu.hidden) return;
+    const rect = state.btn.getBoundingClientRect();
+    const preferredWidth = state.menu.offsetWidth || 260;
+    const scrollX = window.pageXOffset || window.scrollX || 0;
+    const scrollY = window.pageYOffset || window.scrollY || 0;
+    const maxLeft = Math.max(16, window.innerWidth - preferredWidth - 16);
+    const left = Math.min(Math.max(16, rect.left + scrollX), maxLeft);
+    state.menu.style.left = `${left}px`;
+    state.menu.style.top = `${rect.bottom + scrollY + 8}px`;
   }
 
-  async function signOutSequence(){
-    const supabase = await getSupabase();
+  function openMenu(){
+    if (!state.menu || !state.btn) return;
+    state.menu.hidden = false;
+    state.btn.setAttribute('aria-expanded', 'true');
+    reposition();
+    bindGlobal();
+    requestAnimationFrame(()=>{
+      const first = state.menu.querySelector('.account-menu__item');
+      if (first) first.focus({ preventScroll: true });
+    });
+  }
+
+  function closeMenu(){
+    if (!state.menu || state.menu.hidden) return;
+    state.menu.hidden = true;
+    state.btn?.setAttribute('aria-expanded', 'false');
+    unbindGlobal();
+  }
+
+  function toggleMenu(){
+    if (!state.menu) return;
+    if (state.menu.hidden) openMenu(); else closeMenu();
+  }
+
+  function handleOutsideClick(e){
+    if (!state.menu || state.menu.hidden) return;
+    if (state.menu.contains(e.target) || state.btn?.contains(e.target)) return;
+    closeMenu();
+  }
+
+  function handleKeydown(e){
+    if (e.key === 'Escape'){ closeMenu(); state.btn?.focus({ preventScroll: true }); }
+  }
+
+  function handleViewportChange(){
+    reposition();
+  }
+
+  function bindGlobal(){
+    if (state.globalBound) return;
+    document.addEventListener('click', handleOutsideClick);
+    document.addEventListener('keydown', handleKeydown);
+    window.addEventListener('resize', handleViewportChange, { passive: true });
+    window.addEventListener('scroll', handleViewportChange, { passive: true });
+    state.globalBound = true;
+  }
+
+  function unbindGlobal(){
+    if (!state.globalBound) return;
+    document.removeEventListener('click', handleOutsideClick);
+    document.removeEventListener('keydown', handleKeydown);
+    window.removeEventListener('resize', handleViewportChange);
+    window.removeEventListener('scroll', handleViewportChange);
+    state.globalBound = false;
+  }
+
+  async function handleSignOut(){
+    closeMenu();
     try{
-      if (supabase?.auth?.signOut){ await supabase.auth.signOut(); window.location.reload(); return; }
-    }catch(e){ console.warn('[header-account] supabase signOut failed', e); }
-    // Fallback to logout endpoint
-    try{ window.location.href = '/.netlify/functions/logout'; }catch(e){ console.warn('logout redirect failed', e); }
+      const supabase = await getSupabase();
+      await supabase?.auth?.signOut?.();
+    }catch{}
+    localStorage.removeItem('user_email');
+    localStorage.removeItem('user_token');
+    localStorage.removeItem('user_name');
+    localStorage.removeItem('ng_points');
+    window.location.href = '/login.html';
   }
 
-  async function render(){
-    const supabase = await getSupabase();
-    const sessionRes = await (supabase?.auth?.getSession ? supabase.auth.getSession() : Promise.resolve({ data: { session: null } }));
-    const isLoggedIn = !!sessionRes?.data?.session?.user?.id;
-    const userId = sessionRes?.data?.session?.user?.id || null;
-    // Determine premium flag (best-effort): query premium_subscriptions, fallback to user metadata
-    let isPremium = false;
-    if (isLoggedIn){
-      try{
-        isPremium = await checkPremiumStatus(supabase, userId);
-        // fallback: check user metadata (if project stores a quick flag)
-        if (!isPremium){
-          const um = sessionRes?.data?.session?.user?.user_metadata || {};
-          isPremium = !!(um && (um.premium === true || um.is_premium === true || um.premium_active === true));
-        }
-      }catch(_){ isPremium = false; }
+  function triggerLogin(){
+    if (window.Auth && typeof window.Auth.open === 'function'){
+      window.Auth.open();
+    }else{
+      window.location.href = '/login.html';
     }
-    console.debug('[header-account] render()', { isLoggedIn });
-
-    const btn = document.getElementById('btnAccount') || document.getElementById('btnMine');
-    if (!btn){ console.debug('[header-account] no avatar button (#btnAccount or #btnMine)'); return; }
-
-    const menu = createMenu();
-    btn.setAttribute('aria-haspopup','true');
-    btn.setAttribute('aria-expanded','false');
-
-    // Update header-level Upgrade visibility (if present)
-    try{
-      const topBtn = document.getElementById('btnPremiumTop');
-      if (topBtn) topBtn.hidden = !!isPremium;
-    }catch(_){ }
-
-    // Update account item label to include star badge if premium
-    try{
-      const acc = menu.querySelector('#mi-account');
-      if (acc){
-        acc.innerHTML = `<span aria-hidden="true">${ICONS.user}</span><span style="font-weight:800">Račun ${isPremium? '<span class="premium-badge' + '" style="margin-left:8px;">⭐</span>' : ''}</span>`;
-      }
-    }catch(_){ }
-
-    // Add or remove in-menu CTA "Nadgradi na Premium" when not premium
-    try{
-      const existingUpgrade = menu.querySelector('#mi-upgrade');
-      if (!isPremium && !existingUpgrade){
-        const upgrade = document.createElement('a');
-        upgrade.id = 'mi-upgrade';
-        upgrade.className = 'account-menu-item';
-        upgrade.setAttribute('role','menuitem');
-        upgrade.setAttribute('tabindex','-1');
-  // point to the existing premium page for now
-  upgrade.href = '/premium.html';
-        upgrade.innerHTML = `<span aria-hidden="true">${ICONS.gift}</span><span style="font-weight:800;color:var(--accent);">Nadgradi na Premium</span>`;
-        // insert after account item if exists, otherwise append
-        const acc = menu.querySelector('#mi-account');
-        if (acc && acc.nextSibling) menu.insertBefore(upgrade, acc.nextSibling); else menu.appendChild(upgrade);
-      } else if (isPremium && existingUpgrade){ existingUpgrade.remove(); }
-    }catch(_){ }
-
-    // Toggle function
-    const toggle = (show) => {
-      if (!menu) return;
-      menu.hidden = !show;
-      btn.setAttribute('aria-expanded', String(show));
-      if (show){ // focus first item
-        const first = menu.querySelector('[role="menuitem"]');
-        first && first.setAttribute('tabindex','0') && first.focus();
-      } else {
-        // reset tabindex
-        menu.querySelectorAll('[role="menuitem"]').forEach(n=>n.setAttribute('tabindex','-1'));
-      }
-    };
-
-    // Attach interactive handlers only once per menu to avoid duplicates
-    try{
-      if (!menu.dataset.initialized){
-        // Primary click handler (capture to beat other handlers)
-        function onAvatarClick(ev){
-          try{ ev.preventDefault(); ev.stopPropagation(); }catch(_){ }
-          const willOpen = menu.hidden === true;
-          position(menu, btn);
-          toggle(willOpen);
-        }
-        btn.addEventListener('click', onAvatarClick, { capture:true });
-
-        // Click on menu items
-        menu.addEventListener('click', async (e)=>{
-          const a = e.target.closest('[role="menuitem"]');
-          if (!a) return;
-          const action = a.dataset.action;
-          if (action === 'signout'){
-            e.preventDefault();
-            await signOutSequence();
-            return;
-          }
-          // If not logged in, redirect to login first
-          if (!isLoggedIn){ e.preventDefault(); try{ window.redirectToLogin ? window.redirectToLogin({ action:'nav', url: a.href }) : (location.href='/login.html'); }catch(_){ location.href='/login.html'; } return; }
-          // allow navigation otherwise
-        });
-
-        // Keyboard navigation inside the menu
-        menu.addEventListener('keydown', (e)=>{
-          const items = Array.from(menu.querySelectorAll('[role="menuitem"]'));
-          const idx = items.indexOf(document.activeElement);
-          if (e.key === 'ArrowDown'){ e.preventDefault(); const next = items[(idx+1)%items.length]; next && next.focus(); }
-          else if (e.key === 'ArrowUp'){ e.preventDefault(); const prev = items[(idx-1+items.length)%items.length]; prev && prev.focus(); }
-          else if (e.key === 'Escape'){ toggle(false); btn.focus(); }
-          else if (e.key === 'Enter'){ document.activeElement && document.activeElement.click(); }
-        });
-
-        // Close when clicking outside
-        document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && !btn.contains(e.target)) { toggle(false); } });
-
-        // Fallback onclick for older handlers
-        try{ btn.onclick = (e)=>{ try{ e.preventDefault(); }catch(_){ } position(menu, btn); toggle(menu.hidden === true); }; }catch(_){ }
-
-        menu.dataset.initialized = '1';
-      }
-    }catch(e){ console.warn('[header-account] attach handlers failed', e); }
-
-    // Watch auth changes to re-render state if needed -- register only once
-    try{
-      // Register auth state change listener only once globally. If a
-      // previous subscription exists, reuse it. Debounce calls to render
-      // to avoid rapid duplicate invocations.
-      if (!window.__ha_auth_registered && supabase?.auth?.onAuthStateChange){
-        window.__ha_auth_registered = true;
-        // If the API returns an unsubscribe-able subscription, keep it so
-        // we can avoid double-registering on future reloads.
-        const maybe = supabase.auth.onAuthStateChange((event, session) => {
-          // Debounce render calls to collapse rapid successive events.
-          if (window.__ha_render_scheduled) return;
-          window.__ha_render_scheduled = true;
-          setTimeout(()=>{
-            window.__ha_render_scheduled = false;
-            try{ render(); }catch(_){ }
-          }, 50);
-        });
-        try{ window.__ha_auth_subscription = maybe?.data?.subscription || maybe; }catch(_){ /* ignore */ }
-      }
-    }catch(_){ }
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render); else setTimeout(render,0);
+  async function onButtonClick(event){
+    // Show menu for everyone. If not logged in, show fallback identity and
+    // replace the sign-out control with a login action.
+    event.preventDefault();
+    await refreshSession();
+    const identity = resolveIdentity();
+    const loggedIn = hasIdentity(identity);
+    buildMenu(identity);
+
+    // After building the menu we can adjust the footer action for unauthenticated users
+    // so they see a "Prijava" action instead of "Odjava".
+    if (!loggedIn && state.menu){
+      const signout = state.menu.querySelector('.account-menu__signout');
+      if (signout){
+        // clear previously bound handlers and set login trigger
+        signout.replaceWith((() => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'account-menu__signout';
+          btn.innerHTML = '<span class="account-menu__icon">🔐</span><span class="account-menu__label">Prijava / Registracija</span>';
+          btn.addEventListener('click', function(){ closeMenu(); triggerLogin(); });
+          return btn;
+        })());
+      }
+    }
+
+    toggleMenu();
+  }
+
+  function bindButton(button){
+    if (!button || button.dataset.accountMenuBound) return;
+    state.btn = button;
+    button.dataset.accountMenuBound = '1';
+    button.setAttribute('aria-haspopup', 'true');
+    button.setAttribute('aria-expanded', 'false');
+    button.addEventListener('click', onButtonClick);
+  }
+
+  function observeButton(){
+    const existing = document.getElementById('btnAccount') || document.getElementById('btnMine');
+    if (existing){
+      bindButton(existing);
+      return;
+    }
+    if (state.observer) return;
+    state.observer = new MutationObserver(()=>{
+      const candidate = document.getElementById('btnAccount') || document.getElementById('btnMine');
+      if (candidate){
+        bindButton(candidate);
+        state.observer.disconnect();
+        state.observer = null;
+      }
+    });
+    state.observer.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  // If a page doesn't include the account button in the static header,
+  // inject a minimal avatar button into the `.nav` container so the
+  // menu can bind everywhere without editing each HTML file.
+  function ensureAccountButton(){
+    if (document.getElementById('btnAccount') || document.getElementById('btnMine')) return;
+    const nav = document.querySelector('.nav');
+    if (!nav) return;
+    try{
+      const a = document.createElement('a');
+      a.className = 'pill';
+      a.id = 'btnMine';
+      a.href = '#';
+      a.setAttribute('role','button');
+      a.setAttribute('aria-haspopup','true');
+      a.setAttribute('aria-expanded','false');
+      a.title = 'Moje vstopnice & kuponi';
+      a.style.marginLeft = 'auto';
+      a.style.display = 'inline-flex';
+      a.style.alignItems = 'center';
+      a.style.gap = '6px';
+      a.style.padding = '6px 10px';
+      a.style.fontSize = '18px';
+      a.innerHTML = '<span style="font-size:20px;vertical-align:middle;">👤</span>' +
+                    '<span id="pointsBadge" class="badge" style="margin-left:4px;display:none;font-size:11px;">0</span>';
+      nav.appendChild(a);
+    }catch(e){/* ignore injection errors */}
+  }
+
+  async function watchAuth(){
+    const supabase = await getSupabase();
+    if (supabase?.auth?.onAuthStateChange){
+      supabase.auth.onAuthStateChange((_event, session)=>{
+        state.session = session || null;
+        if (!session?.user) closeMenu();
+      });
+    }
+  }
+
+  function boot(){
+    injectStyles();
+    ensureAccountButton();
+    observeButton();
+    watchAuth();
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', boot);
+  }else{
+    boot();
+  }
 
 })();

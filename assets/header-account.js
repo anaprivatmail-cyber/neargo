@@ -131,35 +131,15 @@
 
   function buildMenuItems(identity){
     const items = MENU_CORE.map(it=>({ ...it }));
-    // Only include the premium menu item for users with an identity (logged in).
-    // For unauthenticated users we will show a separate header-level Premium CTA.
-    if (identity?.email) {
-      const premiumItem = identity.premium
-        ? { id: 'mi-premium', label: 'Premium aktivno', url: '/premium.html', icon: '💎', badge: 'AKTIVNO' }
-        : { id: 'mi-premium', label: 'Postani Premium', url: '/premium.html', icon: '💎', badge: 'Novo' };
-      items.splice(1, 0, premiumItem);
-    }
+    const premiumItem = identity?.premium
+      ? { id: 'mi-premium', label: 'Premium aktivno', url: '/premium.html', icon: '💎', badge: 'AKTIVNO' }
+      : { id: 'mi-premium', label: 'Postani Premium', url: '/premium.html', icon: '💎', badge: 'Novo' };
+    items.splice(1, 0, premiumItem);
     items.push({ ...MENU_ORGANIZER });
     return items;
   }
 
-  // Toggle header-level Premium CTA visibility based on auth state.
-  function updateHeaderPremiumVisibility(){
-    const hp = document.getElementById('headerPremiumBtn');
-    const existingGlobal = document.getElementById('btnPremiumTop') || document.getElementById('btnPremium');
-    // If a global premium button exists in the page, do nothing.
-    if (existingGlobal) {
-      if (hp) hp.remove();
-      return;
-    }
-    const identity = resolveIdentity();
-    const loggedIn = hasIdentity(identity);
-    if (!hp){
-      return; // nothing to toggle if not injected
-    }
-    // Show the header premium CTA only for unauthenticated users
-    hp.style.display = loggedIn ? 'none' : '';
-  }
+  
 
   function buildMenu(identity){
     injectStyles();
@@ -415,17 +395,7 @@
       a.innerHTML = '<span style="font-size:20px;vertical-align:middle;">👤</span>' +
                     '<span id="pointsBadge" class="badge" style="margin-left:4px;display:none;font-size:11px;">0</span>';
       nav.appendChild(a);
-      // If there is no global premium CTA, inject a small Premium button next to avatar
-      if (!document.getElementById('btnPremiumTop') && !document.getElementById('headerPremiumBtn')){
-        const p = document.createElement('a');
-        p.id = 'headerPremiumBtn';
-        p.className = 'pill premium-badge';
-        p.href = '/premium.html';
-        p.textContent = 'Premium';
-        p.style.marginLeft = '8px';
-        // insert after avatar
-        nav.appendChild(p);
-      }
+      
     }catch(e){/* ignore injection errors */}
   }
 
@@ -435,8 +405,6 @@
       supabase.auth.onAuthStateChange((_event, session)=>{
         state.session = session || null;
         if (!session?.user) closeMenu();
-        // update header CTA visibility when auth state changes
-        try{ updateHeaderPremiumVisibility(); }catch(e){}
       });
     }
   }
@@ -445,12 +413,8 @@
     injectStyles();
     ensureAccountButton();
     observeButton();
-    // Refresh session once and then update header premium visibility
-    refreshSession().then(()=>{
-      updateHeaderPremiumVisibility();
-    }).catch(()=>{
-      updateHeaderPremiumVisibility();
-    });
+    // Refresh session once
+    refreshSession().catch(()=>{});
     watchAuth();
   }
 

@@ -2090,6 +2090,16 @@ var showPT=$("#showProviderTerms"); if(showPT) showPT.addEventListener("click",f
 var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("click",function(){ scrollToEl($("#orgPanel")); });
 
   </script>
+  <!-- Import map: remap bare specifier '@supabase/supabase-js' to a CDN ESM bundle so
+       browser modules using the bare import will resolve correctly without a bundler. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm"
+    }
+  }
+  </script>
+
   <script type="module" src="assets/header-account.js"></script>
   <!-- Fallback: simple non-module account menu toggle for environments where modules or
        module imports fail (keeps look/functionality while we debug the module build). -->

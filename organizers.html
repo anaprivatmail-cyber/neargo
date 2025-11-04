@@ -181,7 +181,6 @@
             </div>
             <div id="forgotRow" style="margin-top:6px;text-align:center;font-size:13px;">
               <a href="#" id="forgotPasswordLink" style="color:#0bbbd6;margin-right:10px">Pozabljeno geslo?</a>
-              <span>ali</span>
               <a href="#" id="registerLink" style="color:#0bbbd6;margin-left:10px">Še niste registrirani?</a>
             </div>
             <button id="closeLoginModal" class="btn btn-mini btn-outline" style="width:100%;margin-top:14px">Prekliči</button>
@@ -423,13 +422,51 @@
       const e = $("#" + id);
       if (e) { e.style.display = "block"; e.scrollIntoView({ behavior: "smooth", block: "start" }); }
     }
-  const loginModalEl = $("#loginModal");
-  const loginError = document.getElementById('loginError');
-  const loginForm = document.getElementById('loginEmailForm');
+    const loginModalEl = $("#loginModal");
+    const loginError = document.getElementById('loginError');
+    const loginForm = document.getElementById('loginEmailForm');
     const confirmPendingWrap = document.getElementById('confirmPending');
     const resendConfirmBtn = document.getElementById('resendConfirmBtn');
     const forgotLinks = document.getElementById('forgotRow');
     const authStateEl = document.getElementById('providerAuthState');
+
+    let currentAuthUser = null;
+
+    function updateCurrentAuthUser(user) {
+      const previousId = currentAuthUser?.id || null;
+      const nextId = user?.id || null;
+      currentAuthUser = user || null;
+      if (window.neargoAuth) {
+        window.neargoAuth.currentUser = currentAuthUser;
+      }
+      if (previousId !== nextId) {
+        document.dispatchEvent(new CustomEvent('neargo-auth-change', {
+          detail: { user: currentAuthUser }
+        }));
+      }
+    }
+
+    function validatePasswordStrength(password) {
+      if (!password || password.length < 6) {
+        return { valid: false, message: 'Geslo mora imeti vsaj 6 znakov.' };
+      }
+      if (!/[A-ZČŠŽĆĐŁŃÀ-Ý]/.test(password)) {
+        return { valid: false, message: 'Geslo mora vsebovati vsaj eno veliko začetnico.' };
+      }
+      if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+        return { valid: false, message: 'Geslo mora vsebovati vsaj en poseben znak.' };
+      }
+      return { valid: true };
+    }
+
+    function validatePasswordCombo(password, repeat) {
+      const strength = validatePasswordStrength(password);
+      if (!strength.valid) return strength;
+      if (password !== repeat) {
+        return { valid: false, message: 'Gesli se ne ujemata.' };
+      }
+      return { valid: true };
+    }
 
     function showLoginFeedback(text, kind = 'error') {
       if (!loginError) return;
@@ -524,6 +561,23 @@
       if (orgName) setIfPristine(document.getElementById('orgName'), orgName);
     }
 
+    async function sendWelcomeEmail(email, fullName){
+      if (!email) return;
+      try {
+        const res = await fetch('/.netlify/functions/send-welcome-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name: fullName || '' })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok) {
+          console.warn('Welcome email ni bil poslan:', data?.error || res.statusText);
+        }
+      } catch (err) {
+        console.warn('Napaka pri pošiljanju welcome e-maila:', err);
+      }
+    }
+
     async function refreshProviderSession(){
       let user = null;
       let session = null;
@@ -554,6 +608,7 @@
       } else {
         syncLocalIdentity(null, null);
       }
+      updateCurrentAuthUser(user);
       updateAuthStateMessage(user);
       return user;
     }
@@ -584,6 +639,7 @@
       window.supabase.auth.onAuthStateChange(async (_event, session) => {
         const supaUser = session?.user || null;
         syncLocalIdentity(supaUser, session);
+        updateCurrentAuthUser(supaUser);
         if (supaUser){
           applyUserProfile(supaUser);
           updateAuthStateMessage(supaUser);
@@ -659,7 +715,11 @@
       e.preventDefault();
       hideConfirmPending();
       clearLoginFeedback();
-      window.location.href = "/register.html";
+      if (registerFields) {
+        registerFields.querySelector('#loginName')?.focus();
+      } else if (showRegisterBtn) {
+        showRegisterBtn.click();
+      }
     });
     $("#forgotPasswordLink")?.addEventListener("click", (e) => {
       e.preventDefault();
@@ -714,10 +774,23 @@
         registerFields.querySelector('#sendSmsCodeBtn').onclick = async function() {
           const countryCode = registerFields.querySelector('#countryCode').value;
           const phone = registerFields.querySelector('#loginPhone').value.trim();
+          const password = registerFields.querySelector('#registerPassword').value;
+          const repeatPassword = registerFields.querySelector('#registerPasswordRepeat').value;
+          if (!password || !repeatPassword) {
+            showLoginFeedback('Najprej izpolnite geslo in potrditev gesla.', 'error');
+            return;
+          }
+          const passwordCheck = validatePasswordCombo(password, repeatPassword);
+          if (!passwordCheck.valid) {
+            showLoginFeedback(passwordCheck.message, 'error');
+            return;
+          }
           if (!/^\d{6,}$/.test(phone.replace(/\D/g, ''))) {
             showLoginFeedback('Vnesite veljavno telefonsko številko.', 'error');
             return;
           }
+          const smsBtn = registerFields.querySelector('#sendSmsCodeBtn');
+          smsBtn.disabled = true;
           showLoginFeedback('Pošiljam SMS kodo ...', 'info');
           try {
             const res = await fetch('/.netlify/functions/send-code', {
@@ -725,25 +798,40 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ method: 'sms', phone, countryCode })
             });
-            const data = await res.json();
-            if (data.ok && data.codeSent) {
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data?.ok && data.codeSent) {
               showLoginFeedback('Koda je bila poslana na SMS.', 'success');
               registerFields.querySelector('#registerCode').style.display = '';
               registerFields.querySelector('#registerCode').previousSend = 'sms';
             } else {
-              showLoginFeedback('Napaka pri pošiljanju SMS kode.', 'error');
+              showLoginFeedback(data?.error || 'Napaka pri pošiljanju SMS kode.', 'error');
             }
           } catch (e) {
             showLoginFeedback('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
+          } finally {
+            smsBtn.disabled = false;
           }
         };
         // Pošlji email kodo
         registerFields.querySelector('#sendEmailCodeBtn').onclick = async function() {
           const email = loginForm.querySelector('#loginEmail').value.trim();
+          const password = registerFields.querySelector('#registerPassword').value;
+          const repeatPassword = registerFields.querySelector('#registerPasswordRepeat').value;
+          if (!password || !repeatPassword) {
+            showLoginFeedback('Najprej izpolnite geslo in potrditev gesla.', 'error');
+            return;
+          }
+          const passwordCheck = validatePasswordCombo(password, repeatPassword);
+          if (!passwordCheck.valid) {
+            showLoginFeedback(passwordCheck.message, 'error');
+            return;
+          }
           if (!email.match(/^[^@]+@[^@]+\.[^@]+$/)) {
             showLoginFeedback('Vnesite veljaven email naslov.', 'error');
             return;
           }
+          const emailBtn = registerFields.querySelector('#sendEmailCodeBtn');
+          emailBtn.disabled = true;
           showLoginFeedback('Pošiljam email kodo ...', 'info');
           try {
             const res = await fetch('/.netlify/functions/send-code', {
@@ -751,16 +839,18 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ method: 'email', email })
             });
-            const data = await res.json();
-            if (data.ok && data.codeSent) {
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data?.ok && data.codeSent) {
               showLoginFeedback('Koda je bila poslana na email.', 'success');
               registerFields.querySelector('#registerCode').style.display = '';
               registerFields.querySelector('#registerCode').previousSend = 'email';
             } else {
-              showLoginFeedback('Napaka pri pošiljanju email kode.', 'error');
+              showLoginFeedback(data?.error || 'Napaka pri pošiljanju email kode.', 'error');
             }
           } catch (e) {
             showLoginFeedback('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
+          } finally {
+            emailBtn.disabled = false;
           }
         };
 
@@ -788,20 +878,9 @@
             showLoginFeedback('Vnesite veljaven email naslov.', 'error');
             return;
           }
-          if (password.length < 6) {
-            showLoginFeedback('Geslo mora imeti vsaj 6 znakov.', 'error');
-            return;
-          }
-          if (!/[A-Z]/.test(password)) {
-            showLoginFeedback('Geslo mora vsebovati vsaj eno veliko začetnico.', 'error');
-            return;
-          }
-          if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-            showLoginFeedback('Geslo mora vsebovati vsaj en poseben znak.', 'error');
-            return;
-          }
-          if (password !== passwordRepeat) {
-            showLoginFeedback('Gesli se ne ujemata.', 'error');
+          const passwordCheck = validatePasswordCombo(password, passwordRepeat);
+          if (!passwordCheck.valid) {
+            showLoginFeedback(passwordCheck.message, 'error');
             return;
           }
           if (!registerCode) {
@@ -856,6 +935,7 @@
                 showLoginFeedback('Registracija uspešna!', 'success');
                 try { localStorage.setItem('user_email', email); } catch {}
                 if (fullName) { try { localStorage.setItem('user_name', fullName); } catch {} }
+                await sendWelcomeEmail(email, fullName);
                 setTimeout(async () => {
                   if (loginModalEl) loginModalEl.style.display = 'none';
                   hideConfirmPending();
@@ -865,6 +945,7 @@
               } else {
                 showLoginFeedback('Registracija uspešna! Preverite svoj e-poštni predal za potrditev računa.', 'success');
                 showConfirmPending(email);
+                await sendWelcomeEmail(email, fullName);
               }
             } else {
               if (result?.error?.message && result.error.message.toLowerCase().includes('user already registered')) {
@@ -1091,8 +1172,40 @@
 
     populateCategories();
 
-    const registerLink = document.getElementById('registerLink');
-    if (registerLink) registerLink.style.display = 'none';
+    const neargoAuthApi = Object.assign(window.neargoAuth || {}, {
+      openModal(mode = 'login') {
+        if (!loginModalEl) return;
+        loginModalEl.style.display = 'flex';
+        hideConfirmPending();
+        clearLoginFeedback();
+        if (mode === 'register') {
+          if (registerFields) {
+            registerFields.querySelector('#loginName')?.focus();
+          } else if (showRegisterBtn && showRegisterBtn.style.display !== 'none') {
+            showRegisterBtn.click();
+          }
+        }
+      },
+      closeModal() {
+        if (!loginModalEl) return;
+        loginModalEl.style.display = 'none';
+        hideConfirmPending();
+        clearLoginFeedback();
+      },
+      async requireAuth() {
+        const user = await refreshProviderSession();
+        if (user) return user;
+        this.openModal();
+        return null;
+      },
+      refresh: refreshProviderSession,
+      getCurrentUser: () => currentAuthUser,
+      showProviderForm: () => showPanel('orgPanel'),
+      currentUser: currentAuthUser
+    });
+
+    window.neargoAuth = neargoAuthApi;
+    document.dispatchEvent(new CustomEvent('neargo-auth-ready', { detail: neargoAuthApi }));
   </script>
 </body>
   </html>

@@ -833,16 +833,50 @@
           resetVerificationState({ clearCode: true });
           markActiveSendButton(null);
           registerCodeInput.style.display = 'none';
+          // Show verify buttons again if hidden
+          smsBtn.style.display = '';
+          emailBtn.style.display = '';
         };
 
         setRegisterButtonState(false);
         updateEmailContext();
+
+        let lastTriedCode = '';
+        async function verifyCodeInline() {
+          const code = registerCodeInput.value.trim();
+          if (!verificationState.method || code.length < 6) return;
+          if (verificationState.codeVerified && code === verificationState.verifiedCode) return;
+          if (code === lastTriedCode) return;
+          lastTriedCode = code;
+          try {
+            const payload = verificationState.method === 'sms'
+              ? { phone: verificationState.phone, code, countryCode: verificationState.countryCode }
+              : { email: verificationState.email, code };
+            const vr = await fetch('/.netlify/functions/verify-code', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            const vd = await vr.json();
+            if (vd?.ok && vd.verified) {
+              verificationState.codeVerified = true;
+              verificationState.verifiedCode = code;
+              setRegisterButtonState(true);
+              // Hide verify buttons after success
+              smsBtn.style.display = 'none';
+              emailBtn.style.display = 'none';
+              showLoginFeedback('Koda potrjena. Zaključite z Registracija.', 'success');
+            } else {
+              verificationState.codeVerified = false;
+              setRegisterButtonState(false);
+            }
+          } catch {}
+        }
 
         registerCodeInput.addEventListener('input', () => {
           if (verificationState.codeVerified && registerCodeInput.value.trim() !== verificationState.verifiedCode) {
             verificationState.codeVerified = false;
             setRegisterButtonState(false);
           }
+          verifyCodeInline();
         });
 
         emailInput?.addEventListener('input', () => {
@@ -891,6 +925,7 @@
               registerCodeInput.focus();
               markActiveSendButton('sms');
               showLoginFeedback('Koda je bila poslana na SMS.', 'success');
+              setTimeout(verifyCodeInline, 0);
             } else {
               showLoginFeedback(data?.error || 'Napaka pri pošiljanju SMS kode.', 'error');
             }
@@ -938,6 +973,7 @@
               registerCodeInput.focus();
               markActiveSendButton('email');
               showLoginFeedback('Koda je bila poslana na email.', 'success');
+              setTimeout(verifyCodeInline, 0);
             } else {
               showLoginFeedback(data?.error || 'Napaka pri pošiljanju email kode.', 'error');
             }
@@ -1006,7 +1042,10 @@
               verificationState.codeVerified = true;
               verificationState.verifiedCode = registerCode;
               setRegisterButtonState(true);
-              showLoginFeedback('Koda potrjena! Kliknite ponovno za dokončanje registracije.', 'success');
+              // Hide verify buttons after successful verification
+              smsBtn.style.display = 'none';
+              emailBtn.style.display = 'none';
+              showLoginFeedback('Koda potrjena! Kliknite Registracija za dokončanje.', 'success');
               return;
             } catch (err) {
               showLoginFeedback('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');

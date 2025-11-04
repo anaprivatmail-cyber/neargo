@@ -59,22 +59,34 @@ function getTransporter() {
 async function sendEmailCode(to, code) {
   const sender = EMAIL_FROM || 'NearGo <info@getneargo.com>';
   const html = `
-    <div style="font-family:Arial,sans-serif;font-size:15px;color:#102437;background:#f6fbfe;padding:24px;border-radius:12px;max-width:420px;margin:auto;">
+    <div style="font-family:Inter,Arial,sans-serif;font-size:15px;color:#102437;background:#f6fbfe;padding:24px;border-radius:12px;max-width:460px;margin:auto;">
       <div style="text-align:center;margin-bottom:18px;">
         <div style="display:inline-flex;align-items:center;gap:10px;font-weight:900;font-size:20px;color:#0b1b2b;">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#0bbbd6,#7de3f0);color:#042430;">N</span>
+          <span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;background:#e6f7fb;border:1px solid #bfeaf3">
+            <svg viewBox="0 0 32 32" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="tg" cx="50%" cy="50%">
+                  <stop offset="0%" stop-color="#0bbbd6"/>
+                  <stop offset="100%" stop-color="#7de3f0"/>
+                </radialGradient>
+              </defs>
+              <circle cx="16" cy="16" r="12" fill="none" stroke="url(#tg)" stroke-width="2" />
+              <circle cx="16" cy="16" r="7" fill="none" stroke="url(#tg)" stroke-width="2" opacity=".85" />
+              <circle cx="16" cy="16" r="2.8" fill="#0bbbd6" />
+            </svg>
+          </span>
           NearGo
         </div>
       </div>
-      <p style="margin:0 0 12px">Vaša potrditvena koda:</p>
+      <p style="margin:0 0 12px">Your verification code:</p>
       <div style="font-size:32px;font-weight:900;letter-spacing:6px;margin:12px 0 18px;text-align:center;color:#0bbbd6;">${code}</div>
-      <p style="margin:0 0 6px">Koda poteče v 10 minutah. Če je niste zahtevali, lahko to sporočilo ignorirate.</p>
+      <p style="margin:0 0 6px">This code expires in 10 minutes. If you didn’t request it, you can safely ignore this message.</p>
       <hr style="border:none;border-top:1px solid rgba(11,30,60,0.08);margin:20px 0">
-      <p style="font-size:13px;color:#5b6b7b;margin:0">Ekipa NearGo</p>
+      <p style="font-size:13px;color:#5b6b7b;margin:0">NearGo Team</p>
     </div>
   `;
   const transporter = getTransporter();
-  await transporter.sendMail({ from: sender, to, subject: 'NearGo – potrditvena koda', html });
+  await transporter.sendMail({ from: sender, to, subject: 'NearGo – verification code', html });
 }
 
 async function sendSmsCode(phone, countryCode, code) {
@@ -87,7 +99,7 @@ async function sendSmsCode(phone, countryCode, code) {
   const prefix = String(countryCode || '').trim() || '+386';
   const to = prefix.startsWith('+') ? `${prefix}${sanitized}` : `+${prefix}${sanitized}`;
   await client.messages.create({
-    body: `NearGo koda: ${code}`,
+    body: `NearGo verification code: ${code}. Expires in 10 minutes.`,
     from: TWILIO_FROM_NUMBER,
     to
   });

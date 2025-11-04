@@ -20,6 +20,10 @@ const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
   : null;
 
+const RAW_ALLOW_TEST_CODES = String(process.env.ALLOW_TEST_CODES || '').toLowerCase() === 'true';
+const NETLIFY_CONTEXT = String(process.env.CONTEXT || '').toLowerCase();
+const ALLOW_TEST_CODES = RAW_ALLOW_TEST_CODES || (NETLIFY_CONTEXT && NETLIFY_CONTEXT !== 'production');
+
 function buildCors(event){
   const allowed = String(process.env.ALLOWED_ORIGINS || '*')
     .split(',').map(s => s.trim()).filter(Boolean);
@@ -40,8 +44,6 @@ const json = (status, body, event) => ({
 });
 
 const CODE_TTL_MS = 10 * 60 * 1000; // 10 minut
-const ALLOW_TEST_CODES = String(process.env.ALLOW_TEST_CODES || '').toLowerCase() === 'true';
-
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -172,19 +174,20 @@ export const handler = async (event) => {
         if (error) throw error;
         inserted = data?.[0];
       }
+      let delivery = null;
       try {
-        await sendEmailCode(email, code);
+        delivery = await sendEmailCode(email, code);
       } catch (sendErr) {
         if (!noDb && inserted?.id) {
           await supabase.from('verif_codes').delete().eq('id', inserted.id);
         }
         throw sendErr;
       }
-      return json(200, { ok: true, codeSent: true, ...(ALLOW_TEST_CODES ? { code } : {}) }, event);
+      return json(200, { ok: true, codeSent: true, ...(ALLOW_TEST_CODES ? { code } : {}), ...(delivery?.dev ? { dev: true } : {}) }, event);
     }
 
     const phone = sanitizePhone(payload.phone);
-  if (!phone) return json(400, { ok: false, error: 'Manjka telefonska številka.' }, event);
+    if (!phone) return json(400, { ok: false, error: 'Manjka telefonska številka.' }, event);
     const countryCode = String(payload.countryCode || '').trim();
     record.phone = phone;
     record.country_code = countryCode || null;
@@ -194,15 +197,16 @@ export const handler = async (event) => {
       if (error) throw error;
       inserted = data?.[0];
     }
+    let delivery = null;
     try {
-      await sendSmsCode(phone, countryCode, code);
+      delivery = await sendSmsCode(phone, countryCode, code);
     } catch (sendErr) {
       if (!noDb && inserted?.id) {
         await supabase.from('verif_codes').delete().eq('id', inserted.id);
       }
       throw sendErr;
     }
-    return json(200, { ok: true, codeSent: true, ...(ALLOW_TEST_CODES ? { code } : {}) }, event);
+    return json(200, { ok: true, codeSent: true, ...(ALLOW_TEST_CODES ? { code } : {}), ...(delivery?.dev ? { dev: true } : {}) }, event);
   } catch (err) {
     console.error('[send-code] error:', err?.message || err);
     // V dev načinu ne blokiraj – vrni uspeh s kodo v odzivu

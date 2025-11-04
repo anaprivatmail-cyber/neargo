@@ -134,13 +134,16 @@
       const client = createClient(url, anon);
       window.supabase = client;
 
-      const updateLocalSession = (session) => {
+      const updateLocalSession = (session, eventType) => {
         if (!session) {
-          window.currentSupabaseSession = null;
-          try {
-            localStorage.removeItem('user_token');
-            localStorage.removeItem('user_refresh');
-          } catch {}
+          if (eventType === 'SIGNED_OUT') {
+            window.currentSupabaseSession = null;
+            try {
+              localStorage.removeItem('user_email');
+              localStorage.removeItem('user_token');
+              localStorage.removeItem('user_refresh');
+            } catch {}
+          }
           return;
         }
         window.currentSupabaseSession = session;
@@ -165,11 +168,11 @@
       };
 
       client.auth.getSession().then(({ data }) => {
-        if (data?.session) updateLocalSession(data.session);
+        if (data?.session) updateLocalSession(data.session, 'INITIAL_SESSION');
       }).catch((err) => console.warn('[auth] getSession failed:', err?.message || err));
 
-      client.auth.onAuthStateChange((_event, session) => {
-        updateLocalSession(session);
+      client.auth.onAuthStateChange((event, session) => {
+        updateLocalSession(session, event);
       });
 
       window.testSignUpEmail = async (email, password, options = null) => {
@@ -1086,6 +1089,13 @@
 
               if (result?.data?.user || session) {
                 const user = result?.data?.user || session?.user;
+                if (session) {
+                  try {
+                    window.persistSupabaseSession?.({ session, user });
+                  } catch (persistErr) {
+                    console.warn('[register] persist session failed:', persistErr);
+                  }
+                }
                 try {
                   if (user?.email) localStorage.setItem('user_email', user.email);
                 } catch {}
@@ -1106,7 +1116,17 @@
             if (user?.email) {
               try { localStorage.setItem('user_email', user.email); } catch {}
             }
-            setStatus('SMS koda potrjena. Preverite e-pošto in jo potrdite, nato dokončajte prijavo.', 'warn');
+            if (window.supabase?.auth?.resend) {
+              try {
+                await window.supabase.auth.resend({ type: 'signup', email });
+                setStatus('SMS koda potrjena. Poslali smo svež potrditveni email – odpri ga in potrdi registracijo, nato dokončaj prijavo.', 'warn');
+              } catch (resendErr) {
+                console.warn('[register] resend confirmation failed:', resendErr);
+                setStatus('SMS koda potrjena. Preverite e-pošto in jo potrdite, nato dokončajte prijavo.', 'warn');
+              }
+            } else {
+              setStatus('SMS koda potrjena. Preverite e-pošto in jo potrdite, nato dokončajte prijavo.', 'warn');
+            }
           } catch (err) {
             setStatus('Registracija uspešna! (strežnik je odziven počasneje)', 'warn');
             setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 600);
@@ -1170,7 +1190,7 @@
             if (result?.error?.message && result.error.message.toLowerCase().includes('user not found')) {
               loginError.textContent = 'Uporabnik s tem emailom ne obstaja.';
             } else if (result?.error?.message && result.error.message.toLowerCase().includes('invalid login credentials')) {
-              loginError.textContent = 'Geslo ni pravilno. Poskusite znova.';
+              loginError.textContent = 'Vnos ni uspel. Preverite geslo in ali ste potrdili e-pošto (potrditev je potrebna pred prvo prijavo).';
             } else if (result?.error?.message && result.error.message.toLowerCase().includes('email not confirmed')) {
               loginError.textContent = 'Registracija še ni potrjena. Preverite e-pošto in sledite navodilom.';
             } else {

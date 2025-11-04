@@ -96,12 +96,14 @@ async function sendSmsCode(phone, countryCode, code) {
 
 let supportsExpiresAtColumn = true;
 let supportsCountryCodeColumn = true;
+let supportsMethodColumn = true;
 
 async function insertVerificationRecord(rawRecord) {
   const attempt = async () => {
     const payload = { ...rawRecord };
     if (!supportsExpiresAtColumn) delete payload.expires_at;
     if (!supportsCountryCodeColumn) delete payload.country_code;
+    if (!supportsMethodColumn) delete payload.method;
     return supabase.from('verif_codes').insert(payload).select();
   };
 
@@ -116,6 +118,10 @@ async function insertVerificationRecord(rawRecord) {
   }
   if (supportsCountryCodeColumn && message.includes('country_code')) {
     supportsCountryCodeColumn = false;
+    retried = true;
+  }
+  if (supportsMethodColumn && message.includes('method')) {
+    supportsMethodColumn = false;
     retried = true;
   }
 

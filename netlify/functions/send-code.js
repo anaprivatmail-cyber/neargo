@@ -60,23 +60,21 @@ async function sendEmailCode(to, code) {
   const sender = EMAIL_FROM || 'NearGo <info@getneargo.com>';
   const html = `
     <div style="font-family:Inter,Arial,sans-serif;font-size:15px;color:#102437;background:#f6fbfe;padding:24px;border-radius:12px;max-width:460px;margin:auto;">
-      <div style="text-align:center;margin-bottom:18px;">
-        <div style="display:inline-flex;align-items:center;gap:10px;font-weight:900;font-size:20px;color:#0b1b2b;">
-          <span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;background:#e6f7fb;border:1px solid #bfeaf3">
-            <svg viewBox="0 0 32 32" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+      <div style="text-align:center;margin-bottom:10px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:#e6f7fb;border:1px solid #bfeaf3;margin:auto;">
+          <svg viewBox="0 0 32 32" width="28" height="28" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <radialGradient id="tg" cx="50%" cy="50%">
                   <stop offset="0%" stop-color="#0bbbd6"/>
                   <stop offset="100%" stop-color="#7de3f0"/>
                 </radialGradient>
               </defs>
-              <circle cx="16" cy="16" r="12" fill="none" stroke="url(#tg)" stroke-width="2" />
-              <circle cx="16" cy="16" r="7" fill="none" stroke="url(#tg)" stroke-width="2" opacity=".85" />
-              <circle cx="16" cy="16" r="2.8" fill="#0bbbd6" />
-            </svg>
-          </span>
-          NearGo
+            <circle cx="16" cy="16" r="12" fill="none" stroke="url(#tg)" stroke-width="2" />
+            <circle cx="16" cy="16" r="7" fill="none" stroke="url(#tg)" stroke-width="2" opacity=".85" />
+            <circle cx="16" cy="16" r="2.8" fill="#0bbbd6" />
+          </svg>
         </div>
+        <div style="font-weight:900;font-size:20px;color:#0b1b2b;margin-top:8px;">NearGo</div>
       </div>
       <p style="margin:0 0 12px">Your verification code:</p>
   <div style="font-size:32px;font-weight:900;letter-spacing:6px;margin:12px 0 18px;text-align:center;color:#0bbbd6;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; user-select: all; -webkit-user-select: all;">${code}</div>

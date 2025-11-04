@@ -758,8 +758,8 @@
           <input type="password" id="registerPassword" placeholder="Geslo (min. 6 znakov, velika začetnica, posebni znak)" required style="margin-bottom:8px;">
           <input type="password" id="registerPasswordRepeat" placeholder="Ponovite geslo" required style="margin-bottom:8px;">
           <div style="display:flex;gap:10px;margin-bottom:8px;">
-            <button type="button" id="sendSmsCodeBtn" class="btn btn-soft" style="flex:1;">Preveri s SMS kodo</button>
             <button type="button" id="sendEmailCodeBtn" class="btn btn-soft" style="flex:1;">Preveri z email kodo</button>
+            <button type="button" id="sendSmsCodeBtn" class="btn btn-outline" style="flex:1;">Preveri z SMS kodo</button>
           </div>
           <input type="text" id="registerCode" inputmode="numeric" autocomplete="one-time-code" pattern="\\d*" placeholder="Vnesite kodo" style="margin-bottom:8px;display:none;">
           <button type="button" id="registerSubmitBtn" class="btn btn-outline" style="width:100%;margin-bottom:8px" disabled>Registracija</button>
@@ -776,12 +776,13 @@
     const forgotRowEl = document.getElementById('forgotRow');
     if (forgotRowEl) forgotRowEl.style.display = 'none';
 
-        const smsBtn = registerFields.querySelector('#sendSmsCodeBtn');
-        const emailBtn = registerFields.querySelector('#sendEmailCodeBtn');
+  const smsBtn = registerFields.querySelector('#sendSmsCodeBtn');
+  const emailBtn = registerFields.querySelector('#sendEmailCodeBtn');
         const registerBtn = registerFields.querySelector('#registerSubmitBtn');
         const registerCodeInput = registerFields.querySelector('#registerCode');
         const phoneInput = registerFields.querySelector('#loginPhone');
         const countryCodeSelect = registerFields.querySelector('#countryCode');
+  let registrationInFlight = false;
         const exitToLogin = () => {
           if (registerFields) {
             registerFields.remove();
@@ -832,15 +833,18 @@
         };
 
         const markActiveSendButton = (next) => {
+          // Reset to defaults: email encouraged (soft), SMS outline
+          emailBtn.classList.add('btn-soft');
+          emailBtn.classList.remove('btn-outline');
+          smsBtn.classList.remove('btn-soft', 'btn-soft-active');
+          smsBtn.classList.add('btn-outline');
+          emailBtn.classList.remove('btn-soft-active');
           if (next === 'sms') {
-            smsBtn.classList.add('btn-soft-active');
+            smsBtn.classList.remove('btn-outline');
+            smsBtn.classList.add('btn-soft', 'btn-soft-active');
             emailBtn.classList.remove('btn-soft-active');
           } else if (next === 'email') {
             emailBtn.classList.add('btn-soft-active');
-            smsBtn.classList.remove('btn-soft-active');
-          } else {
-            smsBtn.classList.remove('btn-soft-active');
-            emailBtn.classList.remove('btn-soft-active');
           }
         };
 
@@ -863,8 +867,10 @@
           emailBtn.style.display = '';
         };
 
-        setRegisterButtonState(false);
-        updateEmailContext();
+  setRegisterButtonState(false);
+  updateEmailContext();
+  // Default highlight email option
+  markActiveSendButton('email');
 
         let lastTriedCode = '';
         async function verifyCodeInline() {
@@ -888,7 +894,11 @@
               // Hide verify buttons after success
               smsBtn.style.display = 'none';
               emailBtn.style.display = 'none';
-              showLoginFeedback('Koda potrjena. Zaključite z Registracija.', 'success');
+              // Auto-complete registration once code verified
+              if (!registrationInFlight) {
+                registrationInFlight = true;
+                completeRegistration().finally(() => { registrationInFlight = false; });
+              }
             } else {
               verificationState.codeVerified = false;
               setRegisterButtonState(false);
@@ -1038,8 +1048,7 @@
           }
         };
 
-        // Registracija
-        registerBtn.onclick = async function() {
+        async function completeRegistration() {
           if (registerBtn.dataset.progress === '1') return;
           const name = registerFields.querySelector('#loginName').value.trim();
           const surname = registerFields.querySelector('#loginSurname').value.trim();
@@ -1077,6 +1086,7 @@
             showLoginFeedback('Najprej pošljite kodo s SMS ali emailom.', 'error');
             return;
           }
+          // If code not yet verified, try once here
           if (!verificationState.codeVerified) {
             showLoginFeedback('Preverjam kodo ...', 'info');
             try {
@@ -1095,12 +1105,8 @@
               }
               verificationState.codeVerified = true;
               verificationState.verifiedCode = registerCode;
-              setRegisterButtonState(true);
-              // Hide verify buttons after successful verification
               smsBtn.style.display = 'none';
               emailBtn.style.display = 'none';
-              showLoginFeedback('Koda potrjena! Kliknite Registracija za dokončanje.', 'success');
-              return;
             } catch (err) {
               showLoginFeedback('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
               return;
@@ -1124,7 +1130,7 @@
             return;
           }
 
-          showLoginFeedback('Registriram ...', 'info');
+          showLoginFeedback('Registracija v teku ...', 'info');
           registerBtn.dataset.progress = '1';
           registerBtn.disabled = true;
           try {
@@ -1146,7 +1152,7 @@
               const session = result?.data?.session || null;
               if (token) { try { localStorage.setItem('user_token', token); } catch {} }
               if (session) {
-                showLoginFeedback('Registracija uspešna!', 'success');
+                showLoginFeedback('Registracija je bila uspešna, hvala.', 'success');
                 try { localStorage.setItem('user_email', email); } catch {}
                 if (fullName) { try { localStorage.setItem('user_name', fullName); } catch {} }
                 await sendWelcomeEmail(email, fullName);
@@ -1158,7 +1164,7 @@
                 }, 600);
               } else {
                 // Ni takojšnje seje -> preklopi nazaj na login z obvestilom in predfilanim emailom
-                showLoginFeedback('Registracija uspešna! Preverite svoj e-poštni predal za potrditev računa.', 'success');
+                showLoginFeedback('Registracija je bila uspešna, hvala. Dokončajte potrditev prek e-pošte.', 'success');
                 try { localStorage.setItem('user_email', email); } catch {}
                 showConfirmPending(email);
                 await sendWelcomeEmail(email, fullName);
@@ -1188,7 +1194,10 @@
             registerBtn.dataset.progress = '';
             setRegisterButtonState(verificationState.codeVerified);
           }
-        };
+        }
+
+        // Registracija gumb še vedno deluje kot ročna potrditev
+        registerBtn.onclick = completeRegistration;
 
         // Ni gumba Nazaj na prijavo – vračamo se avtomatsko, če je potrebno
       }

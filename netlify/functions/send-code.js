@@ -32,6 +32,7 @@ const json = (status, body) => ({
 });
 
 const CODE_TTL_MS = 10 * 60 * 1000; // 10 minut
+const ALLOW_TEST_CODES = String(process.env.ALLOW_TEST_CODES || '').toLowerCase() === 'true';
 
 function generateCode() {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -45,6 +46,7 @@ let cachedTransporter = null;
 function getTransporter() {
   if (cachedTransporter) return cachedTransporter;
   if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) {
+    if (ALLOW_TEST_CODES) return null; // Dev način: preskoči prave pošiljke
     throw new Error('SMTP ni konfiguriran.');
   }
   cachedTransporter = nodemailer.createTransport({
@@ -74,11 +76,16 @@ async function sendEmailCode(to, code) {
     </div>
   `;
   const transporter = getTransporter();
+  if (!transporter) {
+    if (ALLOW_TEST_CODES) return { dev: true };
+    throw new Error('SMTP transporter ni dosegljiv.');
+  }
   await transporter.sendMail({ from: sender, to, subject: 'NearGo – potrditvena koda', html });
 }
 
 async function sendSmsCode(phone, countryCode, code) {
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER) {
+    if (ALLOW_TEST_CODES) return { dev: true };
     throw new Error('Twilio ni konfiguriran.');
   }
   const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
@@ -97,7 +104,8 @@ async function sendSmsCode(phone, countryCode, code) {
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS_HEADERS, body: '' };
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
-  if (!supabase) return json(500, { ok: false, error: 'Supabase ni konfiguriran.' });
+  // V dev/test načinu omogočimo pošiljanje brez Supabase
+  const noDb = !supabase;
 
   let payload;
   try {
@@ -128,18 +136,21 @@ export const handler = async (event) => {
       const email = String(payload.email || '').trim().toLowerCase();
       if (!email) return json(400, { ok: false, error: 'Manjka email.' });
       record.email = email;
-      const { data, error } = await supabase.from('verif_codes').insert(record).select();
-      if (error) throw error;
-      const inserted = data?.[0];
+      let inserted = null;
+      if (!noDb) {
+        const { data, error } = await supabase.from('verif_codes').insert(record).select();
+        if (error) throw error;
+        inserted = data?.[0];
+      }
       try {
         await sendEmailCode(email, code);
       } catch (sendErr) {
-        if (inserted?.id) {
+        if (!noDb && inserted?.id) {
           await supabase.from('verif_codes').delete().eq('id', inserted.id);
         }
         throw sendErr;
       }
-      return json(200, { ok: true, codeSent: true });
+      return json(200, { ok: true, codeSent: true, ...(ALLOW_TEST_CODES ? { code } : {}) });
     }
 
     const phone = sanitizePhone(payload.phone);
@@ -147,20 +158,27 @@ export const handler = async (event) => {
     const countryCode = String(payload.countryCode || '').trim();
     record.phone = phone;
     record.country_code = countryCode || null;
-    const { data, error } = await supabase.from('verif_codes').insert(record).select();
-    if (error) throw error;
-    const inserted = data?.[0];
+    let inserted = null;
+    if (!noDb) {
+      const { data, error } = await supabase.from('verif_codes').insert(record).select();
+      if (error) throw error;
+      inserted = data?.[0];
+    }
     try {
       await sendSmsCode(phone, countryCode, code);
     } catch (sendErr) {
-      if (inserted?.id) {
+      if (!noDb && inserted?.id) {
         await supabase.from('verif_codes').delete().eq('id', inserted.id);
       }
       throw sendErr;
     }
-    return json(200, { ok: true, codeSent: true });
+    return json(200, { ok: true, codeSent: true, ...(ALLOW_TEST_CODES ? { code } : {}) });
   } catch (err) {
     console.error('[send-code] error:', err?.message || err);
+    // V dev načinu ne blokiraj – vrni uspeh s kodo v odzivu
+    if (ALLOW_TEST_CODES) {
+      return json(200, { ok: true, codeSent: true, code, dev: true, note: 'ALLOW_TEST_CODES: simulirano pošiljanje' });
+    }
     return json(500, { ok: false, error: err?.message || 'Pošiljanje kode ni uspelo.' });
   }
 };

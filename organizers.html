@@ -543,8 +543,8 @@
           <input type="password" id="registerPassword" placeholder="Geslo (min. 6 znakov, velika začetnica, posebni znak)" required style="margin-bottom:8px;">
           <input type="password" id="registerPasswordRepeat" placeholder="Ponovite geslo" required style="margin-bottom:8px;">
           <div style="display:flex;gap:10px;margin-bottom:8px;">
-            <button type="button" id="sendSmsCodeBtn" class="btn btn-outline" style="flex:1;">Preveri s SMS kodo</button>
-            <button type="button" id="sendEmailCodeBtn" class="btn btn-outline" style="flex:1;">Preveri z email kodo</button>
+            <button type="button" id="sendSmsCodeBtn" class="btn btn-outline" style="flex:1;color:#0bbbd6;border:1px solid #0bbbd6;background:#fff;">Preveri s SMS kodo</button>
+            <button type="button" id="sendEmailCodeBtn" class="btn btn-outline" style="flex:1;color:#0bbbd6;border:1px solid #0bbbd6;background:#fff;">Preveri z email kodo</button>
           </div>
           <input type="text" id="registerCode" placeholder="Vnesite kodo" style="margin-bottom:8px;display:none;">
           <button type="button" id="backToLoginBtn" class="btn btn-outline" style="width:100%;margin-bottom:8px">Nazaj na prijavo</button>
@@ -555,6 +555,9 @@
         if (passwordInput) passwordInput.style.display = 'none';
         // Skrij gumb za prijavo
         loginForm.querySelector('button[type="submit"]').style.display = 'none';
+        // Skrij "Še niste registrirani?" pri registraciji
+        const forgotRow = document.getElementById('forgotRow');
+        if (forgotRow) forgotRow.style.display = 'none';
         // Vstavi registerFields za email
         const emailInput = loginForm.querySelector('#loginEmail');
         emailInput.insertAdjacentElement('afterend', registerFields);
@@ -583,7 +586,9 @@
               registerFields.querySelector('#registerCode').previousSend = 'sms';
               if (data.code) { registerFields.querySelector('#registerCode').expectedCode = String(data.code); }
             } else {
-              loginError.textContent = 'Napaka pri pošiljanju SMS kode.';
+              loginError.textContent = 'Težave s pošiljanjem SMS kode. Vnesite kodo ročno, če ste jo prejeli.';
+              registerFields.querySelector('#registerCode').style.display = '';
+              registerFields.querySelector('#registerCode').previousSend = 'sms';
             }
           } catch (e) {
             // Ne blokiraj uporabnika – omogoči ročni vnos kode
@@ -613,7 +618,9 @@
               registerFields.querySelector('#registerCode').previousSend = 'email';
               if (data.code) { registerFields.querySelector('#registerCode').expectedCode = String(data.code); }
             } else {
-              loginError.textContent = 'Napaka pri pošiljanju email kode.';
+              loginError.textContent = 'Težave s pošiljanjem email kode. Vnesite kodo ročno, če ste jo prejeli.';
+              registerFields.querySelector('#registerCode').style.display = '';
+              registerFields.querySelector('#registerCode').previousSend = 'email';
             }
           } catch (e) {
             // Ne blokiraj uporabnika – omogoči ročni vnos kode
@@ -755,6 +762,8 @@
           if (passwordInput) passwordInput.style.display = '';
           loginError.textContent = '';
           loginError.style.display = 'none';
+          const forgotRow = document.getElementById('forgotRow');
+          if (forgotRow) forgotRow.style.display = '';
         };
       }
 

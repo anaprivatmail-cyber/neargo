@@ -120,7 +120,45 @@
     window.SUPABASE_URL = window.SUPABASE_URL || "https://wqdfteajjcrzcniotvhh.supabase.co";
     window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
   </script>
-  <script type="module" src="/assets/supabase-client.js"></script>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const url = window.SUPABASE_URL || localStorage.getItem('SUPABASE_URL');
+    const anon = window.SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY');
+
+    if (!url || !anon) {
+      console.error('Supabase config missing', { url, anon });
+      window.testSignUpEmail = () => ({ error: { message: 'Supabase konfiguracija ni nastavljena.' } });
+      window.testSignInEmail = () => ({ error: { message: 'Supabase konfiguracija ni nastavljena.' } });
+    } else {
+      const client = createClient(url, anon);
+      window.supabase = client;
+
+      window.testSignUpEmail = async (email, password, options = null) => {
+        try {
+          const payload = { email, password };
+          if (options && typeof options === 'object') {
+            payload.options = options.options ? options.options : options;
+          }
+          const { data, error } = await client.auth.signUp(payload);
+          return { data, error };
+        } catch (error) {
+          console.error('[register] signUp failed:', error);
+          return { error };
+        }
+      };
+
+      window.testSignInEmail = async (email, password) => {
+        try {
+          const { data, error } = await client.auth.signInWithPassword({ email, password });
+          return { data, error };
+        } catch (error) {
+          console.error('[register] signIn failed:', error);
+          return { error };
+        }
+      };
+    }
+  </script>
 </head>
 <body id="organizers">
   <!-- HEADER: tvoj globalni header ostane – dodan gumb za vrnitev na domačo stran -->

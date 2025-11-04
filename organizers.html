@@ -604,7 +604,7 @@
     function serverErrorToMessage(resStatus, bodyError) {
       if (resStatus === 429) return 'Preveč zahtev – poskusite znova čez približno 1 minuto.';
       if (resStatus === 400) return bodyError || 'Podatki niso popolni. Preverite vnos.';
-      if (resStatus >= 500) return 'Strežnik je trenutno zaseden. Poskusite znova.';
+      if (resStatus >= 500) return bodyError || 'Strežnik je trenutno zaseden. Poskusite znova.';
       return bodyError || 'Zahteve trenutno ni mogoče izvesti.';
     }
 

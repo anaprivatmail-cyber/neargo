@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
-const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
+const {
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY
+} = process.env;
 
 const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -76,6 +79,8 @@ export const handler = async (event) => {
   }
 
   try {
+    const columnExists = await ensureColumn('method');
+
     let query = supabase.from('verif_codes')
       .select('*')
       .eq('code', code)
@@ -94,13 +99,15 @@ export const handler = async (event) => {
     const { data, error } = await query;
     if (error) throw error;
     if (!data || !data.length) {
-  return json(401, { ok: false, verified: false, error: 'Koda ni pravilna ali je potekla.' }, event);
+      return json(401, { ok: false, verified: false, error: 'Koda ni pravilna ali je potekla.' }, event);
     }
 
     const record = data[0];
+    const updatePayload = columnExists ? { used: true, used_at: new Date().toISOString(), method: record.method || (phone ? 'sms' : 'email') } : { used: true, used_at: new Date().toISOString() };
+
     const { error: updateErr } = await supabase
       .from('verif_codes')
-      .update({ used: true, used_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq('id', record.id);
 
     if (updateErr) throw updateErr;
@@ -114,3 +121,24 @@ export const handler = async (event) => {
     return json(500, { ok: false, verified: false, error: 'Preverjanje ni uspelo.' }, event);
   }
 };
+
+const columnCache = new Map();
+
+async function ensureColumn(column) {
+  if (!supabase) return false;
+  if (columnCache.has(column)) return columnCache.get(column);
+  try {
+    const { data, error } = await supabase
+      .from('verif_codes')
+      .select(column)
+      .limit(1);
+    if (error) throw error;
+    const exists = data ? true : false;
+    columnCache.set(column, exists);
+    return exists;
+  } catch (err) {
+    const exists = false;
+    columnCache.set(column, exists);
+    return exists;
+  }
+}

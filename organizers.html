@@ -761,8 +761,7 @@
             <button type="button" id="sendSmsCodeBtn" class="btn btn-soft" style="flex:1;">Preveri s SMS kodo</button>
             <button type="button" id="sendEmailCodeBtn" class="btn btn-soft" style="flex:1;">Preveri z email kodo</button>
           </div>
-          <input type="text" id="registerCode" placeholder="Vnesite kodo" style="margin-bottom:8px;display:none;">
-          <button type="button" id="backToLoginBtn" class="btn btn-outline" style="width:100%;margin-bottom:8px">Nazaj na prijavo</button>
+          <input type="text" id="registerCode" inputmode="numeric" autocomplete="one-time-code" pattern="\\d*" placeholder="Vnesite kodo" style="margin-bottom:8px;display:none;">
           <button type="button" id="registerSubmitBtn" class="btn btn-outline" style="width:100%;margin-bottom:8px" disabled>Registracija</button>
         `;
         // Skrij polje za geslo v login formi
@@ -770,9 +769,12 @@
         if (passwordInput) passwordInput.style.display = 'none';
         // Skrij gumb za prijavo
         loginForm.querySelector('button[type="submit"]').style.display = 'none';
-        // Vstavi registerFields za email
-        const emailInput = loginForm.querySelector('#loginEmail');
-        emailInput.insertAdjacentElement('afterend', registerFields);
+  // Vstavi registerFields za email
+    const emailInput = loginForm.querySelector('#loginEmail');
+    emailInput.insertAdjacentElement('afterend', registerFields);
+    // Skrij "Pozabljeno geslo?" v registraciji
+    const forgotRowEl = document.getElementById('forgotRow');
+    if (forgotRowEl) forgotRowEl.style.display = 'none';
 
         const smsBtn = registerFields.querySelector('#sendSmsCodeBtn');
         const emailBtn = registerFields.querySelector('#sendEmailCodeBtn');
@@ -780,6 +782,29 @@
         const registerCodeInput = registerFields.querySelector('#registerCode');
         const phoneInput = registerFields.querySelector('#loginPhone');
         const countryCodeSelect = registerFields.querySelector('#countryCode');
+        const exitToLogin = () => {
+          if (registerFields) {
+            registerFields.remove();
+            registerFields = null;
+          }
+          showRegisterBtn.style.display = '';
+          const submitBtn = loginForm.querySelector('button[type="submit"]');
+          if (submitBtn) submitBtn.style.display = '';
+          const passwordInput2 = loginForm.querySelector('#loginPassword');
+          if (passwordInput2) passwordInput2.style.display = '';
+          const forgotRowEl2 = document.getElementById('forgotRow');
+          if (forgotRowEl2) forgotRowEl2.style.display = '';
+          clearLoginFeedback();
+        };
+        // Paste handler – pobere samo številke
+        registerCodeInput.addEventListener('paste', (e) => {
+          const text = (e.clipboardData?.getData('text') || '').replace(/\D/g, '');
+          if (text) {
+            e.preventDefault();
+            registerCodeInput.value = text;
+            registerCodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
 
         const verificationState = {
           method: null,
@@ -871,12 +896,28 @@
           } catch {}
         }
 
+        // Vzemi samo številke, max 6; samodejno preveri, ko je dovolj
         registerCodeInput.addEventListener('input', () => {
+          const digitsOnly = registerCodeInput.value.replace(/\D/g, '').slice(0, 6);
+          if (registerCodeInput.value !== digitsOnly) {
+            registerCodeInput.value = digitsOnly;
+          }
           if (verificationState.codeVerified && registerCodeInput.value.trim() !== verificationState.verifiedCode) {
             verificationState.codeVerified = false;
             setRegisterButtonState(false);
           }
           verifyCodeInline();
+        });
+        registerCodeInput.addEventListener('paste', (e) => {
+          try {
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            if (text) {
+              e.preventDefault();
+              const digits = String(text).replace(/\D/g, '').slice(0, 6);
+              registerCodeInput.value = digits;
+              registerCodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          } catch {}
         });
 
         emailInput?.addEventListener('input', () => {
@@ -912,7 +953,7 @@
             const res = await fetch('/.netlify/functions/send-code', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ method: 'sms', phone: sanitizedPhone, countryCode })
+              body: JSON.stringify({ method: 'sms', phone: sanitizedPhone, countryCode, origin: location.origin })
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data?.ok && data.codeSent) {
@@ -925,6 +966,19 @@
               registerCodeInput.focus();
               markActiveSendButton('sms');
               showLoginFeedback('Koda je bila poslana na SMS.', 'success');
+              // WebOTP – preberi kodo iz SMS (Chrome/Android)
+              if ('OTPCredential' in window && navigator.credentials) {
+                try {
+                  const ac = new AbortController();
+                  setTimeout(() => ac.abort(), 60000);
+                  const content = await navigator.credentials.get({ otp: { transport: ['sms'] }, signal: ac.signal });
+                  const code = content?.code?.replace(/\D/g, '');
+                  if (code) {
+                    registerCodeInput.value = code;
+                    registerCodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                  }
+                } catch {}
+              }
               setTimeout(verifyCodeInline, 0);
             } else {
               showLoginFeedback(data?.error || 'Napaka pri pošiljanju SMS kode.', 'error');
@@ -1103,9 +1157,23 @@
                   showPanel('orgPanel');
                 }, 600);
               } else {
+                // Ni takojšnje seje -> preklopi nazaj na login z obvestilom in predfilanim emailom
                 showLoginFeedback('Registracija uspešna! Preverite svoj e-poštni predal za potrditev računa.', 'success');
+                try { localStorage.setItem('user_email', email); } catch {}
                 showConfirmPending(email);
                 await sendWelcomeEmail(email, fullName);
+                // Odstrani registracijska polja in pokaži prijavo
+                try {
+                  const forgotRowEl = document.getElementById('forgotRow');
+                  if (forgotRowEl) forgotRowEl.style.display = '';
+                  registerFields.remove();
+                  registerFields = null;
+                  showRegisterBtn.style.display = '';
+                  const submitBtn = loginForm.querySelector('button[type="submit"]');
+                  if (submitBtn) submitBtn.style.display = '';
+                  const passwordInput2 = loginForm.querySelector('#loginPassword');
+                  if (passwordInput2) passwordInput2.style.display = '';
+                } catch {}
               }
             } else {
               if (result?.error?.message && result.error.message.toLowerCase().includes('user already registered')) {
@@ -1122,17 +1190,7 @@
           }
         };
 
-        // Nazaj na prijavo
-        registerFields.querySelector('#backToLoginBtn').onclick = function() {
-          registerFields.remove();
-          registerFields = null;
-          showRegisterBtn.style.display = '';
-          loginForm.querySelector('button[type="submit"]').style.display = '';
-          const passwordInput = loginForm.querySelector('#loginPassword');
-          if (passwordInput) passwordInput.style.display = '';
-          clearLoginFeedback();
-          hideConfirmPending();
-        };
+        // Ni gumba Nazaj na prijavo – vračamo se avtomatsko, če je potrebno
       }
 
       showRegisterBtn.addEventListener('click', function(e) {

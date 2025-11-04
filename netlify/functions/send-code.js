@@ -79,7 +79,7 @@ async function sendEmailCode(to, code) {
         </div>
       </div>
       <p style="margin:0 0 12px">Your verification code:</p>
-      <div style="font-size:32px;font-weight:900;letter-spacing:6px;margin:12px 0 18px;text-align:center;color:#0bbbd6;">${code}</div>
+  <div style="font-size:32px;font-weight:900;letter-spacing:6px;margin:12px 0 18px;text-align:center;color:#0bbbd6;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; user-select: all; -webkit-user-select: all;">${code}</div>
       <p style="margin:0 0 6px">This code expires in 10 minutes. If you didn’t request it, you can safely ignore this message.</p>
       <hr style="border:none;border-top:1px solid rgba(11,30,60,0.08);margin:20px 0">
       <p style="font-size:13px;color:#5b6b7b;margin:0">NearGo Team</p>
@@ -89,7 +89,7 @@ async function sendEmailCode(to, code) {
   await transporter.sendMail({ from: sender, to, subject: 'NearGo – verification code', html });
 }
 
-async function sendSmsCode(phone, countryCode, code) {
+async function sendSmsCode(phone, countryCode, code, originHost) {
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER) {
     throw new Error('Twilio ni konfiguriran.');
   }
@@ -98,8 +98,9 @@ async function sendSmsCode(phone, countryCode, code) {
   if (!sanitized) throw new Error('Neveljavna telefonska številka.');
   const prefix = String(countryCode || '').trim() || '+386';
   const to = prefix.startsWith('+') ? `${prefix}${sanitized}` : `+${prefix}${sanitized}`;
+  const hostTag = originHost ? ` @${originHost} #${code}` : '';
   await client.messages.create({
-    body: `NearGo verification code: ${code}. Expires in 10 minutes.`,
+    body: `NearGo verification code: ${code}. Expires in 10 minutes.${hostTag}`,
     from: TWILIO_FROM_NUMBER,
     to
   });
@@ -172,6 +173,18 @@ export const handler = async (event) => {
     expires_at: expiresAt
   };
 
+  const getOriginHost = () => {
+    try {
+      const origin = event.headers?.origin || event.headers?.Origin || event.headers?.referer || event.headers?.Referer;
+      if (!origin) return '';
+      const u = new URL(origin);
+      return u.host || '';
+    } catch {
+      return '';
+    }
+  };
+  const originHost = getOriginHost();
+
   try {
     if (method === 'email') {
       const email = String(payload.email || '').trim().toLowerCase();
@@ -200,7 +213,7 @@ export const handler = async (event) => {
     if (error) throw error;
     const inserted = data?.[0];
     try {
-      await sendSmsCode(phone, countryCode, code);
+      await sendSmsCode(phone, countryCode, code, originHost);
     } catch (sendErr) {
       if (inserted?.id) {
         await supabase.from('verif_codes').delete().eq('id', inserted.id);

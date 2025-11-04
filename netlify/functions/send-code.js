@@ -56,6 +56,33 @@ function sanitizePhone(value) {
   return String(value || '').replace(/\D/g, '');
 }
 
+async function insertCodeRecord(payload) {
+  if (!supabase) return { inserted: null, missingColumns: [] };
+
+  const missingColumns = [];
+
+  async function runInsert(body) {
+    const { data, error } = await supabase.from('verif_codes').insert(body).select();
+    if (error) throw error;
+    return data?.[0] || null;
+  }
+
+  try {
+    const inserted = await runInsert(payload);
+    return { inserted, missingColumns };
+  } catch (err) {
+    const message = String(err?.message || '').toLowerCase();
+    if (payload?.method && message.includes("'method'")) {
+      const { method, ...rest } = payload;
+      const inserted = await runInsert(rest);
+      missingColumns.push('method');
+      console.warn('[send-code] verif_codes missing column: method');
+      return { inserted, missingColumns };
+    }
+    throw err;
+  }
+}
+
 let cachedTransporter = null;
 function getTransporter() {
   if (cachedTransporter) return cachedTransporter;
@@ -119,9 +146,6 @@ export const handler = async (event) => {
   const CORS = buildCors(event);
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' }, event);
-  // V dev/test načinu omogočimo pošiljanje brez Supabase
-  const noDb = !supabase;
-
   let payload;
   try {
     payload = JSON.parse(event.body || '{}');
@@ -138,7 +162,7 @@ export const handler = async (event) => {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + CODE_TTL_MS).toISOString();
 
-  const record = {
+  const baseRecord = {
     method,
     code,
     used: false,
@@ -171,46 +195,47 @@ export const handler = async (event) => {
     if (method === 'email') {
       const email = String(payload.email || '').trim().toLowerCase();
       if (!email) return json(400, { ok: false, error: 'Manjka email.' }, event);
-      record.email = email;
-      let inserted = null;
-      if (!noDb) {
-        const { data, error } = await supabase.from('verif_codes').insert(record).select();
-        if (error) throw error;
-        inserted = data?.[0];
-      }
+      const payloadForInsert = { ...baseRecord, email };
+      const { inserted, missingColumns } = await insertCodeRecord(payloadForInsert);
       let delivery = null;
       try {
         delivery = await sendEmailCode(email, code);
       } catch (sendErr) {
-        if (!noDb && inserted?.id) {
+        if (inserted?.id) {
           await supabase.from('verif_codes').delete().eq('id', inserted.id);
         }
         throw sendErr;
       }
-      return json(200, { ok: true, codeSent: true, ...(ALLOW_TEST_CODES ? { code } : {}), ...(delivery?.dev ? { dev: true } : {}) }, event);
+      return json(200, {
+        ok: true,
+        codeSent: true,
+        ...(ALLOW_TEST_CODES ? { code } : {}),
+        ...(delivery?.dev ? { dev: true } : {}),
+        ...(missingColumns?.length ? { missingColumns } : {})
+      }, event);
     }
 
     const phone = sanitizePhone(payload.phone);
     if (!phone) return json(400, { ok: false, error: 'Manjka telefonska številka.' }, event);
     const countryCode = String(payload.countryCode || '').trim();
-    record.phone = phone;
-    record.country_code = countryCode || null;
-    let inserted = null;
-    if (!noDb) {
-      const { data, error } = await supabase.from('verif_codes').insert(record).select();
-      if (error) throw error;
-      inserted = data?.[0];
-    }
+    const payloadForInsert = { ...baseRecord, phone, country_code: countryCode || null };
+    const { inserted, missingColumns } = await insertCodeRecord(payloadForInsert);
     let delivery = null;
     try {
       delivery = await sendSmsCode(phone, countryCode, code);
     } catch (sendErr) {
-      if (!noDb && inserted?.id) {
+      if (inserted?.id) {
         await supabase.from('verif_codes').delete().eq('id', inserted.id);
       }
       throw sendErr;
     }
-    return json(200, { ok: true, codeSent: true, ...(ALLOW_TEST_CODES ? { code } : {}), ...(delivery?.dev ? { dev: true } : {}) }, event);
+    return json(200, {
+      ok: true,
+      codeSent: true,
+      ...(ALLOW_TEST_CODES ? { code } : {}),
+      ...(delivery?.dev ? { dev: true } : {}),
+      ...(missingColumns?.length ? { missingColumns } : {})
+    }, event);
   } catch (err) {
     console.error('[send-code] error:', err?.message || err);
     // V dev načinu ne blokiraj – vrni uspeh s kodo v odzivu

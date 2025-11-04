@@ -104,16 +104,23 @@ async function sendEmailCode(to, code) {
   const html = `
     <div style="font-family:Arial,sans-serif;font-size:15px;color:#102437;background:#f6fbfe;padding:24px;border-radius:12px;max-width:420px;margin:auto;">
       <div style="text-align:center;margin-bottom:18px;">
-        <div style="display:inline-flex;align-items:center;gap:10px;font-weight:900;font-size:20px;color:#0b1b2b;">
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,#0bbbd6,#7de3f0);color:#042430;">N</span>
-          NearGo
+        <div style="display:inline-flex;align-items:center;justify-content:center;gap:12px;font-weight:900;font-size:20px;color:#0b1b2b;">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:16px;background:linear-gradient(135deg,#0bbbd6,#7de3f0);box-shadow:0 4px 20px rgba(11,187,214,0.35);">
+            <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="13" stroke="#ffffff" stroke-width="2" opacity="0.65" />
+              <circle cx="16" cy="16" r="8" stroke="#ffffff" stroke-width="2" opacity="0.85" />
+              <circle cx="16" cy="16" r="4" fill="#ffffff" />
+            </svg>
+          </span>
+          <span>NearGo</span>
         </div>
       </div>
-      <p style="margin:0 0 12px">Vaša potrditvena koda:</p>
+      <p style="margin:0 0 12px">Hi! Your NearGo verification code is:</p>
       <div style="font-size:32px;font-weight:900;letter-spacing:6px;margin:12px 0 18px;text-align:center;color:#0bbbd6;">${code}</div>
-      <p style="margin:0 0 6px">Koda poteče v 10 minutah. Če je niste zahtevali, lahko to sporočilo ignorirate.</p>
+      <p style="margin:0 0 6px">Enter this code in the app within 10 minutes to confirm your registration.</p>
+      <p style="margin:0 0 6px">If you didn’t request it, you can safely ignore this email.</p>
       <hr style="border:none;border-top:1px solid rgba(11,30,60,0.08);margin:20px 0">
-      <p style="font-size:13px;color:#5b6b7b;margin:0">Ekipa NearGo</p>
+      <p style="font-size:13px;color:#5b6b7b;margin:0">— The NearGo Team</p>
     </div>
   `;
   const transporter = getTransporter();
@@ -121,7 +128,7 @@ async function sendEmailCode(to, code) {
     if (ALLOW_TEST_CODES) return { dev: true };
     throw new Error('SMTP transporter ni dosegljiv.');
   }
-  await transporter.sendMail({ from: sender, to, subject: 'NearGo – potrditvena koda', html });
+  await transporter.sendMail({ from: sender, to, subject: 'NearGo verification code', html });
 }
 
 async function sendSmsCode(phone, countryCode, code) {
@@ -135,7 +142,7 @@ async function sendSmsCode(phone, countryCode, code) {
   const prefix = String(countryCode || '').trim() || '+386';
   const to = prefix.startsWith('+') ? `${prefix}${sanitized}` : `+${prefix}${sanitized}`;
   await client.messages.create({
-    body: `NearGo koda: ${code}`,
+    body: `NearGo verification code: ${code}`,
     from: TWILIO_FROM_NUMBER,
     to
   });

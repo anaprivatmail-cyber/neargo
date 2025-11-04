@@ -134,6 +134,44 @@
       const client = createClient(url, anon);
       window.supabase = client;
 
+      const updateLocalSession = (session) => {
+        if (!session) {
+          window.currentSupabaseSession = null;
+          try {
+            localStorage.removeItem('user_token');
+            localStorage.removeItem('user_refresh');
+          } catch {}
+          return;
+        }
+        window.currentSupabaseSession = session;
+        try {
+          const email = session.user?.email;
+          if (email) localStorage.setItem('user_email', email);
+          if (session.access_token) localStorage.setItem('user_token', session.access_token);
+          if (session.refresh_token) localStorage.setItem('user_refresh', session.refresh_token);
+        } catch (err) {
+          console.warn('[auth] localStorage persist failed:', err?.message || err);
+        }
+      };
+
+      window.persistSupabaseSession = (result) => {
+        const session = result?.session || result?.data?.session || null;
+        if (session) updateLocalSession(session);
+        const user = session?.user || result?.data?.user || result?.user;
+        if (user?.email && !session) {
+          try { localStorage.setItem('user_email', user.email); } catch {}
+        }
+        return session;
+      };
+
+      client.auth.getSession().then(({ data }) => {
+        if (data?.session) updateLocalSession(data.session);
+      }).catch((err) => console.warn('[auth] getSession failed:', err?.message || err));
+
+      client.auth.onAuthStateChange((_event, session) => {
+        updateLocalSession(session);
+      });
+
       window.testSignUpEmail = async (email, password, options = null) => {
         try {
           const payload = { email, password };
@@ -141,6 +179,7 @@
             payload.options = options.options ? options.options : options;
           }
           const { data, error } = await client.auth.signUp(payload);
+          if (data?.session) updateLocalSession(data.session);
           return { data, error };
         } catch (error) {
           console.error('[register] signUp failed:', error);
@@ -151,6 +190,7 @@
       window.testSignInEmail = async (email, password) => {
         try {
           const { data, error } = await client.auth.signInWithPassword({ email, password });
+          if (data?.session) updateLocalSession(data.session);
           return { data, error };
         } catch (error) {
           console.error('[register] signIn failed:', error);
@@ -190,7 +230,7 @@
           var closeLoginModal = document.getElementById('closeLoginModal');
           if (publishBtn) {
             publishBtn.onclick = function(e) {
-              var loggedIn = !!localStorage.getItem('user_email') || !!localStorage.getItem('user_token');
+              var loggedIn = !!(window.currentSupabaseSession?.user) || !!localStorage.getItem('user_email') || !!localStorage.getItem('user_token');
               if (!loggedIn) {
                 if (loginModal) loginModal.style.display = 'flex';
                 // po prijavi/registraciji nadaljuj na obrazec za objavo
@@ -644,6 +684,24 @@
       button.dataset.cooldownTimer = String(timer);
     }
 
+    async function ensureActiveSession(email, password, signUpResult) {
+      try {
+        const persist = typeof window.persistSupabaseSession === 'function' ? window.persistSupabaseSession : () => null;
+        let session = persist(signUpResult?.data || signUpResult || null) || signUpResult?.data?.session || null;
+        if (session) return { session };
+        if (!window.supabase) return { session: null };
+        const { data, error } = await window.supabase.auth.signInWithPassword({ email, password });
+        if (data?.session) {
+          persist({ session: data.session, user: data.user });
+          return { session: data.session };
+        }
+        if (error) return { session: null, error };
+        return { session: null };
+      } catch (error) {
+        return { session: null, error };
+      }
+    }
+
     function serverErrorToMessage(resStatus, bodyError) {
       if (resStatus === 429) return 'Preveč zahtev – poskusite znova čez približno 1 minuto.';
       if (resStatus === 400) return bodyError || 'Podatki niso popolni. Preverite vnos.';
@@ -999,9 +1057,29 @@
                 phone: countryCode + phoneDigits
               }
             });
-            if (result?.data?.user) {
-              setStatus('Registracija uspešna! Nadaljujem ...', 'ok');
-              setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 500);
+            if (result?.error) {
+              const message = result.error?.message || 'Registracija ni uspela.';
+              setStatus('Napaka: ' + message, 'error');
+              return;
+            }
+
+            const { session, error: loginError } = await ensureActiveSession(email, password, result);
+            if (loginError) {
+              const msg = String(loginError?.message || '').toLowerCase();
+              if (msg.includes('email not confirmed')) {
+                setStatus('Registracija je uspela. Prosimo potrdite e-pošto in nato ponovno poskusite s prijavo.', 'warn');
+                return;
+              }
+              setStatus('Registracija je uspela, prijava pa ni: ' + (loginError?.message || 'neznana napaka.'), 'warn');
+              return;
+            }
+
+            if (result?.data?.user || session) {
+              try {
+                if (result?.data?.user?.email) localStorage.setItem('user_email', result.data.user.email);
+              } catch {}
+              setStatus('Registracija potrjena! Preusmerjam ...', 'ok');
+              setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 1200);
             } else {
               if (result?.error?.message && result.error.message.toLowerCase().includes('user already registered')) {
                 setStatus('Uporabnik s tem emailom že obstaja.', 'warn');
@@ -1063,20 +1141,27 @@
           }
           let result = await testSignInEmail(email, password);
           if (result?.data?.user) {
-            loginError.textContent = 'Prijava uspešna!';
-            setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 500);
+            window.persistSupabaseSession?.(result?.data);
+            loginError.style.color = '#0b8a62';
+            loginError.textContent = 'Prijava uspešna! Preusmerjam ...';
+            loginError.style.display = 'block';
+            setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 800);
           } else {
             if (result?.error?.message && result.error.message.toLowerCase().includes('user not found')) {
               loginError.textContent = 'Uporabnik s tem emailom ne obstaja.';
             } else if (result?.error?.message && result.error.message.toLowerCase().includes('invalid login credentials')) {
               loginError.textContent = 'Geslo ni pravilno. Poskusite znova.';
+            } else if (result?.error?.message && result.error.message.toLowerCase().includes('email not confirmed')) {
+              loginError.textContent = 'Registracija še ni potrjena. Preverite e-pošto in sledite navodilom.';
             } else {
               loginError.textContent = 'Napaka: ' + (result?.error?.message || 'Neznana napaka.');
             }
+            loginError.style.color = '#d64c4c';
             loginError.style.display = 'block';
           }
         } catch (e) {
           loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
+          loginError.style.color = '#d64c4c';
           loginError.style.display = 'block';
         }
       });

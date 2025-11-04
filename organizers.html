@@ -480,6 +480,49 @@
     "use strict";
     const $ = s => document.querySelector(s);
 
+    function attachPasswordToggle(input) {
+      if (!input || input.dataset.hasToggle) return;
+      const wrapper = document.createElement('div');
+      wrapper.dataset.passwordWrapper = '1';
+      wrapper.style.position = 'relative';
+      wrapper.style.display = 'flex';
+      wrapper.style.alignItems = 'center';
+      wrapper.style.width = '100%';
+      wrapper.style.marginBottom = input.style.marginBottom || '8px';
+      const originalPaddingRight = input.style.paddingRight;
+      input.style.marginBottom = '0';
+      input.style.paddingRight = '52px';
+      input.parentNode.insertBefore(wrapper, input);
+      wrapper.appendChild(input);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Show';
+      btn.setAttribute('aria-label', 'Pokaži ali skrij geslo');
+      btn.setAttribute('aria-pressed', 'false');
+      btn.style.position = 'absolute';
+      btn.style.right = '12px';
+      btn.style.background = 'transparent';
+      btn.style.border = 'none';
+      btn.style.cursor = 'pointer';
+      btn.style.fontSize = '13px';
+      btn.style.fontWeight = '700';
+      btn.style.opacity = '0.7';
+      btn.style.height = '100%';
+      btn.style.display = 'flex';
+      btn.style.alignItems = 'center';
+      btn.style.justifyContent = 'center';
+      btn.style.padding = '0';
+      btn.addEventListener('click', () => {
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        btn.textContent = isPassword ? 'Hide' : 'Show';
+        btn.setAttribute('aria-pressed', String(isPassword));
+      });
+      wrapper.appendChild(btn);
+      input.dataset.hasToggle = '1';
+      input.dataset.originalPaddingRight = originalPaddingRight || '';
+    }
+
     /* ===== Garantiraj, da gumb v glavi kaže na to stran =====
        Če je glava vključena na vseh straneh, naj href = "/organizers.html".
        (Če želiš lep URL /organizers, daj datoteko v /organizers/index.html) */
@@ -613,6 +656,8 @@
     let registerFields = null;
     const loginError = document.getElementById('loginError');
     const RESEND_COOLDOWN = 60;
+
+  attachPasswordToggle(document.getElementById('loginPassword'));
 
     function setStatus(message = "", tone = "info") {
       if (!loginError) return;
@@ -750,9 +795,15 @@
         `;
         // Skrij polje za geslo v login formi
         const passwordInput = loginForm.querySelector('#loginPassword');
-        if (passwordInput) passwordInput.style.display = 'none';
+        const passwordWrapper = passwordInput?.closest('[data-password-wrapper]');
+        if (passwordWrapper) {
+          passwordWrapper.style.display = 'none';
+        } else if (passwordInput) {
+          passwordInput.style.display = 'none';
+        }
         // Skrij gumb za prijavo
-        loginForm.querySelector('button[type="submit"]').style.display = 'none';
+  const loginSubmitBtn = loginForm.querySelector('button[type="submit"]');
+  if (loginSubmitBtn) loginSubmitBtn.style.display = 'none';
         // Skrij "Še niste registrirani?" pri registraciji
         const forgotRow = document.getElementById('forgotRow');
         if (forgotRow) forgotRow.style.display = 'none';
@@ -769,6 +820,9 @@
         const revealLink = revealHint?.querySelector('a');
   const registerPasswordInput = registerFields.querySelector('#registerPassword');
   const registerPasswordRepeatInput = registerFields.querySelector('#registerPasswordRepeat');
+
+    attachPasswordToggle(registerPasswordInput);
+    attachPasswordToggle(registerPasswordRepeatInput);
         const passwordStrength = registerFields.querySelector('#passwordStrength');
         const passwordMatchHint = registerFields.querySelector('#passwordMatchHint');
 
@@ -1138,9 +1192,15 @@
           registerFields.remove();
           registerFields = null;
           showRegisterBtn.style.display = '';
-          loginForm.querySelector('button[type="submit"]').style.display = '';
+          const loginSubmitBtn = loginForm.querySelector('button[type="submit"]');
+          if (loginSubmitBtn) loginSubmitBtn.style.display = '';
           const passwordInput = loginForm.querySelector('#loginPassword');
-          if (passwordInput) passwordInput.style.display = '';
+          const passwordWrapper = passwordInput?.closest('[data-password-wrapper]');
+          if (passwordWrapper) {
+            passwordWrapper.style.display = '';
+          } else if (passwordInput) {
+            passwordInput.style.display = '';
+          }
           loginError.textContent = '';
           loginError.style.display = 'none';
           const forgotRow = document.getElementById('forgotRow');
@@ -1154,8 +1214,14 @@
         showRegisterBtn.style.display = 'none';
         // Skrij polje za geslo
         const passwordInput = loginForm.querySelector('#loginPassword');
-        if (passwordInput) passwordInput.style.display = 'none';
-        loginForm.querySelector('button[type="submit"]').style.display = 'none';
+        const passwordWrapper = passwordInput?.closest('[data-password-wrapper]');
+        if (passwordWrapper) {
+          passwordWrapper.style.display = 'none';
+        } else if (passwordInput) {
+          passwordInput.style.display = 'none';
+        }
+        const loginSubmitBtn = loginForm.querySelector('button[type="submit"]');
+        if (loginSubmitBtn) loginSubmitBtn.style.display = 'none';
       });
 
       // Login

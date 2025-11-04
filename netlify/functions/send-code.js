@@ -94,6 +94,37 @@ async function sendSmsCode(phone, countryCode, code) {
   return sanitized;
 }
 
+let supportsExpiresAtColumn = true;
+let supportsCountryCodeColumn = true;
+
+async function insertVerificationRecord(rawRecord) {
+  const attempt = async () => {
+    const payload = { ...rawRecord };
+    if (!supportsExpiresAtColumn) delete payload.expires_at;
+    if (!supportsCountryCodeColumn) delete payload.country_code;
+    return supabase.from('verif_codes').insert(payload).select();
+  };
+
+  let { data, error } = await attempt();
+  if (!error) return { data, error };
+
+  const message = (error.message || '').toLowerCase();
+  let retried = false;
+  if (supportsExpiresAtColumn && message.includes('expires_at')) {
+    supportsExpiresAtColumn = false;
+    retried = true;
+  }
+  if (supportsCountryCodeColumn && message.includes('country_code')) {
+    supportsCountryCodeColumn = false;
+    retried = true;
+  }
+
+  if (!retried) return { data, error };
+
+  ({ data, error } = await attempt());
+  return { data, error };
+}
+
 export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS_HEADERS, body: '' };
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
@@ -128,7 +159,7 @@ export const handler = async (event) => {
       const email = String(payload.email || '').trim().toLowerCase();
       if (!email) return json(400, { ok: false, error: 'Manjka email.' });
       record.email = email;
-      const { data, error } = await supabase.from('verif_codes').insert(record).select();
+      const { data, error } = await insertVerificationRecord(record);
       if (error) throw error;
       const inserted = data?.[0];
       try {
@@ -147,7 +178,7 @@ export const handler = async (event) => {
     const countryCode = String(payload.countryCode || '').trim();
     record.phone = phone;
     record.country_code = countryCode || null;
-    const { data, error } = await supabase.from('verif_codes').insert(record).select();
+  const { data, error } = await insertVerificationRecord(record);
     if (error) throw error;
     const inserted = data?.[0];
     try {

@@ -112,7 +112,7 @@ export const handler = async (event) => {
 
     if (updateErr) throw updateErr;
 
-    return json(200, { ok: true, verified: true }, event);
+  return json(200, { ok: true, verified: true, recordId: record.id, email: record.email || null, method: record.method || (phone ? 'sms' : 'email') }, event);
   } catch (err) {
     console.error('[verify-code] error:', err?.message || err);
     if (ALLOW_TEST_CODES) {

@@ -858,6 +858,34 @@
           return { ok: false, error: err?.message || err };
         }
       }
+
+      async function confirmEmailFromCode({ codeId, userId, email }) {
+        const payload = {
+          codeId: codeId || '',
+          userId: userId || '',
+          email: (email || '').trim().toLowerCase()
+        };
+        if (!payload.codeId || !payload.userId || !payload.email) {
+          return { ok: false, error: 'Manjkajo podatki za potrditev.' };
+        }
+        try {
+          const res = await fetch('/.netlify/functions/confirm-email-from-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const text = await res.text();
+          let data = {};
+          if (text) { try { data = JSON.parse(text); } catch {} }
+          if (!res.ok || data?.ok === false) {
+            const err = data?.error || `Potrditev ni uspela (${res.status})`;
+            return { ok: false, error: err };
+          }
+          return { ok: true, alreadyConfirmed: !!data?.alreadyConfirmed };
+        } catch (err) {
+          return { ok: false, error: err?.message || err };
+        }
+      }
       function createRegisterFields() {
         if (registerFields) return;
   registerFields = document.createElement('div');
@@ -1162,6 +1190,7 @@
           const passwordRepeat = registerPasswordRepeatInput?.value || '';
           const registerCode = codeInput?.value.trim() || '';
           const verificationMethod = codeInput?.previousSend === 'sms' ? 'sms' : 'email';
+          codeInput.verifiedRecordId = null;
 
           if (!name || !surname) {
             setStatus('Vnesite ime in priimek.', 'error');
@@ -1221,6 +1250,7 @@
 
           setStatus('Preverjam kodo ...', 'info');
           let verified = false;
+          let verifyData = {};
           const lastMethod = codeInput?.previousSend === 'sms' ? 'sms' : 'email';
           try {
             const payload = lastMethod === 'sms'
@@ -1232,7 +1262,6 @@
               body: JSON.stringify(payload)
             });
             const verifyText = await verifyRes.text();
-            let verifyData = {};
             if (verifyText) { try { verifyData = JSON.parse(verifyText); } catch {} }
             verified = !!(verifyRes.ok && verifyData?.ok && verifyData?.verified);
             if (!verified && verifyRes.status === 429) {
@@ -1252,6 +1281,10 @@
               setStatus('Koda ni pravilna.', 'error');
               return;
             }
+          }
+
+          if (verified) {
+            codeInput.verifiedRecordId = verifyData?.recordId || null;
           }
 
           setStatus('Registriram ...', 'info');
@@ -1280,19 +1313,56 @@
             }
 
             if (verificationMethod === 'email') {
-              const { session, error: loginError } = await ensureActiveSession(email, password, result);
+              const newUser = result?.data?.user || result?.data?.session?.user || null;
+              const codeId = codeInput?.verifiedRecordId || verifyData?.recordId || null;
+              codeInput.verifiedRecordId = null;
+              let emailConfirmedViaCode = false;
+              if (newUser?.id && codeId) {
+                const confirmOutcome = await confirmEmailFromCode({ codeId, userId: newUser.id, email });
+                if (confirmOutcome.ok) {
+                  emailConfirmedViaCode = true;
+                  if (!confirmOutcome.alreadyConfirmed) {
+                    setStatus('Email potrjen. Prijavljam ...', 'info');
+                  }
+                } else {
+                  console.warn('[register] email confirm via code failed:', confirmOutcome.error);
+                }
+              }
+
+              let session = null;
+              let loginError = null;
+              const initialEnsure = await ensureActiveSession(email, password, result);
+              session = initialEnsure?.session || null;
+              loginError = initialEnsure?.error || null;
+
+              if (loginError && emailConfirmedViaCode) {
+                await new Promise((resolve) => setTimeout(resolve, 600));
+                const retryEnsure = await ensureActiveSession(email, password, result);
+                if (retryEnsure?.session) {
+                  session = retryEnsure.session;
+                  loginError = retryEnsure.error || null;
+                } else {
+                  loginError = retryEnsure?.error || loginError;
+                }
+              }
+
               if (loginError) {
                 const msg = String(loginError?.message || '').toLowerCase();
                 if (msg.includes('email not confirmed')) {
-                  setStatus('Registracija je uspela. Prosimo potrdite e-pošto in nato ponovno poskusite s prijavo.', 'warn');
+                  if (emailConfirmedViaCode) {
+                    setStatus('Email je potrjen. Poskusite znova s prijavo čez nekaj sekund.', 'warn');
+                  } else {
+                    setStatus('Registracija je uspela. Prosimo potrdite e-pošto in nato ponovno poskusite s prijavo.', 'warn');
+                  }
                   return;
                 }
                 console.warn('[register] follow-up login failed:', loginError);
                 setStatus('Registracija je uspela, prijava pa ni: ' + (loginError?.message || 'neznana napaka.') + ' – poskusite se prijaviti ročno.', 'warn');
+                if (!session) return;
               }
 
-              if (result?.data?.user || session) {
-                const user = result?.data?.user || session?.user;
+              if (newUser || session) {
+                const user = session?.user || newUser;
                 if (session) {
                   try {
                     window.persistSupabaseSession?.({ session, user });
@@ -1306,11 +1376,7 @@
                 setStatus('Registracija potrjena! Preusmerjam ...', 'ok');
                 setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 1200);
               } else {
-                if (result?.error?.message && result.error.message.toLowerCase().includes('user already registered')) {
-                  setStatus('Uporabnik s tem emailom že obstaja.', 'warn');
-                } else {
-                  setStatus('Napaka: ' + (result?.error?.message || 'Napaka v podatkih.'), 'error');
-                }
+                setStatus('Registracija je uspela, vendar prijava ni bila dokončana. Poskusite se prijaviti ročno.', 'warn');
               }
               return;
             }

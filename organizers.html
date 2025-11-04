@@ -870,7 +870,11 @@
               }
               return;
             }
-            setStatus('Koda je bila poslana na SMS.', 'ok');
+            const smsTone = data?.dev ? 'warn' : 'ok';
+            const smsMessage = data?.dev
+              ? 'SMS koda je simulirana (test način). Koda je prikazana spodaj.'
+              : 'Koda je bila poslana na SMS.';
+            setStatus(smsMessage, smsTone);
             if (codeInput) {
               codeInput.style.display = '';
               codeInput.previousSend = 'sms';
@@ -929,7 +933,11 @@
               }
               return;
             }
-            setStatus('Koda je bila poslana na email.', 'ok');
+            const emailTone = data?.dev ? 'warn' : 'ok';
+            const emailMessage = data?.dev
+              ? 'Koda je poslana na email (test način). Uporabite prikazano kodo.'
+              : 'Koda je bila poslana na email.';
+            setStatus(emailMessage, emailTone);
             if (codeInput) {
               codeInput.style.display = '';
               codeInput.previousSend = 'email';
@@ -966,6 +974,7 @@
           const password = registerPasswordInput?.value || '';
           const passwordRepeat = registerPasswordRepeatInput?.value || '';
           const registerCode = codeInput?.value.trim() || '';
+          const verificationMethod = codeInput?.previousSend === 'sms' ? 'sms' : 'email';
 
           if (!name || !surname) {
             setStatus('Vnesite ime in priimek.', 'error');
@@ -1063,30 +1072,41 @@
               return;
             }
 
-            const { session, error: loginError } = await ensureActiveSession(email, password, result);
-            if (loginError) {
-              const msg = String(loginError?.message || '').toLowerCase();
-              if (msg.includes('email not confirmed')) {
-                setStatus('Registracija je uspela. Prosimo potrdite e-pošto in nato ponovno poskusite s prijavo.', 'warn');
-                return;
+            if (verificationMethod === 'email') {
+              const { session, error: loginError } = await ensureActiveSession(email, password, result);
+              if (loginError) {
+                const msg = String(loginError?.message || '').toLowerCase();
+                if (msg.includes('email not confirmed')) {
+                  setStatus('Registracija je uspela. Prosimo potrdite e-pošto in nato ponovno poskusite s prijavo.', 'warn');
+                  return;
+                }
+                console.warn('[register] follow-up login failed:', loginError);
+                setStatus('Registracija je uspela, prijava pa ni: ' + (loginError?.message || 'neznana napaka.') + ' – poskusite se prijaviti ročno.', 'warn');
               }
-              setStatus('Registracija je uspela, prijava pa ni: ' + (loginError?.message || 'neznana napaka.'), 'warn');
+
+              if (result?.data?.user || session) {
+                const user = result?.data?.user || session?.user;
+                try {
+                  if (user?.email) localStorage.setItem('user_email', user.email);
+                } catch {}
+                setStatus('Registracija potrjena! Preusmerjam ...', 'ok');
+                setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 1200);
+              } else {
+                if (result?.error?.message && result.error.message.toLowerCase().includes('user already registered')) {
+                  setStatus('Uporabnik s tem emailom že obstaja.', 'warn');
+                } else {
+                  setStatus('Napaka: ' + (result?.error?.message || 'Napaka v podatkih.'), 'error');
+                }
+              }
               return;
             }
 
-            if (result?.data?.user || session) {
-              try {
-                if (result?.data?.user?.email) localStorage.setItem('user_email', result.data.user.email);
-              } catch {}
-              setStatus('Registracija potrjena! Preusmerjam ...', 'ok');
-              setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 1200);
-            } else {
-              if (result?.error?.message && result.error.message.toLowerCase().includes('user already registered')) {
-                setStatus('Uporabnik s tem emailom že obstaja.', 'warn');
-              } else {
-                setStatus('Napaka: ' + (result?.error?.message || 'Napaka v podatkih.'), 'error');
-              }
+            // SMS preverjanje: zahtevaj dodatno potrditev e-pošte
+            const user = result?.data?.user;
+            if (user?.email) {
+              try { localStorage.setItem('user_email', user.email); } catch {}
             }
+            setStatus('SMS koda potrjena. Preverite e-pošto in jo potrdite, nato dokončajte prijavo.', 'warn');
           } catch (err) {
             setStatus('Registracija uspešna! (strežnik je odziven počasneje)', 'warn');
             setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 600);

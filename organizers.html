@@ -758,6 +758,106 @@
     }
 
     if (loginForm && showRegisterBtn) {
+      function showLoginView({ prefillEmail = '', message = '', tone = 'info', focus } = {}) {
+        if (registerFields) {
+          registerFields.remove();
+          registerFields = null;
+        }
+        if (showRegisterBtn) showRegisterBtn.style.display = '';
+        const loginSubmitBtn = loginForm?.querySelector('button[type="submit"]');
+        if (loginSubmitBtn) loginSubmitBtn.style.display = '';
+        const passwordInput = loginForm?.querySelector('#loginPassword');
+        const passwordWrapper = passwordInput?.closest('[data-password-wrapper]');
+        if (passwordWrapper) {
+          passwordWrapper.style.display = '';
+        } else if (passwordInput) {
+          passwordInput.style.display = '';
+        }
+        const forgotRow = document.getElementById('forgotRow');
+        if (forgotRow) forgotRow.style.display = '';
+        if (typeof prefillEmail === 'string' && prefillEmail) {
+          const loginEmailInput = loginForm?.querySelector('#loginEmail');
+          if (loginEmailInput) loginEmailInput.value = prefillEmail;
+        }
+        if (message) {
+          setStatus(message, tone);
+        } else {
+          loginError.textContent = '';
+          loginError.style.display = 'none';
+        }
+        if (focus === 'password') {
+          loginForm?.querySelector('#loginPassword')?.focus();
+        } else if (focus === 'email') {
+          loginForm?.querySelector('#loginEmail')?.focus();
+        }
+      }
+
+      function handleExistingAccount(type, context = {}) {
+        const emailForLogin = context.emailForLogin || '';
+        const baseMessage = type === 'phone'
+          ? 'Ta telefonska številka je že registrirana. Preusmerili smo vas na prijavo.'
+          : 'Ta e-pošta je že registrirana. Preusmerili smo vas na prijavo.';
+        const hint = ' Če ste pozabili geslo, uporabite možnost "Ste pozabili geslo?".';
+        showLoginView({
+          prefillEmail: emailForLogin,
+          message: baseMessage + hint,
+          tone: 'warn',
+          focus: emailForLogin ? 'password' : 'email'
+        });
+      }
+
+      async function checkIdentityDuplicates({ email, phoneDigits, countryCode }) {
+        const payload = {};
+        if (email) payload.email = email.trim().toLowerCase();
+        if (phoneDigits) payload.phone = phoneDigits;
+        if (countryCode) payload.countryCode = countryCode;
+        if (!payload.email && !payload.phone) return { ok: true, data: {} };
+        try {
+          const res = await fetch('/.netlify/functions/auth-identity-check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const text = await res.text();
+          let data = {};
+          if (text) { try { data = JSON.parse(text); } catch {} }
+          if (!res.ok || data?.ok === false) {
+            const err = data?.error || `Preverjanje ni uspelo (${res.status})`;
+            return { ok: false, error: err };
+          }
+          return { ok: true, data };
+        } catch (err) {
+          return { ok: false, error: err?.message || err };
+        }
+      }
+
+      async function requestConfirmationEmail(email) {
+        if (!email) return { ok: false, error: 'Manjka email.' };
+        const origin = window.location?.origin || '';
+        const redirect = origin ? `${origin.replace(/\/$/, '')}/auth-callback.html` : undefined;
+        try {
+          const res = await fetch('/.netlify/functions/resend-confirmation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, redirectTo: redirect })
+          });
+          const text = await res.text();
+          let data = {};
+          if (text) { try { data = JSON.parse(text); } catch {} }
+          if (!res.ok || data?.ok === false) {
+            const err = data?.error || `Pošiljanje ni uspelo (${res.status})`;
+            return { ok: false, error: err };
+          }
+          return {
+            ok: true,
+            alreadyConfirmed: !!data?.alreadyConfirmed,
+            simulated: !!data?.dev,
+            link: data?.link
+          };
+        } catch (err) {
+          return { ok: false, error: err?.message || err };
+        }
+      }
       function createRegisterFields() {
         if (registerFields) return;
   registerFields = document.createElement('div');
@@ -899,6 +999,21 @@
             registerPhoneInput?.focus();
             return;
           }
+          const email = (emailInput?.value || '').trim();
+          const identityCheck = await checkIdentityDuplicates({ email, phoneDigits, countryCode });
+          if (identityCheck?.ok) {
+            const flags = identityCheck.data || {};
+            if (flags.emailExists) {
+              handleExistingAccount('email', { emailForLogin: email });
+              return;
+            }
+            if (flags.phoneExists) {
+              handleExistingAccount('phone', { emailForLogin: email });
+              return;
+            }
+          } else if (identityCheck?.error) {
+            console.warn('[register] identity check (sms) failed:', identityCheck.error);
+          }
           setStatus('Pošiljam SMS kodo ...', 'info');
           const restoreBusy = setBusy(smsBtn, 'Pošiljam ...');
           try {
@@ -961,6 +1076,21 @@
             setStatus('Vnesite veljaven email naslov.', 'error');
             emailInput?.focus();
             return;
+          }
+          const phoneDigits = (registerPhoneInput?.value || '').replace(/\D/g, '');
+          const identityCheck = await checkIdentityDuplicates({ email, phoneDigits, countryCode: countrySelect?.value });
+          if (identityCheck?.ok) {
+            const flags = identityCheck.data || {};
+            if (flags.emailExists) {
+              handleExistingAccount('email', { emailForLogin: email });
+              return;
+            }
+            if (flags.phoneExists) {
+              handleExistingAccount('phone', { emailForLogin: email });
+              return;
+            }
+          } else if (identityCheck?.error) {
+            console.warn('[register] identity check (email) failed:', identityCheck.error);
           }
           setStatus('Pošiljam email kodo ...', 'info');
           const restoreBusy = setBusy(emailBtn, 'Pošiljam ...');
@@ -1074,6 +1204,21 @@
             return;
           }
 
+          const identityCheck = await checkIdentityDuplicates({ email, phoneDigits, countryCode });
+          if (identityCheck?.ok) {
+            const flags = identityCheck.data || {};
+            if (flags.emailExists) {
+              handleExistingAccount('email', { emailForLogin: email });
+              return;
+            }
+            if (flags.phoneExists) {
+              handleExistingAccount('phone', { emailForLogin: email });
+              return;
+            }
+          } else if (identityCheck?.error) {
+            console.warn('[register] identity check (submit) failed:', identityCheck.error);
+          }
+
           setStatus('Preverjam kodo ...', 'info');
           let verified = false;
           const lastMethod = codeInput?.previousSend === 'sms' ? 'sms' : 'email';
@@ -1124,8 +1269,13 @@
               }
             });
             if (result?.error) {
-              const message = result.error?.message || 'Registracija ni uspela.';
-              setStatus('Napaka: ' + message, 'error');
+              const rawMessage = result.error?.message || 'Registracija ni uspela.';
+              const lowered = String(rawMessage).toLowerCase();
+              if (lowered.includes('already registered') || lowered.includes('duplicate')) {
+                handleExistingAccount('email', { emailForLogin: email });
+                return;
+              }
+              setStatus('Napaka: ' + rawMessage, 'error');
               return;
             }
 
@@ -1170,16 +1320,32 @@
             if (user?.email) {
               try { localStorage.setItem('user_email', user.email); } catch {}
             }
-            if (window.supabase?.auth?.resend) {
-              try {
-                await window.supabase.auth.resend({ type: 'signup', email });
-                setStatus('SMS koda potrjena. Poslali smo svež potrditveni email – odpri ga in potrdi registracijo, nato dokončaj prijavo.', 'warn');
-              } catch (resendErr) {
-                console.warn('[register] resend confirmation failed:', resendErr);
-                setStatus('SMS koda potrjena. Preverite e-pošto in jo potrdite, nato dokončajte prijavo.', 'warn');
+            let confirmationMessageShown = false;
+            const confirmationResult = await requestConfirmationEmail(email);
+            if (confirmationResult.ok) {
+              confirmationMessageShown = true;
+              if (confirmationResult.alreadyConfirmed) {
+                setStatus('SMS koda potrjena. Email je že potrjen - prijavite se z obstoječim geslom.', 'ok');
+              } else if (confirmationResult.simulated) {
+                const extra = confirmationResult.link ? ` (test povezava: ${confirmationResult.link})` : '';
+                setStatus('SMS koda potrjena. Pošiljanje potrditvenega emaila poteka v test načinu.' + extra, 'warn');
+              } else {
+                setStatus('SMS koda potrjena. Poslali smo potrditveni email - odprite ga in dokončajte prijavo.', 'ok');
               }
             } else {
-              setStatus('SMS koda potrjena. Preverite e-pošto in jo potrdite, nato dokončajte prijavo.', 'warn');
+              console.warn('[register] confirmation email trigger failed:', confirmationResult.error);
+              if (window.supabase?.auth?.resend) {
+                try {
+                  await window.supabase.auth.resend({ type: 'signup', email });
+                  confirmationMessageShown = true;
+                  setStatus('SMS koda potrjena. Poslali smo potrditveni email preko Supabase - preverite mapo "Inbox" ali "Spam".', 'warn');
+                } catch (resendErr) {
+                  console.warn('[register] supabase.resend fallback failed:', resendErr);
+                }
+              }
+            }
+            if (!confirmationMessageShown) {
+              setStatus('SMS koda potrjena. Potrditvenega emaila trenutno ni mogoče poslati. Če ga v nekaj minutah ne prejmete, uporabite "Ste pozabili geslo?" po prijavi ali kontaktirajte podporo.', 'warn');
             }
           } catch (err) {
             setStatus('Registracija uspešna! (strežnik je odziven počasneje)', 'warn');
@@ -1189,22 +1355,7 @@
 
         // Nazaj na prijavo
         registerFields.querySelector('#backToLoginBtn').onclick = function() {
-          registerFields.remove();
-          registerFields = null;
-          showRegisterBtn.style.display = '';
-          const loginSubmitBtn = loginForm.querySelector('button[type="submit"]');
-          if (loginSubmitBtn) loginSubmitBtn.style.display = '';
-          const passwordInput = loginForm.querySelector('#loginPassword');
-          const passwordWrapper = passwordInput?.closest('[data-password-wrapper]');
-          if (passwordWrapper) {
-            passwordWrapper.style.display = '';
-          } else if (passwordInput) {
-            passwordInput.style.display = '';
-          }
-          loginError.textContent = '';
-          loginError.style.display = 'none';
-          const forgotRow = document.getElementById('forgotRow');
-          if (forgotRow) forgotRow.style.display = '';
+          showLoginView({ focus: 'email' });
         };
       }
 

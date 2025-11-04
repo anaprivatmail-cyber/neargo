@@ -22,7 +22,11 @@ const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
 
 const RAW_ALLOW_TEST_CODES = String(process.env.ALLOW_TEST_CODES || '').toLowerCase() === 'true';
 const NETLIFY_CONTEXT = String(process.env.CONTEXT || '').toLowerCase();
-const ALLOW_TEST_CODES = RAW_ALLOW_TEST_CODES || (NETLIFY_CONTEXT && NETLIFY_CONTEXT !== 'production');
+const NETLIFY_DEV = String(process.env.NETLIFY_DEV || '').toLowerCase() === 'true';
+const NODE_ENV = String(process.env.NODE_ENV || '').toLowerCase();
+const missingInfrastructure = !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS || !TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER;
+const nonProdContext = (NETLIFY_CONTEXT && NETLIFY_CONTEXT !== 'production') || NETLIFY_DEV || NODE_ENV === 'development';
+const ALLOW_TEST_CODES = RAW_ALLOW_TEST_CODES || nonProdContext || missingInfrastructure;
 
 function buildCors(event){
   const allowed = String(process.env.ALLOWED_ORIGINS || '*')

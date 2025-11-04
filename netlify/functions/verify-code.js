@@ -6,15 +6,22 @@ const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
   : null;
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST,OPTIONS'
-};
+function buildCors(event){
+  const allowed = String(process.env.ALLOWED_ORIGINS || '*')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const reqOrigin = event?.headers?.origin || '';
+  const origin = allowed.includes('*') ? '*' : (allowed.find(o => o === reqOrigin) || allowed[0] || '*');
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST,OPTIONS',
+    'Cache-Control': 'no-store'
+  };
+}
 
-const json = (status, body) => ({
+const json = (status, body, event) => ({
   statusCode: status,
-  headers: { 'content-type': 'application/json; charset=utf-8', ...CORS_HEADERS },
+  headers: { 'content-type': 'application/json; charset=utf-8', ...buildCors(event) },
   body: JSON.stringify(body)
 });
 
@@ -31,15 +38,16 @@ const normalizeEmail = (value) => {
 };
 
 export const handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS_HEADERS, body: '' };
-  if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
-  if (!supabase) return json(500, { ok: false, error: 'Supabase ni konfiguriran.' });
+  const CORS = buildCors(event);
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
+  if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' }, event);
+  if (!supabase) return json(500, { ok: false, error: 'Supabase ni konfiguriran.' }, event);
 
   let payload;
   try {
     payload = JSON.parse(event.body || '{}');
   } catch {
-    return json(400, { ok: false, error: 'Neveljaven JSON.' });
+    return json(400, { ok: false, error: 'Neveljaven JSON.' }, event);
   }
 
   const code = String(payload.code || '').trim();
@@ -48,7 +56,7 @@ export const handler = async (event) => {
   const countryCode = String(payload.countryCode || '').trim();
 
   if (!code || (!phone && !email)) {
-    return json(400, { ok: false, error: 'Manjkajoči podatki.' });
+  return json(400, { ok: false, error: 'Manjkajoči podatki.' }, event);
   }
 
   const windowStart = new Date(Date.now() - WINDOW_MS).toISOString();
@@ -72,7 +80,7 @@ export const handler = async (event) => {
     const { data, error } = await query;
     if (error) throw error;
     if (!data || !data.length) {
-      return json(401, { ok: false, verified: false, error: 'Koda ni pravilna ali je potekla.' });
+  return json(401, { ok: false, verified: false, error: 'Koda ni pravilna ali je potekla.' }, event);
     }
 
     const record = data[0];
@@ -83,9 +91,9 @@ export const handler = async (event) => {
 
     if (updateErr) throw updateErr;
 
-    return json(200, { ok: true, verified: true });
+    return json(200, { ok: true, verified: true }, event);
   } catch (err) {
     console.error('[verify-code] error:', err?.message || err);
-    return json(500, { ok: false, verified: false, error: 'Preverjanje ni uspelo.' });
+    return json(500, { ok: false, verified: false, error: 'Preverjanje ni uspelo.' }, event);
   }
 };

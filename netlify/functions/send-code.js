@@ -1,6 +1,7 @@
 import twilio from 'twilio';
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
+import { getStore } from '@netlify/blobs';
 
 const {
   SUPABASE_URL,
@@ -19,15 +20,22 @@ const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
   : null;
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST,OPTIONS'
-};
+function buildCors(event){
+  const allowed = String(process.env.ALLOWED_ORIGINS || '*')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const reqOrigin = event?.headers?.origin || '';
+  const origin = allowed.includes('*') ? '*' : (allowed.find(o => o === reqOrigin) || allowed[0] || '*');
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST,OPTIONS',
+    'Cache-Control': 'no-store'
+  };
+}
 
-const json = (status, body) => ({
+const json = (status, body, event) => ({
   statusCode: status,
-  headers: { 'content-type': 'application/json; charset=utf-8', ...CORS_HEADERS },
+  headers: { 'content-type': 'application/json; charset=utf-8', ...buildCors(event) },
   body: JSON.stringify(body)
 });
 
@@ -102,8 +110,9 @@ async function sendSmsCode(phone, countryCode, code) {
 }
 
 export const handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS_HEADERS, body: '' };
-  if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
+  const CORS = buildCors(event);
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
+  if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' }, event);
   // V dev/test načinu omogočimo pošiljanje brez Supabase
   const noDb = !supabase;
 
@@ -131,10 +140,31 @@ export const handler = async (event) => {
     expires_at: expiresAt
   };
 
+  // --- Rate limiting (basic) ---
+  try {
+    const store = await getStore('rate');
+    const ip = event.headers['x-nf-client-connection-ip'] || event.headers['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';
+    const windowKey = Math.floor(Date.now() / (10 * 60 * 1000)); // 10-min okno
+    const idRaw = method === 'email' ? String(payload.email || '') : (String(payload.countryCode || '') + sanitizePhone(payload.phone || ''));
+    const idKey = `sc:id:${idRaw}:${windowKey}`;
+    const ipKey = `sc:ip:${ip}:${windowKey}`;
+    async function bump(key, limit){
+      const cur = Number(await store.get(key) || '0');
+      if (cur >= limit) return false;
+      await store.set(key, String(cur + 1), { ttl: 11 * 60 });
+      return true;
+    }
+    const okId = await bump(idKey, 5);
+    const okIp = await bump(ipKey, 20);
+    if (!okId || !okIp) {
+      return json(429, { ok:false, error:'Preveč zahtev – poskusite kasneje.' }, event);
+    }
+  } catch {}
+
   try {
     if (method === 'email') {
       const email = String(payload.email || '').trim().toLowerCase();
-      if (!email) return json(400, { ok: false, error: 'Manjka email.' });
+      if (!email) return json(400, { ok: false, error: 'Manjka email.' }, event);
       record.email = email;
       let inserted = null;
       if (!noDb) {
@@ -150,11 +180,11 @@ export const handler = async (event) => {
         }
         throw sendErr;
       }
-      return json(200, { ok: true, codeSent: true, ...(ALLOW_TEST_CODES ? { code } : {}) });
+      return json(200, { ok: true, codeSent: true, ...(ALLOW_TEST_CODES ? { code } : {}) }, event);
     }
 
     const phone = sanitizePhone(payload.phone);
-    if (!phone) return json(400, { ok: false, error: 'Manjka telefonska številka.' });
+  if (!phone) return json(400, { ok: false, error: 'Manjka telefonska številka.' }, event);
     const countryCode = String(payload.countryCode || '').trim();
     record.phone = phone;
     record.country_code = countryCode || null;
@@ -172,13 +202,13 @@ export const handler = async (event) => {
       }
       throw sendErr;
     }
-    return json(200, { ok: true, codeSent: true, ...(ALLOW_TEST_CODES ? { code } : {}) });
+    return json(200, { ok: true, codeSent: true, ...(ALLOW_TEST_CODES ? { code } : {}) }, event);
   } catch (err) {
     console.error('[send-code] error:', err?.message || err);
     // V dev načinu ne blokiraj – vrni uspeh s kodo v odzivu
     if (ALLOW_TEST_CODES) {
-      return json(200, { ok: true, codeSent: true, code, dev: true, note: 'ALLOW_TEST_CODES: simulirano pošiljanje' });
+      return json(200, { ok: true, codeSent: true, code, dev: true, note: 'ALLOW_TEST_CODES: simulirano pošiljanje' }, event);
     }
-    return json(500, { ok: false, error: err?.message || 'Pošiljanje kode ni uspelo.' });
+    return json(500, { ok: false, error: err?.message || 'Pošiljanje kode ni uspelo.' }, event);
   }
 };

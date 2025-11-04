@@ -11,6 +11,9 @@ const CORS = {
 const json = (code, body) => ({ statusCode: code, headers: { 'content-type': 'application/json', ...CORS }, body: JSON.stringify(body) });
 
 export const handler = async (event) => {
+  if (String(process.env.DIAGNOSTICS_ENABLED || '').toLowerCase() !== 'true') {
+    return { statusCode: 404, headers: { 'cache-control': 'no-store' }, body: '' };
+  }
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
   if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Use POST' });
   let payload;

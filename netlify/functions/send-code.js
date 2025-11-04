@@ -24,9 +24,10 @@ const RAW_ALLOW_TEST_CODES = String(process.env.ALLOW_TEST_CODES || '').toLowerC
 const NETLIFY_CONTEXT = String(process.env.CONTEXT || '').toLowerCase();
 const NETLIFY_DEV = String(process.env.NETLIFY_DEV || '').toLowerCase() === 'true';
 const NODE_ENV = String(process.env.NODE_ENV || '').toLowerCase();
-const missingInfrastructure = !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS || !TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER;
+const missingDb = !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY;
+const missingSmsInfra = !TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER;
+const missingEmailInfra = !SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS;
 const nonProdContext = (NETLIFY_CONTEXT && NETLIFY_CONTEXT !== 'production') || NETLIFY_DEV || NODE_ENV === 'development';
-const ALLOW_TEST_CODES = RAW_ALLOW_TEST_CODES || nonProdContext || missingInfrastructure;
 
 function buildCors(event){
   const allowed = String(process.env.ALLOWED_ORIGINS || '*')
@@ -56,8 +57,11 @@ function sanitizePhone(value) {
   return String(value || '').replace(/\D/g, '');
 }
 
+const shouldSimulateSms = RAW_ALLOW_TEST_CODES || nonProdContext || missingSmsInfra;
+const shouldSimulateEmail = RAW_ALLOW_TEST_CODES || nonProdContext || missingEmailInfra;
+
 async function insertCodeRecord(payload) {
-  if (!supabase) return { inserted: null, missingColumns: [] };
+  if (!supabase || missingDb) return { inserted: null, missingColumns: [] };
 
   const missingColumns = [];
 
@@ -87,7 +91,7 @@ let cachedTransporter = null;
 function getTransporter() {
   if (cachedTransporter) return cachedTransporter;
   if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) {
-    if (ALLOW_TEST_CODES) return null; // Dev način: preskoči prave pošiljke
+    if (shouldSimulateEmail) return null; // Dev način: preskoči prave pošiljke
     throw new Error('SMTP ni konfiguriran.');
   }
   cachedTransporter = nodemailer.createTransport({
@@ -125,7 +129,7 @@ async function sendEmailCode(to, code) {
   `;
   const transporter = getTransporter();
   if (!transporter) {
-    if (ALLOW_TEST_CODES) return { dev: true };
+    if (shouldSimulateEmail) return { dev: true };
     throw new Error('SMTP transporter ni dosegljiv.');
   }
   await transporter.sendMail({ from: sender, to, subject: 'NearGo verification code', html });
@@ -133,7 +137,7 @@ async function sendEmailCode(to, code) {
 
 async function sendSmsCode(phone, countryCode, code) {
   if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER) {
-    if (ALLOW_TEST_CODES) return { dev: true };
+    if (shouldSimulateSms) return { dev: true };
     throw new Error('Twilio ni konfiguriran.');
   }
   const client = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
@@ -216,7 +220,7 @@ export const handler = async (event) => {
       return json(200, {
         ok: true,
         codeSent: true,
-        ...(ALLOW_TEST_CODES ? { code } : {}),
+        ...((shouldSimulateEmail || RAW_ALLOW_TEST_CODES) ? { code } : {}),
         ...(delivery?.dev ? { dev: true } : {}),
         ...(missingColumns?.length ? { missingColumns } : {})
       }, event);
@@ -239,15 +243,15 @@ export const handler = async (event) => {
     return json(200, {
       ok: true,
       codeSent: true,
-      ...(ALLOW_TEST_CODES ? { code } : {}),
+      ...((shouldSimulateSms || RAW_ALLOW_TEST_CODES) ? { code } : {}),
       ...(delivery?.dev ? { dev: true } : {}),
       ...(missingColumns?.length ? { missingColumns } : {})
     }, event);
   } catch (err) {
     console.error('[send-code] error:', err?.message || err);
     // V dev načinu ne blokiraj – vrni uspeh s kodo v odzivu
-    if (ALLOW_TEST_CODES) {
-      return json(200, { ok: true, codeSent: true, code, dev: true, note: 'ALLOW_TEST_CODES: simulirano pošiljanje' }, event);
+    if (shouldSimulateEmail || shouldSimulateSms) {
+      return json(200, { ok: true, codeSent: true, code, dev: true, note: 'Simulated delivery due to missing infrastructure' }, event);
     }
     return json(500, { ok: false, error: err?.message || 'Pošiljanje kode ni uspelo.' }, event);
   }

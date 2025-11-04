@@ -1,9 +1,6 @@
 import nodemailer from 'nodemailer';
 
 export const handler = async (event) => {
-  if (String(process.env.DIAGNOSTICS_ENABLED || '').toLowerCase() !== 'true') {
-    return resp(404, {});
-  }
   if (event.httpMethod === 'OPTIONS') return resp(204, {});
   if (event.httpMethod !== 'POST')   return resp(405, { error: 'Use POST' });
 

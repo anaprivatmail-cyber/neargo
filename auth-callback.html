@@ -46,13 +46,50 @@
       const token_hash = url.searchParams.get("token_hash");
       const type = url.searchParams.get("type");
       if (token_hash && type) {
-        try { await supabase.auth.verifyOtp({ type, token_hash }); }
+        try { 
+          await supabase.auth.verifyOtp({ type, token_hash });
+          if (type === 'recovery') {
+            // Za recovery, odpri form za novo geslo
+            showPasswordResetForm();
+            return;
+          }
+        }
         catch(e){ console.warn("verifyOtp:", e?.message||e); }
-        finally { return go(); }
+        finally { 
+          if (type !== 'recovery') return go(); 
+        }
       }
 
       // Če ni nič od naštetega → pojdi vseeno naprej (lahko je bila seja že postavljena).
       go();
+
+      function showPasswordResetForm() {
+        document.body.innerHTML = `
+          <div class="box">
+            <h2>Reset Your Password</h2>
+            <form id="resetForm">
+              <input type="password" id="newPassword" placeholder="New Password" required style="width:100%;padding:10px;margin:10px 0;border:1px solid #ccc;border-radius:4px;">
+              <button type="submit" style="width:100%;padding:10px;background:#00bcd4;color:#fff;border:none;border-radius:4px;">Update Password</button>
+            </form>
+            <div id="resetMessage" style="margin-top:10px;"></div>
+          </div>
+        `;
+        document.getElementById('resetForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const newPassword = document.getElementById('newPassword').value;
+          const messageDiv = document.getElementById('resetMessage');
+          try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) throw error;
+            messageDiv.textContent = 'Password updated successfully! Redirecting...';
+            messageDiv.style.color = 'green';
+            setTimeout(() => go(), 2000);
+          } catch (error) {
+            messageDiv.textContent = 'Error: ' + error.message;
+            messageDiv.style.color = 'red';
+          }
+        });
+      }
 
       function go(){
         // Po postavitvi seje očisti URL in preusmeri na checker

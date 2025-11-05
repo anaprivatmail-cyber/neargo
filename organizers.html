@@ -577,30 +577,6 @@
       alert("Apple prijava (demo)");
       proceedAfterAuth();
     });
-    if (typeof window.testSignInEmail !== 'function') {
-      $("#loginEmailForm")?.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      // Simulacija preverjanja gesla in emaila
-      const email = $("#loginEmail").value.trim();
-      const password = $("#loginPassword").value;
-      // Demo: napačno geslo ali neobstoječi uporabnik
-      let errorMsg = "";
-      if (!email || !password) {
-        errorMsg = "Vnesite e-pošto in geslo.";
-      } else if (email !== "demo@neargo.com" || password !== "demo123") {
-        errorMsg = "Napačno geslo ali uporabnik ne obstaja.";
-      }
-      if (errorMsg) {
-        $("#loginError").textContent = errorMsg;
-        $("#loginError").style.display = "block";
-        $("#forgotRow").style.display = "block";
-        return;
-      }
-      $("#loginError").style.display = "none";
-      $("#forgotRow").style.display = "none";
-      proceedAfterAuth();
-    });
-    }
     $("#registerBtn")?.addEventListener("click", () => {
       window.location.href = "/register.html";
     });

@@ -12,7 +12,6 @@
   <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0bbbd6">
-  <script type="module" src="assets/supabase-client.js"></script>
 
   <style>
     /* ====== DESIGN TOKENS (ohranjeni + akcent coral) ====== */
@@ -224,7 +223,13 @@
         </div>
         <button class="btn btn-accent" id="hubPublish" style="width:100%; font-size:18px;">Objavi dogodek ali storitev</button>
 
-        <script>
+        <script type="module">
+        import { supabase, testSignInEmail, testSignUpEmail, testSignInGoogle } from '/assets/supabase-client.js';
+        window.supabase = supabase;
+        window.testSignInEmail = testSignInEmail;
+        window.testSignUpEmail = testSignUpEmail;
+        window.testSignInGoogle = testSignInGoogle;
+
         document.addEventListener('DOMContentLoaded', function() {
           // Check if user is already logged in
           if (window.supabase) {

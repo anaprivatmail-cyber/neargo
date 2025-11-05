@@ -1054,62 +1054,45 @@
 
           setStatus('Registriram ...', 'info');
           try {
-            const { testSignUpEmail } = window;
-            if (typeof testSignUpEmail !== 'function') {
-              setStatus('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
-              return;
-            }
-            const result = await testSignUpEmail(email, password, {
-              data: {
+            const registerRes = await fetch('/.netlify/functions/register-user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email,
+                password,
+                method: verificationMethod,
                 first_name: name,
                 last_name: surname,
                 phone: countryCode + phoneDigits
-              }
+              })
             });
-            if (result?.error) {
-              const message = result.error?.message || 'Registracija ni uspela.';
-              setStatus('Napaka: ' + message, 'error');
-              return;
-            }
-
-            if (verificationMethod === 'email') {
-              const { session, error: loginError } = await ensureActiveSession(email, password, result);
-              if (loginError) {
-                const msg = String(loginError?.message || '').toLowerCase();
-                if (msg.includes('email not confirmed')) {
-                  setStatus('Registracija je uspela. Prosimo potrdite e-pošto in nato ponovno poskusite s prijavo.', 'warn');
+            const registerData = await registerRes.json();
+            if (registerData.ok && registerData.user) {
+              if (verificationMethod === 'email') {
+                // For email verification, user is already confirmed, proceed to login
+                const { session, error: loginError } = await ensureActiveSession(email, password, { data: { user: registerData.user } });
+                if (loginError) {
+                  console.warn('[register] follow-up login failed:', loginError);
+                  setStatus('Registracija je uspela, prijava pa ni: ' + (loginError?.message || 'neznana napaka.') + ' – poskusite se prijaviti ročno.', 'warn');
                   return;
                 }
-                console.warn('[register] follow-up login failed:', loginError);
-                setStatus('Registracija je uspela, prijava pa ni: ' + (loginError?.message || 'neznana napaka.') + ' – poskusite se prijaviti ročno.', 'warn');
-              }
-
-              if (result?.data?.user || session) {
-                const user = result?.data?.user || session?.user;
-                try {
-                  if (user?.email) localStorage.setItem('user_email', user.email);
-                } catch {}
-                setStatus('Registracija potrjena! Preusmerjam ...', 'ok');
-                setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 1200);
-              } else {
-                if (result?.error?.message && result.error.message.toLowerCase().includes('user already registered')) {
-                  setStatus('Uporabnik s tem emailom že obstaja.', 'warn');
-                } else {
-                  setStatus('Napaka: ' + (result?.error?.message || 'Napaka v podatkih.'), 'error');
+                if (session) {
+                  try {
+                    if (session.user?.email) localStorage.setItem('user_email', session.user.email);
+                  } catch {}
+                  setStatus('Registracija potrjena! Preusmerjam ...', 'ok');
+                  setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 1200);
                 }
+              } else {
+                // For SMS, registration successful, but email confirmation needed
+                setStatus('Registracija je uspela. Preverite e-pošto za potrditev in nato se prijavite.', 'ok');
+                setTimeout(() => { window.location.reload(); }, 2000);
               }
-              return;
+            } else {
+              setStatus('Napaka: ' + (registerData.error || 'Napaka v podatkih.'), 'error');
             }
-
-            // SMS preverjanje: zahtevaj dodatno potrditev e-pošte
-            const user = result?.data?.user;
-            if (user?.email) {
-              try { localStorage.setItem('user_email', user.email); } catch {}
-            }
-            setStatus('SMS koda potrjena. Preverite e-pošto in jo potrdite, nato dokončajte prijavo.', 'warn');
           } catch (err) {
-            setStatus('Registracija uspešna! (strežnik je odziven počasneje)', 'warn');
-            setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 600);
+            setStatus('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
           }
         };
 

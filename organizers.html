@@ -12,6 +12,7 @@
   <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0bbbd6">
+  <script type="module" src="assets/supabase-client.js"></script>
 
   <style>
     /* ====== DESIGN TOKENS (ohranjeni + akcent coral) ====== */
@@ -225,6 +226,17 @@
 
         <script>
         document.addEventListener('DOMContentLoaded', function() {
+          // Check if user is already logged in
+          if (window.supabase) {
+            window.supabase.auth.getSession().then(({ data: { session } }) => {
+              if (session && session.user) {
+                window.currentSupabaseSession = session;
+                showPanel('orgPanel');
+                return;
+              }
+            }).catch(err => console.error('Auth check failed:', err));
+          }
+
           var publishBtn = document.getElementById('hubPublish');
           var loginModal = document.getElementById('loginModal');
           var closeLoginModal = document.getElementById('closeLoginModal');

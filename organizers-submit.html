@@ -23,7 +23,7 @@
     html{scroll-behavior:smooth}
     body{
       margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      color:var(--text); line-height:1.25;
+      color:var(--text); line-height:1.35;
       background:
         radial-gradient(900px 500px at -10% -10%, rgba(11,187,214,.25) 0%, rgba(11,187,214,0) 60%),
         linear-gradient(180deg, #e9f7ff 0%, #ffffff 70%);
@@ -44,13 +44,17 @@
     .card{background:var(--card); box-shadow:var(--shadow); border-radius:var(--radius); padding:16px; border:1px solid var(--chipborder); margin-bottom:16px}
     .title{font-weight:900; margin-bottom:10px; font-size:1.3rem}
     .muted{color:var(--muted)}
+    .lead{font-size:14px}
+
+    p{margin:0 0 var(--gap); line-height:1.45}
+    p:last-child{margin-bottom:0}
 
     .btn{background:var(--primary); color:#fff; border:none; padding:12px 18px; border-radius:14px; font-weight:900; cursor:pointer; font-size:16px}
     .btn.mini{padding:8px 12px; font-size:13px; border-radius:12px}
     .btn.link{background:#fff; color:#000; border:1px solid var(--chipborder)}
 
     label{display:flex; flex-direction:column; gap:6px; font-weight:800; font-size:13px}
-    input,select,textarea{ width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--chipborder); background:var(--card); color:var(--text); outline:none; min-height:40px; font-size:15px; }
+    input,select,textarea{ width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--chipborder); background:var(--card); color:var(--text); outline:none; min-height:44px; font-size:15px; }
     textarea{min-height:120px}
     input:focus,select:focus,textarea:focus{border-color:var(--brand); box-shadow:0 0 0 4px var(--focus)}
     input::placeholder, textarea::placeholder{color:#93a3b3}
@@ -94,6 +98,22 @@
     .toast.bad{ background:#ffeaea; color:#7a1b1b; border:1px solid #ffd1d1 }
 
     .auth-gate{display:flex; align-items:center; justify-content:center; min-height:40vh; font-weight:800; color:var(--muted);}
+
+    .info-banner{display:flex; flex-direction:column; gap:8px; padding:14px; border-radius:14px; background:color-mix(in srgb, var(--primary) 6%, #ffffff 94%); border:1px solid var(--chipborder); font-size:13px}
+    .info-banner strong{font-weight:900}
+    .badge{display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:800; background:var(--chip); border:1px solid var(--chipborder)}
+    .badge.free{color:#0b6b4b; border-color:#a6ddc0; background:#e8f9ef}
+    .badge.grow{color:#0b537a; border-color:#9ad3f2; background:#eef8ff}
+    .badge.pro{color:#7a1b1b; border-color:#f3c2c2; background:#fff3f3}
+    .note{font-size:13px; color:var(--muted); line-height:1.5}
+    .note span{display:block}
+    .note a{color:var(--primary); font-weight:700}
+    .mt-gap{margin-top:var(--gap)!important}
+
+    @media (max-width:640px){
+      .info-banner{padding:12px}
+      .btn{width:100%}
+    }
 
     @media (min-width: 768px) {
       body { max-width: 390px; margin: 0 auto; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
@@ -195,7 +215,15 @@
     <div class="wrap">
       <section class="card panel" id="orgPanel" style="display:none">
         <div class="title">Objavi dogodek ali storitev</div>
-        <p class="muted">Objava je brezplačna. Prodaja vstopnic/kuponov prek Stripe. Naročnine & izpostavitve prek IAP (native).</p>
+  <p class="muted lead">Objava je brezplačna. Prodaja vstopnic in kuponov poteka prek Stripe, naročnine in izpostavitve pa v nativnih aplikacijah. Za podrobno analitiko ter skeniranje vstopnic in kuponov lahko kadarkoli nadgradite svoj paket.</p>
+
+        <div class="info-banner" id="featureSummary">
+          <div><span class="badge free">Brezplačno</span> Objave + osnovni vpogled (prodano / unovčeno) in prikaz prostih terminov v aplikaciji.</div>
+          <div><span class="badge grow">Grow</span> QR skener na lokaciji ter hitri prevzemi kuponov in vstopnic, podprto z osnovno analitiko v realnem času.</div>
+          <div><span class="badge pro">Pro</span> NearGo koledar z upravljanjem zasedenosti, napredna analitika ter ekipni dostopi.</div>
+        </div>
+
+        <a class="btn mini link mt-gap" href="/organizers.html#providerPlans" id="plansLink">Primerjaj pakete</a>
 
         <div class="row row--3">
           <label>Tip vnosa *
@@ -239,13 +267,25 @@
           </label>
         </div>
 
-        <div class="card" id="svcBlock" style="display:none; margin-top:8px">
+        <div class="card" id="svcBlock" style="display:none; margin-top:var(--gap)">
           <div class="title" style="margin:0">Storitve – nastavitve</div>
 
-          <div class="row">
-            <label class="inline"><input type="radio" name="svcWhen" value="call" checked> <span>Pokličite za termin</span></label>
-            <label class="inline"><input type="radio" name="svcWhen" value="calendar"> <span>Koledar (zunanji)</span></label>
+          <div class="note" id="svcCalendarInfo">
+            NearGo koledar omogoča obiskovalcem, da rezervirajo proste termine neposredno v aplikaciji. Označevanje prostih terminov je vključeno brezplačno, napredno upravljanje zasedenosti in sinhronizacija pa sta del Pro paketa. Dostop prejmete skupaj z urejanjem objav, QR skenerjem (Grow) in analitiko. <a href="/organizers.html#providerPlans">Več o paketih</a>
           </div>
+
+          <div class="row row--3" id="svcWhenRow">
+            <label class="inline"><input type="radio" name="svcWhen" value="neargo" checked> <span>NearGo koledar (priporočeno)</span></label>
+            <label class="inline"><input type="radio" name="svcWhen" value="external"> <span>Zunanji koledar</span></label>
+            <label class="inline"><input type="radio" name="svcWhen" value="call"> <span>Pokličite za termin</span></label>
+          </div>
+
+          <div class="note" id="svcCalendarHelp">
+            <span data-mode="neargo">Koledar se prikaže v NearGo aplikaciji; termine urejate v Portalu ponudnika.</span>
+            <span data-mode="external" hidden>Dodaj povezavo do obstoječega rezervacijskega sistema (npr. Calendly, SimplyBook).</span>
+            <span data-mode="call" hidden>V opisu dodajte navodila za rezervacije preko telefona ali e-pošte.</span>
+          </div>
+
           <div class="row" id="svcCalendarRow" style="display:none">
             <input id="svcCalendarUrl" type="url" placeholder="Povezava na koledar (npr. Calendly, SimplyBook …)">
           </div>
@@ -308,12 +348,12 @@
 
         <div class="row" id="ticketPricesBlock" style="display:none">
           <div class="title" style="margin:0">Cenik vstopnic</div>
-          <div id="ticketStepList" class="row" style="margin-top:6px"></div>
-          <button class="btn mini link" id="btnAddTicketPrice" type="button" style="margin-top:6px">+ Dodaj ceno</button>
+          <div id="ticketStepList" class="row mt-gap"></div>
+          <button class="btn mini link mt-gap" id="btnAddTicketPrice" type="button">+ Dodaj ceno</button>
         </div>
 
         <div class="row" id="couponCfg" style="display:none">
-          <div class="row row--2" style="margin-top:-8px">
+          <div class="row row--2">
             <label>Tip kupona
               <select id="couponKind">
                 <option value="PERCENT" selected>% popusta</option>
@@ -338,8 +378,8 @@
 
         <div class="row" id="couponMulti" style="display:none">
           <div class="title" style="margin:0">Več kuponov</div>
-          <div id="couponList" class="row" style="margin-top:6px"></div>
-          <button class="btn mini link" id="btnAddCoupon" type="button">+ Dodaj kupon</button>
+          <div id="couponList" class="row mt-gap"></div>
+          <button class="btn mini link mt-gap" id="btnAddCoupon" type="button">+ Dodaj kupon</button>
         </div>
 
         <div class="row row--2">
@@ -347,7 +387,7 @@
           <input id="maxPerOrder" type="number" min="1" step="1" placeholder="Max na naročilo">
         </div>
 
-        <div class="row">
+        <div class="row mt-gap">
           <div class="file-wrap">
             <input id="image" type="file" accept="image/*">
             <span id="fileName" class="file-name">Fotografija ni izbrana</span>
@@ -355,26 +395,26 @@
           </div>
         </div>
 
-        <div class="inline" style="margin-top:6px">
+        <div class="inline mt-gap">
           <label class="inline" style="gap:8px; align-items:center">
             <input type="checkbox" id="featured">
             <span>Izpostavi (7 dni)</span>
           </label>
         </div>
 
-        <div class="row" style="margin-top:8px">
+        <div class="row mt-gap">
           <textarea id="desc" placeholder="Opis *" maxlength="800" required></textarea>
           <div class="muted" id="descCount" style="font-size:12px; text-align:right">0 / 800</div>
         </div>
 
-        <div class="inline" style="margin-top:6px">
+        <div class="inline mt-gap">
           <label class="inline" style="gap:8px; align-items:center">
             <input type="checkbox" id="agreeFees">
             <span>Strinjam se s <a href="#provider-terms" id="showProviderTerms">Pogoji za plačljive ponudbe</a>.</span>
           </label>
         </div>
 
-        <div style="margin-top:10px">
+        <div class="mt-gap">
           <button class="btn" id="btnSubmitEvent" type="button">Objavi</button>
           <span id="orgMsg" class="muted" style="margin-left:10px"></span>
         </div>
@@ -456,6 +496,7 @@
         const svcFixedOptions = $("#svcFixedOptions");
         const svcFixedMore = $("#svcFixedMore");
         const svcAddOption = $("#svcAddOption");
+        const svcCalendarHelp = $("#svcCalendarHelp");
         const svcCouponKind = $("#svcCouponKind");
         const svcCouponPercent = $("#svcCouponPercent");
         const svcCouponValue = $("#svcCouponValue");
@@ -532,6 +573,21 @@
           if (svcRateUrl) svcRateUrl.style.display = mode === "RATECARD" ? "block" : "none";
         }
 
+        const getSvcWhenValue = () => {
+          const checked = document.querySelector('input[name="svcWhen"]:checked');
+          return checked?.value || "neargo";
+        };
+
+        function updateSvcWhenMode(mode){
+          if (svcCalendarRow) svcCalendarRow.style.display = mode === "external" ? "block" : "none";
+          if (mode !== "external" && svcCalendarUrl) svcCalendarUrl.value = "";
+          if (svcCalendarHelp){
+            svcCalendarHelp.querySelectorAll('[data-mode]').forEach((node) => {
+              node.hidden = node.getAttribute('data-mode') !== mode;
+            });
+          }
+        }
+
         function toggleEntryType(){
           const isService = entryType?.value === "service";
           if (startWrap) startWrap.style.display = isService ? "none" : "block";
@@ -546,6 +602,7 @@
           if (isService){
             updateSvcCouponUI();
             updateSvcPriceMode();
+            updateSvcWhenMode(getSvcWhenValue());
           }
         }
 
@@ -618,7 +675,7 @@
           if (imgPreview){ imgPreview.src = ""; imgPreview.style.display = "none"; }
           if (svcCalendarUrl) svcCalendarUrl.value = "";
           const svcWhen = $$('input[name="svcWhen"]');
-          svcWhen.forEach((radio) => { radio.checked = radio.value === "call"; });
+          svcWhen.forEach((radio) => { radio.checked = radio.value === "neargo"; });
           if (svcPriceMode) svcPriceMode.value = "FIXED";
           if (svcRateUrl) svcRateUrl.value = "";
           if (svcFixedMore) svcFixedMore.innerHTML = "";
@@ -630,7 +687,7 @@
           if (svcCouponPercent) svcCouponPercent.value = "";
           if (svcCouponValue) svcCouponValue.value = "";
           if (svcCouponFreebie) svcCouponFreebie.value = "";
-          if (svcCalendarRow) svcCalendarRow.style.display = "none";
+          updateSvcWhenMode("neargo");
           if (couponKind) couponKind.value = "PERCENT";
           if (couponPercent) couponPercent.value = "";
           if (couponValue) couponValue.value = "";
@@ -669,8 +726,7 @@
           const target = ev.target;
           if (!(target instanceof HTMLInputElement)) return;
           if (target.name === "svcWhen"){
-            if (svcCalendarRow) svcCalendarRow.style.display = target.value === "calendar" ? "block" : "none";
-            if (target.value !== "calendar" && svcCalendarUrl) svcCalendarUrl.value = "";
+            updateSvcWhenMode(target.value);
           }
         });
 
@@ -855,11 +911,13 @@
             }
           } else {
             const whenNode = document.querySelector('input[name="svcWhen"]:checked');
-            const when = whenNode?.value || "call";
-            const calendarUrl = when === "calendar" ? svcCalendarUrl?.value.trim() : null;
-            if (when === "calendar" && !calendarUrl){
+            const when = whenNode?.value || "neargo";
+            const calendarMode = when;
+            const availability = when === "call" ? "call" : "calendar";
+            const calendarUrl = when === "external" ? (svcCalendarUrl?.value.trim() || null) : null;
+            if (when === "external" && !calendarUrl){
               if (orgMsg){
-                orgMsg.textContent = "Vnesi povezavo na koledar.";
+                orgMsg.textContent = "Dodaj povezavo na zunanji koledar.";
                 orgMsg.style.color = "var(--bad)";
               }
               svcCalendarUrl?.focus();
@@ -911,7 +969,8 @@
             }
 
             service = {
-              availability: when,
+              availability,
+              calendarMode,
               calendarUrl,
               priceMode,
               fixedOptions,

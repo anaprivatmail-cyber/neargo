@@ -318,36 +318,59 @@
     state.globalBound = false;
   }
 
+  function clearSupabaseStorage(supabase){
+    try{ window.currentSupabaseSession = null; }catch{}
+    const clearKeys = ['user_email','user_token','user_refresh','user_name','ng_points'];
+    clearKeys.forEach(key => { try{ localStorage.removeItem(key); }catch{} });
+    try{
+      const storageKey = supabase?.auth?.storageKey;
+      if (storageKey){
+        if (supabase?.auth?.storage?.removeItem){
+          supabase.auth.storage.removeItem(storageKey);
+        }
+        localStorage.removeItem(storageKey);
+      }
+    }catch{}
+    try{
+      const sessionKeys = [];
+      for (let i = 0; i < localStorage.length; i += 1){
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (key.startsWith('sb-') || key.includes('supabase')) sessionKeys.push(key);
+      }
+      sessionKeys.forEach(key => { try{ localStorage.removeItem(key); }catch{} });
+    }catch{}
+    try{
+      const sessionKeys = [];
+      for (let i = 0; i < sessionStorage.length; i += 1){
+        const key = sessionStorage.key(i);
+        if (!key) continue;
+        if (key.startsWith('sb-') || key.includes('supabase')) sessionKeys.push(key);
+      }
+      sessionKeys.forEach(key => { try{ sessionStorage.removeItem(key); }catch{} });
+    }catch{}
+  }
+
   async function handleSignOut(){
     closeMenu();
     let supabase = null;
     try{
       supabase = await getSupabase();
-      if (supabase?.auth){
-        const { error } = await supabase.auth.signOut({ scope: 'global' });
-        if (error) console.warn('[account] signOut failed:', error.message || error);
+      if (supabase?.auth?.signOut){
         try{
-          supabase.auth.signOut({ scope: 'local' }).catch(()=>{});
-        }catch{}
-        try{
-          const storageKey = supabase.auth.storageKey;
-          if (storageKey){
-            if (supabase.auth.storage?.removeItem){
-              supabase.auth.storage.removeItem(storageKey);
-            }
-            localStorage.removeItem(storageKey);
-          }
-        }catch{}
+          await supabase.auth.signOut();
+        }catch(err){
+          console.warn('[account] signOut call failed:', err?.message || err);
+        }
       }
+      try{
+        supabase?.auth?.removeSession?.();
+      }catch{}
     }catch(err){
       console.warn('[account] signOut error:', err?.message || err);
+    }finally{
+      clearSupabaseStorage(supabase);
     }
-    try{ window.currentSupabaseSession = null; }catch{}
-    localStorage.removeItem('user_email');
-    localStorage.removeItem('user_token');
-    localStorage.removeItem('user_refresh');
-    localStorage.removeItem('user_name');
-    localStorage.removeItem('ng_points');
     const fallbackNext = `${window.location.pathname || ''}${window.location.search || ''}${window.location.hash || ''}` || DEFAULT_LOGIN_REDIRECT;
     redirectToLogin(fallbackNext);
   }

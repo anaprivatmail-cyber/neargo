@@ -231,6 +231,12 @@
         window.testSignInGoogle = testSignInGoogle;
 
         document.addEventListener('DOMContentLoaded', function() {
+          var loginModal = document.getElementById('loginModal');
+          var closeLoginModal = document.getElementById('closeLoginModal');
+          var isLoggedIn = function() {
+            return !!(window.currentSupabaseSession?.user) || !!localStorage.getItem('user_email') || !!localStorage.getItem('user_token');
+          };
+
           // Check if user is already logged in
           if (window.supabase) {
             window.supabase.auth.getSession().then(({ data: { session } }) => {
@@ -243,12 +249,9 @@
           }
 
           var publishBtn = document.getElementById('hubPublish');
-          var loginModal = document.getElementById('loginModal');
-          var closeLoginModal = document.getElementById('closeLoginModal');
           if (publishBtn) {
             publishBtn.onclick = function(e) {
-              var loggedIn = !!(window.currentSupabaseSession?.user) || !!localStorage.getItem('user_email') || !!localStorage.getItem('user_token');
-              if (!loggedIn) {
+              if (!isLoggedIn()) {
                 if (loginModal) loginModal.style.display = 'flex';
                 // po prijavi/registraciji nadaljuj na obrazec za objavo
                 window.postAuthAction = () => {
@@ -261,9 +264,22 @@
               // ...obstoječa logika za objavo dogodka...
             };
           }
+          var scanQrLink = document.getElementById('scanQrLink');
+          if (scanQrLink) {
+            scanQrLink.addEventListener('click', function(e) {
+              if (isLoggedIn()) return;
+              e.preventDefault();
+              if (loginModal) loginModal.style.display = 'flex';
+              var targetHref = scanQrLink.getAttribute('href') || '/scan.html';
+              window.postAuthAction = () => {
+                try { document.getElementById('loginModal').style.display = 'none'; } catch {}
+                window.location.href = targetHref;
+              };
+            });
+          }
           if (closeLoginModal) {
             closeLoginModal.onclick = function() {
-              loginModal.style.display = 'none';
+              if (loginModal) loginModal.style.display = 'none';
             };
           }
           // Zapri modal ob kliku na ozadje
@@ -314,7 +330,7 @@
 
         <!-- Hitre akcije (ohrani samo dejanske povezave) -->
         <div class="actions" style="margin-top:12px">
-          <a class="chip-btn" href="/scan.html">Skeniraj QR</a>
+          <a class="chip-btn" href="/scan.html" id="scanQrLink">Skeniraj QR</a>
           <a class="chip-btn" href="/org-stats.html">Analitika</a>
         </div>
     </section>

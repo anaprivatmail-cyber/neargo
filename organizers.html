@@ -234,7 +234,7 @@
           var loginModal = document.getElementById('loginModal');
           var closeLoginModal = document.getElementById('closeLoginModal');
           var isLoggedIn = function() {
-            return !!(window.currentSupabaseSession?.user) || !!localStorage.getItem('user_email') || !!localStorage.getItem('user_token');
+            return !!(window.currentSupabaseSession?.user);
           };
 
           // Check if user is already logged in

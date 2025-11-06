@@ -43,6 +43,10 @@
     .title{font-weight:900; margin-bottom:10px; font-size:1.3rem}
     .muted{color:var(--muted)}
 
+    .btn{background:var(--primary); color:#fff; border:none; padding:12px 18px; border-radius:14px; font-weight:900; cursor:pointer; font-size:16px}
+    .btn.mini{padding:8px 12px; font-size:13px; border-radius:12px}
+    .btn.link{background:#fff; color:#000; border:1px solid var(--chipborder)}
+
     label{display:flex; flex-direction:column; gap:6px; font-weight:800; font-size:13px}
     input,select,textarea{ width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--chipborder); background:var(--card); color:var(--text); outline:none; min-height:40px; font-size:15px; }
     textarea{min-height:120px}
@@ -185,7 +189,7 @@
   <div id="authGate" class="auth-gate">Preverjam prijavo…</div>
 
   <main id="app" hidden>
-    <section class="card" id="orgPanel">
+    <section class="card" id="orgPanel" style="display:none">
       <div class="title">Objavi dogodek ali storitev</div>
       <p class="muted">Objava je brezplačna. Prodaja vstopnic/kuponov prek Stripe. Naročnine & izpostavitve prek IAP (native).</p>
 
@@ -273,7 +277,7 @@
       <div style="margin-top:6px">
         <label class="inline" style="gap:8px; align-items:center">
           <input type="checkbox" id="agreeFees">
-          <span>Strinjam se s <a href="#providerTermsPanel" id="showProviderTerms">Pogoji za plačljive ponudbe</a>.</span>
+          <span>Strinjam se s <a href="#provider-terms" id="showProviderTerms">Pogoji za plačljive ponudbe</a>.</span>
         </label>
       </div>
 
@@ -283,10 +287,10 @@
       </div>
     </section>
 
-    <section class="card" id="providerTermsPanel" hidden>
+    <section class="card" id="providerTermsPanel" style="display:none">
       <div class="title" style="display:flex;justify-content:space-between;align-items:center">
         <span>Pogoji za plačljive ponudbe</span>
-        <button class="btn link" style="padding:8px 12px;font-size:13px;border-radius:12px" id="closeProviderTerms">Zapri</button>
+        <button class="btn mini link" id="closeProviderTerms">Zapri</button>
       </div>
       <div class="muted" style="font-size:14px; line-height:1.55">
         <p><b>1.</b> Organizator/ponudnik jamči za točnost cen, razpoložljivost in zakonitost ponudbe. NearGo je posrednik za izdajo vstopnic/kuponov.</p>
@@ -309,11 +313,11 @@
         const panels = ["orgPanel", "providerTermsPanel"];
         panels.forEach(pid => {
           const node = document.getElementById(pid);
-          if (node) node.hidden = true;
+          if (node) node.style.display = "none";
         });
         const target = document.getElementById(id);
         if (target){
-          target.hidden = false;
+          target.style.display = "block";
           target.scrollIntoView({ behavior: "smooth", block: "start" });
         }
       }
@@ -506,6 +510,7 @@
               showToast("Dogodek/storitev uspešno objavljen!", true);
               setTimeout(() => {
                 resetForm();
+                showPanel("orgPanel");
               }, 1500);
             } else {
               if (feedback){
@@ -540,6 +545,7 @@
           gate.style.display = 'none';
           if (app) app.hidden = false;
           initListeners();
+          showPanel("orgPanel");
         }).catch((error) => {
           console.warn('[auth] ensure session failed:', error?.message || error);
           gate.textContent = error?.message || 'Ni uspelo preveriti prijave.';

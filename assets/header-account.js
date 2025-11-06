@@ -26,7 +26,9 @@
     session: null,
     observer: null,
     globalBound: false,
-    docBound: false
+    docBound: false,
+    logoutNotice: false,
+    focusLogin: false
   };
 
   const STYLE_CSS = `
@@ -48,6 +50,12 @@
 .account-menu__footer{padding:4px;}
 .account-menu__signout{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:0;background:none;font-weight:800;color:#d64c4c;cursor:pointer;transition:background .12s ease,transform .12s ease;}
 .account-menu__signout:hover,.account-menu__signout:focus{background:rgba(214,76,76,0.12);outline:none;transform:translateX(2px);}
+.account-menu__signout--login{color:var(--primary,#0bbbd6);}
+.account-menu__signout--login:hover,.account-menu__signout--login:focus{background:rgba(11,187,214,0.12);}
+.account-menu__notice{margin:10px 12px;padding:10px 12px;border-radius:12px;background:rgba(11,187,214,0.12);color:var(--primary,#0bbbd6);font-weight:800;font-size:13px;}
+.account-menu__benefits{padding:4px 18px 12px;color:var(--muted,#5b6b7b);font-size:13px;}
+.account-menu__benefits ul{margin:0;padding-left:18px;}
+.account-menu__benefits li{margin-bottom:6px;line-height:1.3;}
 @media(max-width:640px){.account-menu{left:16px !important;right:16px !important;width:auto;min-width:0;}}
 `;
 
@@ -155,24 +163,28 @@
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
-  function buildMenuItems(identity){
+  function buildMenuItems(identity, loggedIn){
     // Build the dropdown exactly as requested:
     // - Nagrade -> /account/rewards.html
     // - Moje -> /my.html
     // - Predhodna obvestila -> /account/notifications.html
     // - Nastavitve / Račun -> /account/account.html
     // These pages already exist in the repo and are linked here.
-    return [
+    const base = [
       { id: 'mi-rewards', label: 'Nagrade', url: '/account/rewards.html', icon: '🏆' },
       { id: 'mi-dashboard', label: 'Moje', url: '/my.html', icon: '🎟️' },
       { id: 'mi-notifications', label: 'Predhodna obvestila', url: '/account/notifications.html', icon: '🔔' },
       { id: 'mi-account', label: 'Nastavitve / Račun', url: '/account/account.html', icon: '⚙️' }
     ];
+    if (loggedIn) return [...base, MENU_ORGANIZER];
+    return [MENU_ORGANIZER];
   }
 
   
 
-  function buildMenu(identity){
+  function buildMenu(identity, options = {}){
+    const { logoutSuccess = false } = options;
+    const loggedIn = hasIdentity(identity);
     injectStyles();
     let { menu } = state;
     if (!menu){
@@ -225,9 +237,25 @@
     header.appendChild(userWrap);
     menu.appendChild(header);
 
+    if (!loggedIn && logoutSuccess){
+      const notice = document.createElement('div');
+      notice.className = 'account-menu__notice';
+      notice.textContent = 'Odjava uspešna.';
+      menu.appendChild(notice);
+      state.focusLogin = true;
+    }
+
+    if (!loggedIn){
+      const benefits = document.createElement('div');
+      benefits.className = 'account-menu__benefits';
+      benefits.innerHTML = '<ul><li>Prijava omogoča shranjevanje najljubših in kuponov.</li><li>Prejmite obvestila o novih dogodkih in nagradah.</li><li>Preprosto upravljajte QR skeniranja in nakupe.</li></ul>';
+      menu.appendChild(benefits);
+    }
+
     const list = document.createElement('div');
     list.className = 'account-menu__list';
-    buildMenuItems(identity).forEach(item => {
+    const items = buildMenuItems(identity, loggedIn);
+    items.forEach(item => {
       const link = document.createElement('a');
       link.id = item.id;
       link.href = item.url;
@@ -236,16 +264,25 @@
       link.innerHTML = `\n        <span class="account-menu__icon">${item.icon}</span>\n        <span class="account-menu__label">${item.label}${item.badge ? `<span class="account-menu__badge">${item.badge}</span>` : ''}</span>`;
       list.appendChild(link);
     });
-    menu.appendChild(list);
+    if (items.length) menu.appendChild(list);
 
     const footer = document.createElement('div');
     footer.className = 'account-menu__footer';
-    const signout = document.createElement('button');
-    signout.type = 'button';
-    signout.className = 'account-menu__signout';
-    signout.innerHTML = '<span class="account-menu__icon">🚪</span><span class="account-menu__label">Odjava</span>';
-    signout.addEventListener('click', handleSignOut, { once: true });
-    footer.appendChild(signout);
+    if (loggedIn){
+      const signout = document.createElement('button');
+      signout.type = 'button';
+      signout.className = 'account-menu__signout';
+      signout.innerHTML = '<span class="account-menu__icon">🚪</span><span class="account-menu__label">Odjava</span>';
+      signout.addEventListener('click', handleSignOut, { once: true });
+      footer.appendChild(signout);
+    }else{
+      const loginBtn = document.createElement('button');
+      loginBtn.type = 'button';
+      loginBtn.className = 'account-menu__signout account-menu__signout--login';
+      loginBtn.innerHTML = '<span class="account-menu__icon">🔐</span><span class="account-menu__label">Prijava / Registracija</span>';
+      loginBtn.addEventListener('click', function(){ closeMenu(); triggerLogin(); });
+      footer.appendChild(loginBtn);
+    }
     menu.appendChild(footer);
 
     menu.hidden = true;
@@ -271,8 +308,20 @@
     reposition();
     bindGlobal();
     requestAnimationFrame(()=>{
-      const first = state.menu.querySelector('.account-menu__item');
-      if (first) first.focus({ preventScroll: true });
+      let target = null;
+      if (state.focusLogin){
+        target = state.menu.querySelector('.account-menu__signout--login');
+        state.focusLogin = false;
+      }
+      if (!target){
+        target = state.menu.querySelector('.account-menu__item');
+      }
+      if (!target){
+        target = state.menu.querySelector('.account-menu__signout, .account-menu__signout--login');
+      }
+      if (target){
+        try{ target.focus({ preventScroll: true }); }catch{}
+      }
     });
   }
 
@@ -386,8 +435,11 @@
     }finally{
       clearSupabaseStorage(supabase);
     }
-    const fallbackNext = `${window.location.pathname || ''}${window.location.search || ''}${window.location.hash || ''}` || DEFAULT_LOGIN_REDIRECT;
-    redirectToLogin(fallbackNext);
+    state.logoutNotice = true;
+    const identity = resolveIdentity();
+    buildMenu(identity, { logoutSuccess: true });
+    openMenu();
+    state.logoutNotice = false;
   }
 
   function triggerLogin(){
@@ -411,25 +463,9 @@
     try{ if (typeof event.stopPropagation === 'function') event.stopPropagation(); }catch(e){}
     await refreshSession();
     const identity = resolveIdentity();
-    const loggedIn = hasIdentity(identity);
-    buildMenu(identity);
-
-    // After building the menu we can adjust the footer action for unauthenticated users
-    // so they see a "Prijava" action instead of "Odjava".
-    if (!loggedIn && state.menu){
-      const signout = state.menu.querySelector('.account-menu__signout');
-      if (signout){
-        // clear previously bound handlers and set login trigger
-        signout.replaceWith((() => {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'account-menu__signout';
-          btn.innerHTML = '<span class="account-menu__icon">🔐</span><span class="account-menu__label">Prijava / Registracija</span>';
-          btn.addEventListener('click', function(){ closeMenu(); triggerLogin(); });
-          return btn;
-        })());
-      }
-    }
+    const logoutSuccess = state.logoutNotice;
+    state.logoutNotice = false;
+    buildMenu(identity, { logoutSuccess });
 
     toggleMenu();
   }

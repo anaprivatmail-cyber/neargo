@@ -320,12 +320,32 @@
 
   async function handleSignOut(){
     closeMenu();
+    let supabase = null;
     try{
-      const supabase = await getSupabase();
-      await supabase?.auth?.signOut?.();
-    }catch{}
+      supabase = await getSupabase();
+      if (supabase?.auth){
+        const { error } = await supabase.auth.signOut({ scope: 'global' });
+        if (error) console.warn('[account] signOut failed:', error.message || error);
+        try{
+          supabase.auth.signOut({ scope: 'local' }).catch(()=>{});
+        }catch{}
+        try{
+          const storageKey = supabase.auth.storageKey;
+          if (storageKey){
+            if (supabase.auth.storage?.removeItem){
+              supabase.auth.storage.removeItem(storageKey);
+            }
+            localStorage.removeItem(storageKey);
+          }
+        }catch{}
+      }
+    }catch(err){
+      console.warn('[account] signOut error:', err?.message || err);
+    }
+    try{ window.currentSupabaseSession = null; }catch{}
     localStorage.removeItem('user_email');
     localStorage.removeItem('user_token');
+    localStorage.removeItem('user_refresh');
     localStorage.removeItem('user_name');
     localStorage.removeItem('ng_points');
     const fallbackNext = `${window.location.pathname || ''}${window.location.search || ''}${window.location.hash || ''}` || DEFAULT_LOGIN_REDIRECT;

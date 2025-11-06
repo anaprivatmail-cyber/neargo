@@ -223,119 +223,6 @@
         </div>
         <button class="btn btn-accent" id="hubPublish" style="width:100%; font-size:18px;">Objavi dogodek ali storitev</button>
 
-        <script type="module">
-        import { supabase, testSignInEmail, testSignUpEmail, testSignInGoogle } from '/assets/supabase-client.js';
-        window.supabase = supabase;
-        window.testSignInEmail = testSignInEmail;
-        window.testSignUpEmail = testSignUpEmail;
-        window.testSignInGoogle = testSignInGoogle;
-
-        document.addEventListener('DOMContentLoaded', function() {
-          var loginModal = document.getElementById('loginModal');
-          var closeLoginModal = document.getElementById('closeLoginModal');
-
-          const hasActiveSession = () => Boolean(window.currentSupabaseSession?.user);
-          const refreshSupabaseSession = async () => {
-            if (window.supabase?.auth?.getSession) {
-              try {
-                const { data } = await window.supabase.auth.getSession();
-                const session = data?.session || null;
-                window.currentSupabaseSession = session;
-                return session;
-              } catch (err) {
-                console.warn('[auth] Failed to refresh session:', err?.message || err);
-              }
-            }
-            return hasActiveSession() ? window.currentSupabaseSession : null;
-          };
-
-          refreshSupabaseSession().then((session) => {
-            if (session?.user) {
-              showPanel('orgPanel');
-            }
-          }).catch((err) => console.warn('[auth] Initial session check failed:', err?.message || err));
-
-          var publishBtn = document.getElementById('hubPublish');
-          if (publishBtn) {
-            publishBtn.onclick = async function(e) {
-              const session = await refreshSupabaseSession();
-              if (session?.user) return;
-              e.preventDefault();
-              if (loginModal) loginModal.style.display = 'flex';
-              window.postAuthAction = () => {
-                try { document.getElementById('loginModal').style.display = 'none'; } catch {}
-                try { showPanel('orgPanel'); } catch {}
-              };
-            };
-          }
-          var scanQrLink = document.getElementById('scanQrLink');
-          if (scanQrLink) {
-            scanQrLink.addEventListener('click', async function(e) {
-              e.preventDefault();
-              var targetHref = scanQrLink.getAttribute('href') || '/scan.html';
-              const session = await refreshSupabaseSession();
-              if (session?.user) {
-                window.location.href = targetHref;
-                return;
-              }
-              if (loginModal) loginModal.style.display = 'flex';
-              window.postAuthAction = () => {
-                try { document.getElementById('loginModal').style.display = 'none'; } catch {}
-                window.location.href = targetHref;
-              };
-            });
-          }
-          if (closeLoginModal) {
-            closeLoginModal.onclick = function() {
-              if (loginModal) loginModal.style.display = 'none';
-            };
-          }
-          // Zapri modal ob kliku na ozadje
-          if (loginModal) {
-            loginModal.onclick = function(e) {
-              if (e.target === loginModal) loginModal.style.display = 'none';
-            };
-          }
-        });
-        </script>
-        <!-- Login modal (hidden by default) -->
-        <div id="loginModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:9999;align-items:center;justify-content:center;">
-          <div style="background:#fff;padding:32px 28px;border-radius:18px;max-width:400px;width:95vw;box-shadow:0 8px 32px rgba(0,0,0,0.13);margin:auto;">
-            <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:18px;">
-              <a href="/" class="brand" aria-label="NearGo" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
-                <svg viewBox="0 0 32 32" aria-hidden="true" style="width:42px;height:42px;">
-                  <defs><radialGradient id="g1" cx="50%" cy="50%"><stop offset="0%" stop-color="#0bbbd6"/><stop offset="100%" stop-color="#7de3f0"/></radialGradient></defs>
-                  <circle cx="16" cy="16" r="13" class="ring" fill="none" stroke="url(#g1)" stroke-width="2"/>
-                  <circle cx="16" cy="16" r="8" class="ring" fill="none" stroke="url(#g1)" stroke-width="2" opacity=".9"/>
-                  <circle cx="16" cy="16" r="3.2" class="dot pulse"/>
-                </svg>
-                <span style="font-weight:900;font-size:24px;color:#14202b;letter-spacing:-1px;">NearGo</span>
-              </a>
-            </div>
-            <div style="margin-bottom:10px;text-align:center;color:#0bbbd6;font-size:17px;font-weight:700;">Prijava je potrebna za varnost.</div>
-            <div style="margin-bottom:18px;text-align:center;color:#5b6b7b;font-size:15px;">Izberi način prijave:</div>
-            <button id="loginGoogle" style="width:100%;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style="height:18px;vertical-align:middle;margin-right:8px"> Google</button>
-            <button id="loginApple" style="width:100%;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:10px" class="btn btn-outline"><img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" style="height:18px;vertical-align:middle;margin-right:8px"> Apple</button>
-            <div style="margin:16px 0 10px 0;text-align:center;color:#888;font-size:14px;">ali</div>
-            <form id="loginEmailForm" style="margin-top:0">
-              <input type="email" id="loginEmail" placeholder="E-pošta" required style="margin-bottom:8px;padding:10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
-              <div style="position:relative;margin-bottom:8px;">
-                <input type="password" id="loginPassword" placeholder="Geslo" required style="padding:10px 40px 10px 12px;border-radius:10px;border:1px solid #cfe1ee;width:100%;font-size:15px;">
-                <button type="button" id="togglePassword" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#5b6b7b;font-size:18px;cursor:pointer;padding:0;width:20px;height:20px;display:flex;align-items:center;justify-content:center;">👁️</button>
-              </div>
-              <div style="display:flex;gap:10px;margin-bottom:8px;">
-                <button type="submit" class="btn btn-primary" style="flex:1;width:100%;">Prijava</button>
-                <button type="button" id="showRegisterBtn" class="btn btn-outline" style="flex:1;width:100%;color:#0bbbd6;border:1px solid #0bbbd6;background:#fff;">Registracija</button>
-              </div>
-            </form>
-            <div id="loginError" role="status" aria-live="polite" tabindex="-1" style="display:none;color:#0b4c68;font-size:14px;margin-top:8px;text-align:center"></div>
-            <div id="forgotRow" style="margin-top:6px;text-align:center;font-size:13px;">
-              <a href="#" id="forgotPasswordLink" style="color:#0bbbd6">Ste pozabili geslo?</a>
-            </div>
-            <button id="closeLoginModal" class="btn btn-mini btn-outline" style="width:100%;margin-top:14px">Prekliči</button>
-          </div>
-        </div>
-
         <!-- Hitre akcije (ohrani samo dejanske povezave) -->
         <div class="actions" style="margin-top:12px">
           <a class="chip-btn" href="/scan.html" id="scanQrLink">Skeniraj QR</a>
@@ -571,635 +458,85 @@
       const e = $("#" + id);
       if (e) { e.style.display = "block"; e.scrollIntoView({ behavior: "smooth", block: "start" }); }
     }
-    let loginShown = false;
-    $("#hubPublish")?.addEventListener("click", (e) => {
-      if (!loginShown) {
-        loginShown = true;
-        const modal = $("#loginModal");
-        if (modal) modal.style.display = "flex";
-        // določimo kam naj gre po uspešni avtentikaciji
-        window.postAuthAction = () => { try { showPanel('orgPanel'); } catch {} };
-        return;
-      }
-      showPanel('orgPanel');
-    });
-
-    $("#closeLoginModal")?.addEventListener("click", () => {
-      const modal = $("#loginModal");
-      if (modal) modal.style.display = "none";
-    });
-
-    function proceedAfterAuth(){
-      const modal = document.getElementById('loginModal');
-      if (modal) modal.style.display = 'none';
-      if (typeof window.postAuthAction === 'function') {
-        try { window.postAuthAction(); return; } catch {}
-      }
-      // privzeto odpri panel za objavo
-      try { showPanel('orgPanel'); } catch {}
-    }
-
-    // Toggle password visibility
-    $("#togglePassword")?.addEventListener("click", () => {
-      const input = $("#loginPassword");
-      const button = $("#togglePassword");
-      if (input && button) {
-        const isPassword = input.type === "password";
-        input.type = isPassword ? "text" : "password";
-        button.textContent = isPassword ? "🙈" : "👁️";
-      }
-    });
-
-    $("#loginGoogle")?.addEventListener("click", () => {
-      // TODO: Integrate Google login
-      alert("Google prijava (demo)");
-      proceedAfterAuth();
-    });
-    $("#loginApple")?.addEventListener("click", () => {
-      // TODO: Integrate Apple login
-      alert("Apple prijava (demo)");
-      proceedAfterAuth();
-    });
-    $("#registerBtn")?.addEventListener("click", () => {
-      window.location.href = "/register.html";
-    });
-    $("#registerLink")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      window.location.href = "/register.html";
-    });
-    // Povezava: pozabljeno geslo
-    $("#forgotPasswordLink")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      window.location.href = "/forgot-password.html";
-    });
     $("#closeProviderTerms")?.addEventListener("click", () => showPanel('orgPanel'));
     $("#showProviderTerms")?.addEventListener("click", (e) => { e.preventDefault?.(); showPanel('providerTermsPanel'); });
 
-    // Modal login/registracija UX
-    const loginForm = document.getElementById('loginEmailForm');
-    const showRegisterBtn = document.getElementById('showRegisterBtn');
-    let registerFields = null;
-    const loginError = document.getElementById('loginError');
-    const RESEND_COOLDOWN = 60;
+    const DEFAULT_NEXT_PATH = "/organizers.html";
 
-    function setStatus(message = "", tone = "info") {
-      if (!loginError) return;
-      if (!message) {
-        loginError.textContent = "";
-        loginError.style.display = "none";
-        return;
-      }
-      loginError.textContent = message;
-      loginError.style.display = "block";
-      const colors = {
-        error: "#d64c4c",
-        warn: "#c97a15",
-        ok: "#0b8a62",
-        info: "#0b4c68"
-      };
-      loginError.style.color = colors[tone] || colors.info;
-      if (tone === "error") {
-        try { loginError.focus({ preventScroll: true }); } catch {}
-      }
-    }
-
-    function setBusy(button, busyLabel) {
-      if (!button) return () => {};
-      const originalLabel = button.dataset.baseLabel || button.textContent;
-      button.disabled = true;
-      if (busyLabel) button.textContent = busyLabel;
-      return () => {
-        if (!button.dataset.cooldownActive) {
-          button.disabled = false;
-          button.textContent = originalLabel;
-        }
-      };
-    }
-
-    function cancelCooldown(button) {
-      if (!button) return;
-      const timer = button.dataset.cooldownTimer;
-      if (timer) {
-        clearInterval(Number(timer));
-        delete button.dataset.cooldownTimer;
-      }
-      button.dataset.cooldownActive = "";
-      button.disabled = false;
-      const baseLabel = button.dataset.baseLabel || button.dataset.retryLabel || button.textContent;
-      button.textContent = baseLabel;
-    }
-
-    function startCooldown(button, seconds = RESEND_COOLDOWN) {
-      if (!button) return;
-      cancelCooldown(button);
-      let remaining = seconds;
-      const retryLabel = button.dataset.retryLabel || button.dataset.baseLabel || button.textContent;
-      button.dataset.cooldownActive = "1";
-      button.disabled = true;
-      const update = () => {
-        button.textContent = `${retryLabel} (${remaining}s)`;
-      };
-      update();
-      const timer = setInterval(() => {
-        remaining -= 1;
-        if (remaining <= 0) {
-          clearInterval(timer);
-          button.disabled = false;
-          button.dataset.cooldownActive = "";
-          button.textContent = retryLabel;
-          delete button.dataset.cooldownTimer;
-        } else {
-          update();
-        }
-      }, 1000);
-      button.dataset.cooldownTimer = String(timer);
-    }
-
-    async function ensureActiveSession(email, password, signUpResult) {
+    const sanitiseNextTarget = (target) => {
+      if (!target) return DEFAULT_NEXT_PATH;
       try {
-        const persist = typeof window.persistSupabaseSession === 'function' ? window.persistSupabaseSession : () => null;
-        let session = persist(signUpResult?.data || signUpResult || null) || signUpResult?.data?.session || null;
-        if (session) return { session };
-        if (!window.supabase) return { session: null };
-        const { data, error } = await window.supabase.auth.signInWithPassword({ email, password });
-        if (data?.session) {
-          persist({ session: data.session, user: data.user });
-          return { session: data.session };
+        const url = new URL(target, window.location.origin);
+        if (url.origin === window.location.origin) {
+          return url.pathname + url.search + url.hash;
         }
-        if (error) return { session: null, error };
-        return { session: null };
       } catch (error) {
-        return { session: null, error };
+        if (typeof target === "string" && target.startsWith("/")) {
+          return target;
+        }
       }
-    }
+      return DEFAULT_NEXT_PATH;
+    };
 
-    function serverErrorToMessage(resStatus, bodyError) {
-      if (resStatus === 429) return 'Preveč zahtev – poskusite znova čez približno 1 minuto.';
-      if (resStatus === 400) return bodyError || 'Podatki niso popolni. Preverite vnos.';
-      if (resStatus >= 500) return bodyError || 'Strežnik je trenutno zaseden. Poskusite znova.';
-      return bodyError || 'Zahteve trenutno ni mogoče izvesti.';
-    }
+    const buildLoginUrl = (target) => {
+      const params = new URLSearchParams();
+      params.set("next", sanitiseNextTarget(target));
+      return `/login.html?${params.toString()}`;
+    };
 
-    if (loginForm && showRegisterBtn) {
-      function createRegisterFields() {
-        if (registerFields) return;
-  registerFields = document.createElement('div');
-        registerFields.id = 'registerFields';
-        registerFields.innerHTML = `
-          <input type="text" id="loginName" placeholder="Ime" required style="margin-bottom:8px;">
-          <input type="text" id="loginSurname" placeholder="Priimek" required style="margin-bottom:8px;">
-          <div style="display:flex;gap:8px;margin-bottom:8px;">
-            <select id="countryCode" style="width:90px;">
-              <option value="+386">+386</option>
-              <option value="+385">+385</option>
-              <option value="+43">+43</option>
-              <option value="+49">+49</option>
-            </select>
-            <input type="tel" id="loginPhone" placeholder="Telefonska številka" style="flex:1;">
-          </div>
-          <input type="password" id="registerPassword" placeholder="Geslo (min. 6 znakov, velika začetnica, poseben znak)" required style="margin-bottom:6px;">
-          <div id="passwordStrength" style="font-size:12px;color:#5b6b7b;margin-bottom:10px;line-height:1.4;">
-            <div data-rule="length" data-label="vsaj 6 znakov">• vsaj 6 znakov</div>
-            <div data-rule="upper" data-label="velika začetnica">• velika začetnica</div>
-            <div data-rule="symbol" data-label="poseben znak (!@#$…)">• poseben znak (!@#$…)</div>
-          </div>
-          <input type="password" id="registerPasswordRepeat" placeholder="Ponovite geslo" required style="margin-bottom:6px;">
-          <div id="passwordMatchHint" style="display:none;font-size:12px;margin-bottom:8px;color:#5b6b7b;">&nbsp;</div>
-          <div style="display:flex;gap:10px;margin-bottom:8px;">
-            <button type="button" id="sendSmsCodeBtn" class="btn btn-outline" style="flex:1;color:#0bbbd6;border:1px solid #0bbbd6;background:#fff;">Preveri s SMS kodo</button>
-            <button type="button" id="sendEmailCodeBtn" class="btn btn-outline" style="flex:1;color:#0bbbd6;border:1px solid #0bbbd6;background:#fff;">Preveri z email kodo</button>
-          </div>
-          <input type="text" id="registerCode" placeholder="Vnesite kodo" style="margin-bottom:4px;display:none;">
-          <div id="revealCodeHint" style="display:none;text-align:right;margin-bottom:8px;">
-            <a href="#" style="color:#0bbbd6;">Prikaži kodo</a>
-          </div>
-          <button type="button" id="backToLoginBtn" class="btn btn-outline" style="width:100%;margin-bottom:8px">Nazaj na prijavo</button>
-          <button type="button" id="registerSubmitBtn" class="btn btn-primary" style="width:100%;margin-bottom:8px">Registracija</button>
-        `;
-        // Skrij polje za geslo v login formi
-        const passwordInput = loginForm.querySelector('#loginPassword');
-        if (passwordInput) passwordInput.style.display = 'none';
-        // Skrij gumb za prijavo
-        loginForm.querySelector('button[type="submit"]').style.display = 'none';
-        // Skrij "Še niste registrirani?" pri registraciji
-        const forgotRow = document.getElementById('forgotRow');
-        if (forgotRow) forgotRow.style.display = 'none';
-        // Vstavi registerFields za email
-        const emailInput = loginForm.querySelector('#loginEmail');
-        emailInput.insertAdjacentElement('afterend', registerFields);
+    const redirectToLogin = (target) => {
+      window.location.href = buildLoginUrl(target);
+    };
 
-  const smsBtn = registerFields.querySelector('#sendSmsCodeBtn');
-  const emailBtn = registerFields.querySelector('#sendEmailCodeBtn');
-  const registerPhoneInput = registerFields.querySelector('#loginPhone');
-  const countrySelect = registerFields.querySelector('#countryCode');
-        const codeInput = registerFields.querySelector('#registerCode');
-        const revealHint = registerFields.querySelector('#revealCodeHint');
-        const revealLink = revealHint?.querySelector('a');
-  const registerPasswordInput = registerFields.querySelector('#registerPassword');
-  const registerPasswordRepeatInput = registerFields.querySelector('#registerPasswordRepeat');
-        const passwordStrength = registerFields.querySelector('#passwordStrength');
-        const passwordMatchHint = registerFields.querySelector('#passwordMatchHint');
+    const hasActiveSession = () => Boolean(window.currentSupabaseSession?.user);
 
-        if (smsBtn) {
-          smsBtn.dataset.baseLabel = smsBtn.textContent;
-          smsBtn.dataset.retryLabel = 'Pošlji ponovno SMS kodo';
-        }
-        if (emailBtn) {
-          emailBtn.dataset.baseLabel = emailBtn.textContent;
-          emailBtn.dataset.retryLabel = 'Pošlji ponovno email kodo';
-        }
-
-        function updateRevealCode(){
-          if (!codeInput || !revealHint) return;
-          revealHint.style.display = codeInput.expectedCode ? '' : 'none';
-        }
-        revealLink && (revealLink.onclick = function(e){
-          e.preventDefault();
-          if (codeInput?.expectedCode) {
-            codeInput.value = String(codeInput.expectedCode);
-            revealHint.style.display = 'none';
-            setStatus('Koda je bila zapolnjena.', 'ok');
-          }
-        });
-
-        function updatePasswordFeedback() {
-          if (passwordStrength) {
-            const value = registerPasswordInput?.value || '';
-            const rules = {
-              length: value.length >= 6,
-              upper: /[A-Z]/.test(value),
-              symbol: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value)
-            };
-            Object.keys(rules).forEach((key) => {
-              const node = passwordStrength.querySelector(`[data-rule="${key}"]`);
-              if (!node) return;
-              const label = node.getAttribute('data-label') || node.textContent.replace(/^.?\s*/, '');
-              const ok = rules[key];
-              node.textContent = `${ok ? '✓' : '•'} ${label}`;
-              node.style.color = ok ? '#0b8a62' : '#5b6b7b';
-            });
-          }
-          if (passwordMatchHint) {
-            const baseColor = '#5b6b7b';
-            const warnColor = '#c97a15';
-            const passColor = '#0b8a62';
-            const value = registerPasswordInput?.value || '';
-            const repeat = registerPasswordRepeatInput?.value || '';
-            if (!repeat) {
-              passwordMatchHint.style.display = value ? 'block' : 'none';
-              if (value) {
-                passwordMatchHint.textContent = 'Vnesite ponovljeno geslo.';
-                passwordMatchHint.style.color = baseColor;
-              }
-            } else {
-              const match = value && repeat === value;
-              passwordMatchHint.style.display = 'block';
-              passwordMatchHint.textContent = match ? '✅ Gesli se ujemata.' : '⚠️ Gesli se še ne ujemata.';
-              passwordMatchHint.style.color = match ? passColor : warnColor;
-            }
-          }
-        }
-  registerPasswordInput?.addEventListener('input', updatePasswordFeedback);
-  registerPasswordRepeatInput?.addEventListener('input', updatePasswordFeedback);
-        updatePasswordFeedback();
-
-        async function sendSmsCode() {
-          if (!smsBtn) return;
-          const countryCode = countrySelect?.value || '+386';
-          const phoneRaw = registerPhoneInput?.value.trim() || '';
-          const phoneDigits = phoneRaw.replace(/\D/g, '');
-          if (!/^\d{6,}$/.test(phoneDigits)) {
-            setStatus('Vnesite veljavno telefonsko številko.', 'error');
-            registerPhoneInput?.focus();
-            return;
-          }
-          setStatus('Pošiljam SMS kodo ...', 'info');
-          const restoreBusy = setBusy(smsBtn, 'Pošiljam ...');
-          try {
-            const res = await fetch('/.netlify/functions/send-code', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ method: 'sms', phone: phoneDigits, countryCode })
-            });
-            const text = await res.text();
-            let data = {};
-            if (text) { try { data = JSON.parse(text); } catch {} }
-            if (!res.ok || !data.ok) {
-              const msg = serverErrorToMessage(res.status, data?.error);
-              setStatus(msg, res.status === 429 ? 'warn' : 'error');
-              if (codeInput) {
-                codeInput.style.display = '';
-                codeInput.previousSend = 'sms';
-                if (data?.code) codeInput.expectedCode = String(data.code);
-                updateRevealCode();
-              }
-              if (res.status === 429) {
-                const retryAfter = Number(res.headers.get('Retry-After')) || RESEND_COOLDOWN;
-                startCooldown(smsBtn, retryAfter);
-              } else {
-                cancelCooldown(smsBtn);
-              }
-              return;
-            }
-            const smsTone = data?.dev ? 'warn' : 'ok';
-            const smsMessage = data?.dev
-              ? 'SMS koda je simulirana (test način). Koda je prikazana spodaj.'
-              : 'Koda je bila poslana na SMS.';
-            setStatus(smsMessage, smsTone);
-            if (codeInput) {
-              codeInput.style.display = '';
-              codeInput.previousSend = 'sms';
-              if (data?.code) codeInput.expectedCode = String(data.code);
-              updateRevealCode();
-            }
-            const retryAfter = Number(res.headers.get('Retry-After')) || RESEND_COOLDOWN;
-            startCooldown(smsBtn, retryAfter);
-          } catch (err) {
-            setStatus('Težave s pošiljanjem SMS kode. Vnesite kodo ročno, če ste jo prejeli.', 'warn');
-            if (codeInput) {
-              codeInput.style.display = '';
-              codeInput.previousSend = 'sms';
-              updateRevealCode();
-            }
-            cancelCooldown(smsBtn);
-          } finally {
-            restoreBusy();
-          }
-        }
-        smsBtn && (smsBtn.onclick = sendSmsCode);
-
-        async function sendEmailCode() {
-          if (!emailBtn) return;
-          const email = (emailInput?.value || '').trim();
-          if (!email.match(/^[^@]+@[^@]+\.[^@]+$/)) {
-            setStatus('Vnesite veljaven email naslov.', 'error');
-            emailInput?.focus();
-            return;
-          }
-          setStatus('Pošiljam email kodo ...', 'info');
-          const restoreBusy = setBusy(emailBtn, 'Pošiljam ...');
-          try {
-            const res = await fetch('/.netlify/functions/send-code', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ method: 'email', email })
-            });
-            const text = await res.text();
-            let data = {};
-            if (text) { try { data = JSON.parse(text); } catch {} }
-            if (!res.ok || !data.ok) {
-              const msg = serverErrorToMessage(res.status, data?.error);
-              setStatus(msg, res.status === 429 ? 'warn' : 'error');
-              if (codeInput) {
-                codeInput.style.display = '';
-                codeInput.previousSend = 'email';
-                if (data?.code) codeInput.expectedCode = String(data.code);
-                updateRevealCode();
-              }
-              if (res.status === 429) {
-                const retryAfter = Number(res.headers.get('Retry-After')) || RESEND_COOLDOWN;
-                startCooldown(emailBtn, retryAfter);
-              } else {
-                cancelCooldown(emailBtn);
-              }
-              return;
-            }
-            const emailTone = data?.dev ? 'warn' : 'ok';
-            const emailMessage = data?.dev
-              ? 'Koda je poslana na email (test način). Uporabite prikazano kodo.'
-              : 'Koda je bila poslana na email.';
-            setStatus(emailMessage, emailTone);
-            if (codeInput) {
-              codeInput.style.display = '';
-              codeInput.previousSend = 'email';
-              if (data?.code) codeInput.expectedCode = String(data.code);
-              updateRevealCode();
-            }
-            const retryAfter = Number(res.headers.get('Retry-After')) || RESEND_COOLDOWN;
-            startCooldown(emailBtn, retryAfter);
-          } catch (err) {
-            setStatus('Težave s pošiljanjem email kode. Vnesite kodo ročno, če ste jo prejeli.', 'warn');
-            if (codeInput) {
-              codeInput.style.display = '';
-              codeInput.previousSend = 'email';
-              updateRevealCode();
-            }
-            cancelCooldown(emailBtn);
-          } finally {
-            restoreBusy();
-          }
-        }
-        emailBtn && (emailBtn.onclick = sendEmailCode);
-
-        // Registracija
-        registerFields.querySelector('#registerSubmitBtn').onclick = async function() {
-          const nameInput = registerFields.querySelector('#loginName');
-          const surnameInput = registerFields.querySelector('#loginSurname');
-          const codeInput = registerFields.querySelector('#registerCode');
-          const name = nameInput?.value.trim() || '';
-          const surname = surnameInput?.value.trim() || '';
-          const countryCode = countrySelect?.value || '+386';
-          const phoneRaw = registerPhoneInput?.value.trim() || '';
-          const phoneDigits = phoneRaw.replace(/\D/g, '');
-          const email = (emailInput?.value || '').trim();
-          const password = registerPasswordInput?.value || '';
-          const passwordRepeat = registerPasswordRepeatInput?.value || '';
-          const registerCode = codeInput?.value.trim() || '';
-          const verificationMethod = codeInput?.previousSend === 'sms' ? 'sms' : 'email';
-
-          if (!name || !surname) {
-            setStatus('Vnesite ime in priimek.', 'error');
-            (name ? surnameInput : nameInput)?.focus();
-            return;
-          }
-          if (!/^\d{6,}$/.test(phoneDigits)) {
-            setStatus('Vnesite veljavno telefonsko številko.', 'error');
-            registerPhoneInput?.focus();
-            return;
-          }
-          if (!email.match(/^[^@]+@[^@]+\.[^@]+$/)) {
-            setStatus('Vnesite veljaven email naslov.', 'error');
-            emailInput?.focus();
-            return;
-          }
-          if (password.length < 6) {
-            setStatus('Geslo mora imeti vsaj 6 znakov.', 'error');
-            registerPasswordInput?.focus();
-            return;
-          }
-          if (!/[A-Z]/.test(password)) {
-            setStatus('Geslo mora vsebovati vsaj eno veliko začetnico.', 'error');
-            registerPasswordInput?.focus();
-            return;
-          }
-          if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-            setStatus('Geslo mora vsebovati vsaj en poseben znak.', 'error');
-            registerPasswordInput?.focus();
-            return;
-          }
-          if (password !== passwordRepeat) {
-            setStatus('Gesli se ne ujemata.', 'error');
-            registerPasswordRepeatInput?.focus();
-            return;
-          }
-          if (!registerCode) {
-            setStatus('Vnesite prejeto kodo.', 'error');
-            codeInput?.focus();
-            return;
-          }
-
-          setStatus('Preverjam kodo ...', 'info');
-          let verified = false;
-          const lastMethod = codeInput?.previousSend === 'sms' ? 'sms' : 'email';
-          try {
-            const payload = lastMethod === 'sms'
-              ? { phone: phoneDigits, code: registerCode, countryCode }
-              : { email, code: registerCode };
-            const verifyRes = await fetch('/.netlify/functions/verify-code', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-            const verifyText = await verifyRes.text();
-            let verifyData = {};
-            if (verifyText) { try { verifyData = JSON.parse(verifyText); } catch {} }
-            verified = !!(verifyRes.ok && verifyData?.ok && verifyData?.verified);
-            if (!verified && verifyRes.status === 429) {
-              setStatus('Preverjanje je omejeno. Počakajte nekaj trenutkov in poskusite znova.', 'warn');
-            }
-          } catch (err) {
-            verified = false; // nadaljuj z varnim nadomestnim postopkom
-          }
-
-          const expected = codeInput?.expectedCode;
-          const looksValid = /\w{4,}/.test(registerCode);
-          if (!verified) {
-            if ((expected && String(expected) === String(registerCode)) || looksValid) {
-              setStatus('Koda prepoznana. Nadaljujem ...', 'info');
-              verified = true;
-            } else {
-              setStatus('Koda ni pravilna.', 'error');
-              return;
-            }
-          }
-
-          setStatus('Registriram ...', 'info');
-          try {
-            const registerRes = await fetch('/.netlify/functions/register-user', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email,
-                password,
-                method: verificationMethod,
-                first_name: name,
-                last_name: surname,
-                phone: countryCode + phoneDigits
-              })
-            });
-            const registerData = await registerRes.json();
-            if (registerData.ok && registerData.user) {
-              if (verificationMethod === 'email') {
-                // For email verification, user is already confirmed, proceed to login
-                const { session, error: loginError } = await ensureActiveSession(email, password, { data: { user: registerData.user } });
-                if (loginError) {
-                  console.warn('[register] follow-up login failed:', loginError);
-                  setStatus('Registracija je uspela, prijava pa ni: ' + (loginError?.message || 'neznana napaka.') + ' – poskusite se prijaviti ročno.', 'warn');
-                  return;
-                }
-                if (session) {
-                  try {
-                    if (session.user?.email) localStorage.setItem('user_email', session.user.email);
-                  } catch {}
-                  setStatus('Registracija potrjena! Preusmerjam ...', 'ok');
-                  setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 1200);
-                }
-              } else {
-                // For SMS, registration successful, but email confirmation needed
-                setStatus('Registracija je uspela. Preverite e-pošto za potrditev in nato se prijavite.', 'ok');
-                setTimeout(() => { window.location.reload(); }, 2000);
-              }
-            } else {
-              setStatus('Napaka: ' + (registerData.error || 'Napaka v podatkih.'), 'error');
-            }
-          } catch (err) {
-            setStatus('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
-          }
-        };
-
-        // Nazaj na prijavo
-        registerFields.querySelector('#backToLoginBtn').onclick = function() {
-          registerFields.remove();
-          registerFields = null;
-          showRegisterBtn.style.display = '';
-          loginForm.querySelector('button[type="submit"]').style.display = '';
-          const passwordInput = loginForm.querySelector('#loginPassword');
-          if (passwordInput) passwordInput.style.display = '';
-          loginError.textContent = '';
-          loginError.style.display = 'none';
-          const forgotRow = document.getElementById('forgotRow');
-          if (forgotRow) forgotRow.style.display = '';
-        };
-      }
-
-      showRegisterBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        createRegisterFields();
-        showRegisterBtn.style.display = 'none';
-        // Skrij polje za geslo
-        const passwordInput = loginForm.querySelector('#loginPassword');
-        if (passwordInput) passwordInput.style.display = 'none';
-        loginForm.querySelector('button[type="submit"]').style.display = 'none';
-      });
-
-      // Login
-      loginForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const email = loginForm.querySelector('#loginEmail').value.trim();
-        const password = loginForm.querySelector('#loginPassword').value;
-        loginError.textContent = '';
-        loginError.style.display = 'none';
-        if (!email || !password) {
-          loginError.textContent = 'Vnesite email in geslo.';
-          loginError.style.display = 'block';
-          return;
-        }
-        loginError.textContent = 'Prijavljam ...';
-        loginError.style.display = 'block';
+    const refreshSupabaseSession = async () => {
+      if (window.supabase?.auth?.getSession) {
         try {
-          const { testSignInEmail } = window;
-          if (typeof testSignInEmail !== 'function') {
-            loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
-            loginError.style.display = 'block';
+          const { data } = await window.supabase.auth.getSession();
+          const session = data?.session || null;
+          window.currentSupabaseSession = session;
+          return session;
+        } catch (error) {
+          console.warn('[auth] Failed to refresh session:', error?.message || error);
+        }
+      }
+      return hasActiveSession() ? window.currentSupabaseSession : null;
+    };
+
+    document.addEventListener("DOMContentLoaded", () => {
+      refreshSupabaseSession()
+        .then((session) => {
+          if (session?.user) {
+            showPanel("orgPanel");
+          }
+        })
+        .catch((error) => console.warn("[auth] Initial session check failed:", error?.message || error));
+
+      const publishBtn = $("#hubPublish");
+      if (publishBtn) {
+        publishBtn.addEventListener("click", async (event) => {
+          const session = await refreshSupabaseSession();
+          if (session?.user) {
+            showPanel("orgPanel");
             return;
           }
-          let result = await testSignInEmail(email, password);
-          if (result?.data?.user) {
-            window.persistSupabaseSession?.(result?.data);
-            loginError.style.color = '#0b8a62';
-            loginError.textContent = 'Prijava uspešna! Preusmerjam ...';
-            loginError.style.display = 'block';
-            setTimeout(() => { try { proceedAfterAuth(); } catch { window.location.reload(); } }, 800);
-          } else {
-            if (result?.error?.message && result.error.message.toLowerCase().includes('user not found')) {
-              loginError.textContent = 'Uporabnik s tem emailom ne obstaja.';
-            } else if (result?.error?.message && result.error.message.toLowerCase().includes('invalid login credentials')) {
-              loginError.textContent = 'Geslo ni pravilno. Poskusite znova.';
-            } else if (result?.error?.message && result.error.message.toLowerCase().includes('email not confirmed')) {
-              loginError.textContent = 'Registracija še ni potrjena. Preverite e-pošto in sledite navodilom.';
-            } else {
-              loginError.textContent = 'Napaka: ' + (result?.error?.message || 'Neznana napaka.');
-            }
-            loginError.style.color = '#d64c4c';
-            loginError.style.display = 'block';
-          }
-        } catch (e) {
-          loginError.textContent = 'Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.';
-          loginError.style.color = '#d64c4c';
-          loginError.style.display = 'block';
-        }
-      });
-    }
+          event.preventDefault();
+          redirectToLogin("/organizers.html#publish");
+        });
+      }
+
+      const scanQrLink = $("#scanQrLink");
+      if (scanQrLink) {
+        scanQrLink.addEventListener("click", async (event) => {
+          const targetHref = scanQrLink.getAttribute("href") || "/scan.html";
+          const session = await refreshSupabaseSession();
+          if (session?.user) return;
+          event.preventDefault();
+          redirectToLogin(targetHref);
+        });
+      }
+    });
 
     /* ===== Kategorije (1:1) ===== */
     function populateCategories() {
@@ -1341,10 +678,6 @@
 
     // Init
     populateCategories();
-
-    // Popravi Google gumb na modal loginu
-    // Gumb za Google prijavo odstranjen
-  // Registracijski link naj ostane viden
   </script>
 </body>
-  </html>
+</html>

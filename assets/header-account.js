@@ -360,15 +360,27 @@
     try{
       supabase = await getSupabase();
       if (supabase?.auth?.signOut){
+        const settle = async (scope) => {
+          try{
+            const { error } = await supabase.auth.signOut({ scope });
+            if (error) console.warn(`[account] signOut ${scope} failed:`, error.message || error);
+          }catch(err){
+            console.warn(`[account] signOut ${scope} threw:`, err?.message || err);
+          }
+        };
+        await Promise.allSettled([
+          settle('global'),
+          settle('local')
+        ]);
         try{
-          await supabase.auth.signOut();
+          const current = await supabase.auth.getSession();
+          if (current?.data?.session){
+            supabase.auth._removeSession?.();
+          }
         }catch(err){
-          console.warn('[account] signOut call failed:', err?.message || err);
+          console.warn('[account] post signOut session fetch failed:', err?.message || err);
         }
       }
-      try{
-        supabase?.auth?.removeSession?.();
-      }catch{}
     }catch(err){
       console.warn('[account] signOut error:', err?.message || err);
     }finally{

@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NearGo – Objavi dogodek ali storitev</title>
+
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0bbbd6">
+
+  <style>
+    :root{
+      --brand:#0bbbd6; --text:#0b1b2b; --muted:#5b6b7b; --card:#fff;
+      --chip:#fff; --chipborder:#cfe1ee; --shadow:0 10px 30px rgba(0,0,0,.08);
+      --radius:16px; --primary:#0bbbd6; --focus:#bfeef6; --gap:16px;
+      --ok:#11a67a; --bad:#d64c4c;
+    }
+    body.dark{--text:#e8f0f8; --muted:#b8c3cf; --card:#0f1f30; --chip:#102437; --chipborder:#19324a; --focus:#123956}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--text); line-height:1.25;
+      background:
+        radial-gradient(900px 500px at -10% -10%, rgba(11,187,214,.25) 0%, rgba(11,187,214,0) 60%),
+        linear-gradient(180deg, #e9f7ff 0%, #ffffff 70%);
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    }
+    a{ color:inherit; text-decoration:none }
+
+    header{position:sticky; top:0; z-index:30; backdrop-filter:blur(6px); background:color-mix(in srgb, var(--card) 88%, transparent); box-shadow:0 4px 16px rgba(0,0,0,.05);}
+    .nav{ max-width:1100px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; justify-content:space-between; }
+    .brand{ display:flex; align-items:center; gap:10px; font-weight:900; font-size:20px }
+    .brand svg{width:26px; height:26px}
+    @keyframes slowPulse{0%{transform:scale(1);opacity:1}50%{transform:scale(1.07);opacity:.95}100%{transform:scale(1);opacity:1}}
+    .pulse{animation:slowPulse 2.8s ease-in-out infinite; transform-origin:center}
+
+    main{max-width:1100px; margin:0 auto; padding:24px 24px 64px}
+    .card{background:var(--card); box-shadow:var(--shadow); border-radius:var(--radius); padding:16px; border:1px solid var(--chipborder); margin-bottom:16px}
+    .title{font-weight:900; margin-bottom:10px; font-size:1.3rem}
+    .muted{color:var(--muted)}
+
+    label{display:flex; flex-direction:column; gap:6px; font-weight:800; font-size:13px}
+    input,select,textarea{ width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--chipborder); background:var(--card); color:var(--text); outline:none; min-height:40px; font-size:15px; }
+    textarea{min-height:120px}
+    input:focus,select:focus,textarea:focus{border-color:var(--brand); box-shadow:0 0 0 4px var(--focus)}
+    input::placeholder, textarea::placeholder{color:#93a3b3}
+
+    .row{display:grid; grid-template-columns:1fr; gap:var(--gap)}
+    .row + .row{margin-top:var(--gap)}
+    @media(min-width:760px){ .row--3{grid-template-columns:repeat(3,1fr)} .row--2{grid-template-columns:repeat(2,1fr)} }
+    .file-wrap{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+    input[type="file"]::file-selector-button{padding:.35rem .6rem; border-radius:10px; border:1px solid var(--chipborder); background:var(--chip); cursor:pointer}
+    .file-name{font-size:14px; color:var(--muted); white-space:normal; word-break:break-word; max-width:100%}
+    .euro{display:flex; align-items:center; gap:8px}
+
+    label.inline{ display:inline-flex; align-items:center; gap:8px; font-weight:800; font-size:13px; line-height:1; flex-direction:row; }
+    input[type="checkbox"]{
+      -webkit-appearance:none; appearance:none; width:14px; height:14px; margin:0; position:relative;
+      border:2px solid #a9c3d6; border-radius:4px; background:#fff; outline:none; display:inline-block; box-sizing:content-box; padding:0; min-height:0 !important;
+    }
+    input[type="checkbox"]::after{
+      content:""; position:absolute; left:3px; top:-1px; width:6px; height:10px;
+      border-right:3px solid var(--primary); border-bottom:3px solid var(--primary);
+      transform:rotate(45deg); opacity:0; transition:opacity .12s;
+    }
+    input[type="checkbox"]:checked{ border-color:var(--primary) }
+    input[type="checkbox"]:checked::after{ opacity:1 }
+
+    input[type="radio"]{
+      -webkit-appearance:none; appearance:none; width:14px; height:14px; margin:0; position:relative;
+      border:2px solid #a9c3d6; border-radius:50%; background:#fff; outline:none; display:inline-block; box-sizing:content-box; padding:0; min-height:0 !important;
+    }
+    input[type="radio"]::after{
+      content:""; position:absolute; left:3px; top:3px; width:6px; height:6px; border-radius:50%;
+      background:var(--primary); opacity:0; transition:opacity .12s;
+    }
+    input[type="radio"]:checked{ border-color:var(--primary) }
+    input[type="radio"]:checked::after{ opacity:1 }
+
+    .toast{ position:fixed; left:50%; transform:translateX(-50%); bottom:12px; z-index:1002; display:none; padding:10px 14px; border-radius:12px; font-weight:800 }
+    .toast.ok{ background:#e6fbf5; color:#05614d; border:1px solid #baf0df }
+    .toast.bad{ background:#ffeaea; color:#7a1b1b; border:1px solid #ffd1d1 }
+
+    .auth-gate{display:flex; align-items:center; justify-content:center; min-height:40vh; font-weight:800; color:var(--muted);}
+
+    @media (min-width: 768px) {
+      body { max-width: 390px; margin: 0 auto; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+    }
+  </style>
+
+  <script>
+    window.SUPABASE_URL = window.SUPABASE_URL || "https://wqdfteajjcrzcniotvhh.supabase.co";
+    window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
+  </script>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const url = window.SUPABASE_URL || localStorage.getItem('SUPABASE_URL');
+    const anon = window.SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY');
+
+    if (!url || !anon) {
+      console.error('Supabase config missing', { url, anon });
+      window.requireOrganizerSession = async () => {
+        throw new Error('Supabase konfiguracija ni nastavljena.');
+      };
+    } else {
+      const client = createClient(url, anon);
+      window.supabase = client;
+
+      const updateLocalSession = (session) => {
+        if (!session) {
+          window.currentSupabaseSession = null;
+          try {
+            localStorage.removeItem('user_email');
+            localStorage.removeItem('user_name');
+            localStorage.removeItem('user_token');
+            localStorage.removeItem('user_refresh');
+          } catch {}
+          return;
+        }
+        window.currentSupabaseSession = session;
+        try {
+          const email = session.user?.email;
+          if (email) localStorage.setItem('user_email', email);
+          if (session.access_token) localStorage.setItem('user_token', session.access_token);
+          if (session.refresh_token) localStorage.setItem('user_refresh', session.refresh_token);
+        } catch (err) {
+          console.warn('[auth] localStorage persist failed:', err?.message || err);
+        }
+      };
+
+      const refreshSession = async () => {
+        if (client.auth?.getSession) {
+          try {
+            const { data } = await client.auth.getSession();
+            const session = data?.session || null;
+            updateLocalSession(session);
+            return session;
+          } catch (error) {
+            console.warn('[auth] getSession failed:', error?.message || error);
+          }
+        }
+        return window.currentSupabaseSession || null;
+      };
+
+      client.auth.getSession().then(({ data }) => {
+        if (data?.session) updateLocalSession(data.session);
+      }).catch((err) => console.warn('[auth] initial session fetch failed:', err?.message || err));
+
+      client.auth.onAuthStateChange((_event, session) => {
+        updateLocalSession(session || null);
+      });
+
+      window.requireOrganizerSession = async () => {
+        const session = await refreshSession();
+        if (session?.user) return session;
+        const params = new URLSearchParams();
+        params.set('next', '/organizers-submit.html');
+        window.location.href = `/login.html?${params.toString()}`;
+        return null;
+      };
+    }
+  </script>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <div class="brand" aria-label="NearGo">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <defs><radialGradient id="g1" cx="50%" cy="50%"><stop offset="0%" stop-color="#0bbbd6"/><stop offset="100%" stop-color="#7de3f0"/></radialGradient></defs>
+          <circle cx="16" cy="16" r="13" class="ring" fill="none" stroke="url(#g1)" stroke-width="2"/>
+          <circle cx="16" cy="16" r="8" class="ring" fill="none" stroke="url(#g1)" stroke-width="2" opacity=".9"/>
+          <circle cx="16" cy="16" r="3.2" class="dot pulse" fill="url(#g1)"/>
+        </svg>
+        NearGo
+      </div>
+      <a class="btn link" href="/organizers.html">← Nazaj na Za organizatorje</a>
+    </div>
+  </header>
+
+  <div id="authGate" class="auth-gate">Preverjam prijavo…</div>
+
+  <main id="app" hidden>
+    <section class="card" id="orgPanel">
+      <div class="title">Objavi dogodek ali storitev</div>
+      <p class="muted">Objava je brezplačna. Prodaja vstopnic/kuponov prek Stripe. Naročnine & izpostavitve prek IAP (native).</p>
+
+      <div class="row row--3">
+        <label>Tip vnosa *
+          <select id="entryType" required>
+            <option value="event" selected>Dogodek</option>
+            <option value="service">Storitev</option>
+          </select>
+        </label>
+        <input id="orgName" placeholder="Ime organizatorja / ponudnika *" required>
+        <input id="orgFullName" placeholder="Ime in priimek (kontaktna oseba) *" required>
+      </div>
+
+      <div class="row row--3">
+        <input id="orgEmail" type="email" placeholder="E-pošta za potrditev *" required>
+        <input id="eventName" placeholder="Naslov (dogodek ali storitev) *" required>
+        <input id="venue" placeholder="Lokacija (ime prizorišča ali salona) *" required>
+      </div>
+
+      <div class="row row--3">
+        <select id="country" required>
+          <option value="">Država (izberi) *</option>
+          <option value="SI" selected>Slovenija (SI)</option>
+          <option value="AT">Avstrija (AT)</option>
+          <option value="HR">Hrvaška (HR)</option>
+          <option value="IT">Italija (IT)</option>
+          <option value="HU">Madžarska (HU)</option>
+          <option value="DE">Nemčija (DE)</option>
+          <option value="FR">Francija (FR)</option>
+          <option value="GB">Združeno kraljestvo (GB)</option>
+          <option value="US">ZDA (US)</option>
+        </select>
+        <label id="startWrap">Začetek * <input id="start" type="datetime-local"></label>
+        <label id="endWrap">Končanje * <input id="end" type="datetime-local"></label>
+      </div>
+
+      <div class="row row--3">
+        <input id="city2" placeholder="Mesto/kraj *" required>
+        <input id="url" placeholder="Povezava za več info / nakup (če obstaja)">
+        <label>Kategorija (glede na tip) *
+          <select id="category" required></select>
+        </label>
+      </div>
+
+      <div class="row" style="margin-top:8px">
+        <textarea id="desc" placeholder="Opis *" maxlength="800" required></textarea>
+        <div class="muted" id="descCount" style="font-size:12px; text-align:right">0 / 800</div>
+      </div>
+
+      <div class="row">
+        <div class="file-wrap">
+          <input id="image" type="file" accept="image/*">
+          <span id="fileName" class="file-name">Fotografija ni izbrana</span>
+          <img id="imgPreview" alt="" style="display:none;width:56px;height:56px;border-radius:8px;border:1px solid var(--chipborder);object-fit:cover">
+        </div>
+      </div>
+
+      <div class="row row--2" id="offerRow">
+        <label>Tip ponudbe
+          <select id="offerType">
+            <option value="none" selected>Brez plačila</option>
+            <option value="ticket">Vstopnice – prodaja prek NearGo</option>
+            <option value="coupon">Kupon – unovčljiv prek NearGo</option>
+          </select>
+        </label>
+        <div class="euro" id="priceWrap">
+          <input id="price" type="number" min="0" step="0.01" placeholder="Cena (ena cena)">
+          <span>€</span>
+        </div>
+      </div>
+
+      <div class="row row--2">
+        <input id="stock" type="number" min="0" step="1" placeholder="Zaloga (št. kosov)" required>
+        <input id="maxPerOrder" type="number" min="1" step="1" placeholder="Max na naročilo">
+      </div>
+
+      <div style="margin-top:6px">
+        <label class="inline" style="gap:8px; align-items:center">
+          <input type="checkbox" id="featured">
+          <span>Izpostavi (7 dni)</span>
+        </label>
+      </div>
+
+      <div style="margin-top:6px">
+        <label class="inline" style="gap:8px; align-items:center">
+          <input type="checkbox" id="agreeFees">
+          <span>Strinjam se s <a href="#providerTermsPanel" id="showProviderTerms">Pogoji za plačljive ponudbe</a>.</span>
+        </label>
+      </div>
+
+      <div style="margin-top:20px">
+        <button class="btn" id="btnSubmitEvent" type="button">Objavi</button>
+        <span id="orgMsg" class="muted" style="margin-left:10px"></span>
+      </div>
+    </section>
+
+    <section class="card" id="providerTermsPanel" hidden>
+      <div class="title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Pogoji za plačljive ponudbe</span>
+        <button class="btn link" style="padding:8px 12px;font-size:13px;border-radius:12px" id="closeProviderTerms">Zapri</button>
+      </div>
+      <div class="muted" style="font-size:14px; line-height:1.55">
+        <p><b>1.</b> Organizator/ponudnik jamči za točnost cen, razpoložljivost in zakonitost ponudbe. NearGo je posrednik za izdajo vstopnic/kuponov.</p>
+        <p><b>2.</b> Plačila vstopnic/kuponov se obdelajo prek Stripe; račun in QR-koda sta poslana na e-pošto kupca.</p>
+        <p><b>3.</b> Naročnine in promovirane izpostavitve se izvajajo prek Apple/Google plačilnih sistemov (IAP) v nativnih aplikacijah.</p>
+        <p><b>4.</b> Vračila, spremembe in odpovedi ureja organizator po zakonodaji; stroški procesiranja se ne vračajo, razen če zakon določa drugače.</p>
+        <p><b>5.</b> NearGo si pridržuje pravico do začasne skritosti ali odstranitve ob sumu zlorabe.</p>
+        <p><b>6.</b> Kontakt: <a href="mailto:info@getneargo.com">info@getneargo.com</a>.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    (function(){
+      const $ = (sel) => document.querySelector(sel);
+
+      function showPanel(id){
+        const panels = ["orgPanel", "providerTermsPanel"];
+        panels.forEach(pid => {
+          const node = document.getElementById(pid);
+          if (node) node.hidden = true;
+        });
+        const target = document.getElementById(id);
+        if (target){
+          target.hidden = false;
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+
+      function showToast(msg, ok = true) {
+        const toast = document.getElementById("toast");
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.className = "toast " + (ok ? "ok" : "bad");
+        toast.style.display = "flex";
+        setTimeout(() => { toast.style.display = "none"; }, 4000);
+      }
+
+      function populateCategories(){
+        const select = document.getElementById("category");
+        const isService = document.getElementById("entryType")?.value === "service";
+        const opts = isService ? ["", "frizer", "wellness", "zdravje", "kozmetika", "fitnes", "avto-moto", "turizem", "gospodinjske", "ostalo"] :
+          ["", "koncert", "kultura", "otroci", "hrana", "narava", "sport", "zabava", "za-podjetja"];
+        if (!select) return;
+        const options = ['<option value="">(izberi)</option>', ...opts.filter(Boolean).map(v => `<option value="${v}">${v.replace("-", " ").replace(/\b\w/g, m => m.toUpperCase())}</option>`)];
+        select.innerHTML = options.join("");
+      }
+
+      function resetForm(){
+        ["#orgName", "#orgFullName", "#orgEmail", "#eventName", "#venue", "#city2", "#url", "#desc", "#price", "#stock", "#maxPerOrder", "#start", "#end"].forEach(sel => {
+          const input = document.querySelector(sel);
+          if (input) input.value = "";
+        });
+        const featured = document.getElementById("featured");
+        const agree = document.getElementById("agreeFees");
+        const file = document.getElementById("image");
+        const fileName = document.getElementById("fileName");
+        const preview = document.getElementById("imgPreview");
+        const entryType = document.getElementById("entryType");
+        const offerType = document.getElementById("offerType");
+
+        if (featured) featured.checked = false;
+        if (agree) agree.checked = false;
+        if (file) file.value = "";
+        if (fileName) fileName.textContent = "Fotografija ni izbrana";
+        if (preview){ preview.src = ""; preview.style.display = "none"; }
+        if (entryType) entryType.value = "event";
+        if (offerType) offerType.value = "none";
+        populateCategories();
+      }
+
+      function initListeners(){
+        document.getElementById("showProviderTerms")?.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          showPanel("providerTermsPanel");
+        });
+        document.getElementById("closeProviderTerms")?.addEventListener("click", () => showPanel("orgPanel"));
+
+        document.getElementById("entryType")?.addEventListener("change", () => {
+          const isService = document.getElementById("entryType")?.value === "service";
+          const startWrap = document.getElementById("startWrap");
+          const endWrap = document.getElementById("endWrap");
+          const start = document.getElementById("start");
+          const end = document.getElementById("end");
+          if (startWrap) startWrap.style.display = isService ? "none" : "block";
+          if (endWrap) endWrap.style.display = isService ? "none" : "block";
+          if (start) start.required = !isService;
+          if (end) end.required = !isService;
+          populateCategories();
+        });
+
+        const desc = document.getElementById("desc");
+        const descCount = document.getElementById("descCount");
+        if (desc && descCount){
+          const renderCount = () => {
+            descCount.textContent = `${desc.value.length} / ${desc.getAttribute('maxlength') || 800}`;
+          };
+          desc.addEventListener('input', renderCount);
+          renderCount();
+        }
+
+        document.getElementById("image")?.addEventListener("change", (ev) => {
+          const file = ev.target.files?.[0];
+          const label = document.getElementById("fileName");
+          const preview = document.getElementById("imgPreview");
+          if (label) label.textContent = file ? file.name : "Fotografija ni izbrana";
+          if (file && preview){
+            const reader = new FileReader();
+            reader.onload = () => {
+              preview.src = reader.result;
+              preview.style.display = "block";
+            };
+            reader.readAsDataURL(file);
+          }
+        });
+
+        document.getElementById("btnSubmitEvent")?.addEventListener("click", async (ev) => {
+          ev.preventDefault();
+          const feedback = document.getElementById("orgMsg");
+          if (feedback){
+            feedback.textContent = "";
+            feedback.style.color = "var(--muted)";
+          }
+
+          const requiredSelectors = ["#orgName", "#orgFullName", "#orgEmail", "#eventName", "#venue", "#city2", "#country", "#category", "#desc"];
+          const isService = document.getElementById("entryType")?.value === "service";
+          if (!isService) requiredSelectors.push("#start", "#end");
+          if (document.getElementById("offerType")?.value !== "none") requiredSelectors.push("#stock");
+
+          for (const sel of requiredSelectors){
+            const node = document.querySelector(sel);
+            const value = (node?.value || "").toString().trim();
+            if (!value){
+              if (feedback){
+                feedback.textContent = "Izpolni obvezna polja označena z *.";
+                feedback.style.color = "var(--bad)";
+              }
+              node?.focus();
+              return;
+            }
+          }
+
+          if (!isService){
+            const start = new Date(document.getElementById("start")?.value);
+            const end = new Date(document.getElementById("end")?.value);
+            if (!(end > start)){
+              if (feedback){
+                feedback.textContent = "Konec mora biti po začetku.";
+                feedback.style.color = "var(--bad)";
+              }
+              document.getElementById("end")?.focus();
+              return;
+            }
+          }
+
+          if (document.getElementById("offerType")?.value !== "none" && !document.getElementById("agreeFees")?.checked){
+            if (feedback){
+              feedback.textContent = "Za plačljive ponudbe potrdi pogoje.";
+              feedback.style.color = "var(--bad)";
+            }
+            return;
+          }
+
+          let imageUrl = null;
+          const file = document.getElementById("image")?.files?.[0];
+          if (file){
+            try {
+              const formData = new FormData();
+              formData.append("file", file);
+              const upload = await fetch("/api/provider-upload", { method: "POST", body: formData }).then(res => res.json()).catch(() => null);
+              if (upload && upload.ok && (upload.url || upload.imagePublicUrl)){
+                imageUrl = upload.url || upload.imagePublicUrl;
+              }
+            } catch (error) {
+              console.error("Image upload failed", error);
+            }
+          }
+
+          const payload = {
+            type: document.getElementById("entryType")?.value,
+            organizer: document.getElementById("orgName")?.value.trim(),
+            organizerFullName: document.getElementById("orgFullName")?.value.trim(),
+            organizerEmail: document.getElementById("orgEmail")?.value.trim(),
+            eventName: document.getElementById("eventName")?.value.trim(),
+            venue: document.getElementById("venue")?.value.trim(),
+            city: document.getElementById("city2")?.value.trim(),
+            country: document.getElementById("country")?.value,
+            start: isService ? null : (document.getElementById("start")?.value || null),
+            end: isService ? null : (document.getElementById("end")?.value || null),
+            url: document.getElementById("url")?.value.trim() || null,
+            category: document.getElementById("category")?.value,
+            description: document.getElementById("desc")?.value.trim(),
+            featured: document.getElementById("featured")?.checked,
+            imagePublicUrl: imageUrl,
+            offerType: document.getElementById("offerType")?.value,
+            price: (document.getElementById("offerType")?.value === "ticket" && document.getElementById("price")?.value !== "") ? Number(document.getElementById("price")?.value) : null,
+            stock: Number(document.getElementById("stock")?.value || 0) || null,
+            maxPerOrder: Number(document.getElementById("maxPerOrder")?.value || 0) || null
+          };
+
+          const submitBtn = document.getElementById("btnSubmitEvent");
+          try {
+            if (submitBtn) submitBtn.disabled = true;
+            const response = await fetch("/api/provider-submit", {
+              method: "POST",
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            }).then(res => res.json());
+
+            if (response && response.ok){
+              if (feedback){
+                feedback.textContent = "✅ Uspešno oddano. Potrditveni e-mail je poslan (z dostopom do Portala ponudnika).";
+                feedback.style.color = "var(--ok)";
+              }
+              showToast("Dogodek/storitev uspešno objavljen!", true);
+              setTimeout(() => {
+                resetForm();
+              }, 1500);
+            } else {
+              if (feedback){
+                feedback.textContent = (response && response.error) ? response.error : "Oddaja ni uspela.";
+                feedback.style.color = "var(--bad)";
+              }
+            }
+          } catch (error) {
+            if (feedback){
+              feedback.textContent = "Napaka pri oddaji.";
+              feedback.style.color = "var(--bad)";
+            }
+          } finally {
+            if (submitBtn) submitBtn.disabled = false;
+          }
+        });
+
+        populateCategories();
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const gate = document.getElementById('authGate');
+        const app = document.getElementById('app');
+
+        if (typeof window.requireOrganizerSession !== 'function'){
+          gate.textContent = 'Prijava ni na voljo (manjka Supabase konfiguracija).';
+          return;
+        }
+
+        window.requireOrganizerSession().then((session) => {
+          if (!session?.user) return;
+          gate.style.display = 'none';
+          if (app) app.hidden = false;
+          initListeners();
+        }).catch((error) => {
+          console.warn('[auth] ensure session failed:', error?.message || error);
+          gate.textContent = error?.message || 'Ni uspelo preveriti prijave.';
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -280,127 +280,6 @@
       </div>
     </section>
 
-    <!-- ========== OBRAZEC ZA OBJAVO (1:1; zdaj skrit – urejaš posebej) ========== -->
-    <section class="section card" id="orgPanel" style="display:none">
-      <div class="title">Objavi dogodek ali storitev</div>
-      <p class="muted">Objava je brezplačna. Prodaja vstopnic/kuponov prek Stripe. Naročnine & izpostavitve prek IAP (native).</p>
-
-      <!-- Osnovni podatki -->
-      <div class="row row--3">
-        <label>Tip vnosa *
-          <select id="entryType" required>
-            <option value="event" selected>Dogodek</option>
-            <option value="service">Storitev</option>
-          </select>
-        </label>
-        <input id="orgName" placeholder="Ime organizatorja / ponudnika *" required>
-        <input id="orgFullName" placeholder="Ime in priimek (kontaktna oseba) *" required>
-      </div>
-
-      <div class="row row--3">
-        <input id="orgEmail" type="email" placeholder="E-pošta za potrditev *" required>
-        <input id="eventName" placeholder="Naslov (dogodek ali storitev) *" required>
-        <input id="venue" placeholder="Lokacija (ime prizorišča ali salona) *" required>
-      </div>
-
-      <div class="row row--3">
-        <select id="country" required>
-          <option value="">Država (izberi) *</option>
-          <option value="SI" selected>Slovenija (SI)</option>
-          <option value="AT">Avstrija (AT)</option>
-          <option value="HR">Hrvaška (HR)</option>
-          <option value="IT">Italija (IT)</option>
-          <option value="HU">Madžarska (HU)</option>
-          <option value="DE">Nemčija (DE)</option>
-          <option value="FR">Francija (FR)</option>
-          <option value="GB">Združeno kraljestvo (GB)</option>
-          <option value="US">ZDA (US)</option>
-        </select>
-        <label id="startWrap">Začetek * <input id="start" type="datetime-local"></label>
-        <label id="endWrap">Končanje * <input id="end" type="datetime-local"></label>
-      </div>
-
-      <div class="row row--3">
-        <input id="city2" placeholder="Mesto/kraj *" required>
-        <input id="url" placeholder="Povezava za več info / nakup (če obstaja)">
-        <label>Kategorija (glede na tip) *
-          <select id="category" required></select>
-        </label>
-      </div>
-
-      <!-- Opis -->
-      <div class="row" style="margin-top:8px">
-        <textarea id="desc" placeholder="Opis *" maxlength="800" required></textarea>
-        <div class="muted" id="descCount" style="font-size:12px; text-align:right">0 / 800</div>
-      </div>
-
-      <!-- Slika -->
-      <div class="row">
-        <div class="file-wrap">
-          <input id="image" type="file" accept="image/*">
-          <span id="fileName" class="file-name">Fotografija ni izbrana</span>
-          <img id="imgPreview" alt="" style="display:none;width:56px;height:56px;border-radius:8px;border:1px solid var(--chipborder);object-fit:cover">
-        </div>
-      </div>
-
-      <!-- Osnovne nastavitve ponudbe -->
-      <div class="row row--2" id="offerRow">
-        <label>Tip ponudbe
-          <select id="offerType">
-            <option value="none" selected>Brez plačila</option>
-            <option value="ticket">Vstopnice – prodaja prek NearGo</option>
-            <option value="coupon">Kupon – unovčljiv prek NearGo</option>
-          </select>
-        </label>
-        <div class="euro" id="priceWrap">
-          <input id="price" type="number" min="0" step="0.01" placeholder="Cena (ena cena)">
-          <span>€</span>
-        </div>
-      </div>
-
-      <div class="row row--2">
-        <input id="stock" type="number" min="0" step="1" placeholder="Zaloga (št. kosov)" required>
-        <input id="maxPerOrder" type="number" min="1" step="1" placeholder="Max na naročilo">
-      </div>
-
-      <!-- Izpostavitev -->
-      <div style="margin-top:6px">
-        <label class="inline" style="gap:8px; align-items:center">
-          <input type="checkbox" id="featured">
-          <span>Izpostavi (7 dni)</span>
-        </label>
-      </div>
-
-      <!-- Pogoji -->
-      <div style="margin-top:6px">
-        <label class="inline" style="gap:8px; align-items:center">
-          <input type="checkbox" id="agreeFees">
-          <span>Strinjam se s <a href="#provider-terms" id="showProviderTerms">Pogoji za plačljive ponudbe</a>.</span>
-        </label>
-      </div>
-
-      <!-- Submit -->
-      <div style="margin-top:20px">
-        <button class="btn btn-primary" id="btnSubmitEvent" type="button">Objavi</button>
-        <span id="orgMsg" class="muted" style="margin-left:10px"></span>
-      </div>
-    </section>
-
-    <!-- ========== POGOJI (modal-like) ========== -->
-    <section class="section card" id="providerTermsPanel" style="display:none">
-      <div class="title" style="display:flex;justify-content:space-between;align-items:center">
-        <span>Pogoji za plačljive ponudbe</span>
-        <button class="btn btn-mini btn-outline" id="closeProviderTerms">Zapri</button>
-      </div>
-      <div class="muted" style="font-size:14px; line-height:1.55">
-        <p><b>1.</b> Organizator/ponudnik jamči za točnost cen, razpoložljivost in zakonitost ponudbe. NearGo je posrednik za izdajo vstopnic/kuponov.</p>
-        <p><b>2.</b> Plačila vstopnic/kuponov se obdelajo prek Stripe; račun in QR-koda sta poslana na e-pošto kupca.</p>
-        <p><b>3.</b> Naročnine in promovirane izpostavitve se izvajajo prek Apple/Google plačilnih sistemov (IAP) v nativnih aplikacijah.</p>
-        <p><b>4.</b> Vračila, spremembe in odpovedi ureja organizator po zakonodaji; stroški procesiranja se ne vračajo, razen če zakon določa drugače.</p>
-        <p><b>5.</b> NearGo si pridržuje pravico do začasne skritosti ali odstranitve ob sumu zlorabe.</p>
-        <p><b>6.</b> Kontakt: <a href="mailto:info@getneargo.com">info@getneargo.com</a>.</p>
-      </div>
-    </section>
   </main>
 
   <!-- Toast -->
@@ -453,17 +332,7 @@
       setTimeout(() => t.style.display = "none", 4000);
     }
 
-    /* ===== Paneli ===== */
-    function showPanel(id) {
-      const panels = ["orgPanel", "providerTermsPanel"];
-      panels.forEach(pid => { const n = $("#" + pid); if (n) n.style.display = "none"; });
-      const e = $("#" + id);
-      if (e) { e.style.display = "block"; e.scrollIntoView({ behavior: "smooth", block: "start" }); }
-    }
-    $("#closeProviderTerms")?.addEventListener("click", () => showPanel('orgPanel'));
-    $("#showProviderTerms")?.addEventListener("click", (e) => { e.preventDefault?.(); showPanel('providerTermsPanel'); });
-
-    const DEFAULT_NEXT_PATH = "/organizers.html";
+    const DEFAULT_NEXT_PATH = "/organizers-submit.html";
 
     const sanitiseNextTarget = (target) => {
       if (!target) return DEFAULT_NEXT_PATH;
@@ -507,24 +376,25 @@
     };
 
     document.addEventListener("DOMContentLoaded", () => {
-      refreshSupabaseSession()
-        .then((session) => {
-          if (session?.user) {
-            showPanel("orgPanel");
-          }
-        })
-        .catch((error) => console.warn("[auth] Initial session check failed:", error?.message || error));
+      const hash = window.location.hash;
+      if (hash === "#success") {
+        showToast("Nakup paketa uspešen!", true);
+      } else if (hash === "#cancel") {
+        showToast("Nakup paketa preklican.", false);
+      }
+
+      refreshSupabaseSession().catch((error) => console.warn("[auth] Initial session check failed:", error?.message || error));
 
       const publishBtn = $("#hubPublish");
       if (publishBtn) {
         publishBtn.addEventListener("click", async (event) => {
           const session = await refreshSupabaseSession();
           if (session?.user) {
-            showPanel("orgPanel");
+            window.location.href = "/organizers-submit.html";
             return;
           }
           event.preventDefault();
-          redirectToLogin("/organizers.html#publish");
+          redirectToLogin("/organizers-submit.html");
         });
       }
 
@@ -540,146 +410,7 @@
       }
     });
 
-    /* ===== Kategorije (1:1) ===== */
-    function populateCategories() {
-      const ct = $("#category");
-      const isSvc = $("#entryType")?.value === "service";
-      const opts = isSvc ?
-        ["", "frizer", "wellness", "zdravje", "kozmetika", "fitnes", "avto-moto", "turizem", "gospodinjske", "ostalo"] :
-        ["", "koncert", "kultura", "otroci", "hrana", "narava", "sport", "zabava", "za-podjetja"];
-      if (ct) {
-        ct.innerHTML = ['<option value="">(izberi)</option>',
-          ...opts.filter(Boolean).map(v => `<option value="${v}">${v.replace("-", " ").replace(/\b\w/g, m => m.toUpperCase())}</option>`)
-        ].join("");
-      }
-    }
-    $("#entryType")?.addEventListener("change", () => {
-      const isSvc = $("#entryType")?.value === "service";
-      const startWrap = $("#startWrap");
-      const endWrap = $("#endWrap");
-      const start = $("#start");
-      const end = $("#end");
-      if (startWrap) startWrap.style.display = isSvc ? "none" : "block";
-      if (endWrap) endWrap.style.display = isSvc ? "none" : "block";
-      if (start) start.required = !isSvc;
-      if (end) end.required = !isSvc;
-      populateCategories();
-    });
-
-    /* ===== Števec znakov (1:1) ===== */
-    const desc = $("#desc");
-    const descCount = $("#descCount");
-    if (desc && descCount) {
-      const updateCount = () => descCount.textContent = `${desc.value.length} / ${desc.getAttribute('maxlength') || 800}`;
-      desc.addEventListener('input', updateCount); updateCount();
-    }
-
-    /* ===== Predogled slike (1:1) ===== */
-    $("#image")?.addEventListener("change", (ev) => {
-      const f = ev.target.files?.[0];
-      const lbl = $("#fileName");
-      const prev = $("#imgPreview");
-      if (lbl) lbl.textContent = f ? f.name : "Fotografija ni izbrana";
-      if (f && prev) {
-        const r = new FileReader();
-        r.onload = () => { prev.src = r.result; prev.style.display = "block"; };
-        r.readAsDataURL(f);
-      }
-    });
-
-    /* ===== Submit (1:1) ===== */
-    $("#btnSubmitEvent")?.addEventListener("click", async (ev) => {
-      ev.preventDefault();
-      const orgMsg = $("#orgMsg");
-      if (orgMsg) orgMsg.textContent = "";
-
-      const must = ["#orgName", "#orgFullName", "#orgEmail", "#eventName", "#venue", "#city2", "#country", "#category", "#desc"];
-      const isSvc = $("#entryType")?.value === "service";
-      if (!isSvc) { must.push("#start", "#end"); }
-      if ($("#offerType")?.value !== "none") { must.push("#stock"); }
-
-      for (const sel of must) {
-        const node = $(sel);
-        const val = (node?.value || "").toString().trim();
-        if (!val) {
-          if (orgMsg) { orgMsg.textContent = "Izpolni obvezna polja označena z *."; orgMsg.style.color = "var(--bad)"; }
-          node?.focus(); return;
-        }
-      }
-      if (!isSvc) {
-        const start = new Date($("#start")?.value);
-        const end = new Date($("#end")?.value);
-        if (!(end > start)) {
-          if (orgMsg) { orgMsg.textContent = "Konec mora biti po začetku."; orgMsg.style.color = "var(--bad)"; }
-          $("#end")?.focus(); return;
-        }
-      }
-      if ($("#offerType")?.value !== "none") {
-        if (!($("#agreeFees")?.checked)) {
-          if (orgMsg) { orgMsg.textContent = "Za plačljive ponudbe potrdi pogoje."; orgMsg.style.color = "var(--bad)"; }
-          return;
-        }
-      }
-
-      // Upload slike (če je)
-      let IMAGE_URL = null;
-      const f = $("#image")?.files?.[0] || null;
-      if (f) {
-        try {
-          const up = new FormData(); up.append("file", f);
-          const ur = await fetch("/api/provider-upload", { method: "POST", body: up }).then(x => x.json()).catch(() => null);
-          if (ur && ur.ok && (ur.url || ur.imagePublicUrl)) IMAGE_URL = (ur.url || ur.imagePublicUrl);
-        } catch (e) { console.error("Image upload failed:", e); }
-      }
-
-      const payload = {
-        type: $("#entryType")?.value,
-        organizer: $("#orgName")?.value.trim(),
-        organizerFullName: $("#orgFullName")?.value.trim(),
-        organizerEmail: $("#orgEmail")?.value.trim(),
-        eventName: $("#eventName")?.value.trim(),
-        venue: $("#venue")?.value.trim(),
-        city: $("#city2")?.value.trim(),
-        country: $("#country")?.value,
-        start: isSvc ? null : ($("#start")?.value || null),
-        end: isSvc ? null : ($("#end")?.value || null),
-        url: $("#url")?.value.trim() || null,
-        category: $("#category")?.value,
-        description: $("#desc")?.value.trim(),
-        featured: $("#featured")?.checked,
-        imagePublicUrl: IMAGE_URL || null,
-        offerType: $("#offerType")?.value,
-        price: ($("#offerType")?.value === "ticket" && $("#price")?.value !== "") ? Number($("#price")?.value) : null,
-        stock: Number($("#stock")?.value || 0) || null,
-        maxPerOrder: Number($("#maxPerOrder")?.value || 0) || null
-      };
-
-      try {
-        $("#btnSubmitEvent").disabled = true;
-        const res = await fetch("/api/provider-submit", {
-          method: "POST",
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(x => x.json());
-
-        if (res && res.ok) {
-          if (orgMsg) { orgMsg.textContent = "✅ Uspešno oddano. Potrditveni e-mail je poslan (z dostopom do Portala ponudnika)."; orgMsg.style.color = "var(--ok)"; }
-          showToast("Dogodek/storitev uspešno objavljen!", true);
-          setTimeout(() => { $("#orgPanel").style.display = "none"; document.querySelector("form")?.reset?.(); }, 3000);
-        } else {
-          if (orgMsg) { orgMsg.textContent = (res && res.error) ? res.error : "Oddaja ni uspela."; orgMsg.style.color = "var(--bad)"; }
-        }
-      } catch (e) {
-        if (orgMsg) { orgMsg.textContent = "Napaka pri oddaji."; orgMsg.style.color = "var(--bad)"; }
-      } finally {
-        $("#btnSubmitEvent").disabled = false;
-      }
-    });
-
     /* Boost removed from UI — no handler required */
-
-    // Init
-    populateCategories();
   </script>
 </body>
 </html>

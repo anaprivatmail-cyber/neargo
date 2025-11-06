@@ -16,6 +16,7 @@
     { id: 'mi-account', label: 'Profil & nastavitve', url: '/account/account.html', icon: '⚙️' }
   ];
   const MENU_ORGANIZER = { id: 'mi-organizers', label: 'Za organizatorje', url: '/organizers.html', icon: '🛠️' };
+  const DEFAULT_LOGIN_REDIRECT = '/';
 
   const state = {
     menu: null,
@@ -79,6 +80,26 @@
       }
     }
     return state.session;
+  }
+
+  function sanitiseNext(target){
+    if (!target) return DEFAULT_LOGIN_REDIRECT;
+    try{
+      const url = new URL(target, window.location.origin);
+      if (url.origin === window.location.origin){
+        return `${url.pathname}${url.search}${url.hash}`;
+      }
+    }catch(e){
+      if (typeof target === 'string' && target.startsWith('/')) return target;
+    }
+    return DEFAULT_LOGIN_REDIRECT;
+  }
+
+  function redirectToLogin(nextTarget){
+    const params = new URLSearchParams();
+    params.set('next', sanitiseNext(nextTarget));
+    const query = params.toString();
+    window.location.href = query ? `/login.html?${query}` : '/login.html';
   }
 
 
@@ -307,14 +328,15 @@
     localStorage.removeItem('user_token');
     localStorage.removeItem('user_name');
     localStorage.removeItem('ng_points');
-    window.location.href = '/login.html';
+    const fallbackNext = `${window.location.pathname || ''}${window.location.search || ''}${window.location.hash || ''}` || DEFAULT_LOGIN_REDIRECT;
+    redirectToLogin(fallbackNext);
   }
 
   function triggerLogin(){
     if (window.Auth && typeof window.Auth.open === 'function'){
       window.Auth.open();
     }else{
-      window.location.href = '/login.html';
+      redirectToLogin(window.location.pathname || DEFAULT_LOGIN_REDIRECT);
     }
   }
 

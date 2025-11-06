@@ -75,6 +75,7 @@
       try{
         const { data } = await supabase.auth.getSession();
         state.session = data?.session || null;
+        try{ window.currentSupabaseSession = state.session; }catch{}
       }catch{
         state.session = null;
       }
@@ -123,8 +124,9 @@
   }
 
   function resolveIdentity(){
-    const sessionUser = state.session?.user || null;
-    const fallback = fallbackIdentity();
+    const sessionUser = state.session?.user || window.currentSupabaseSession?.user || null;
+    const hasSupabaseUser = !!sessionUser;
+    const fallback = hasSupabaseUser ? fallbackIdentity() : { email: '', name: '' };
     const email = (sessionUser?.email || fallback.email || '').trim();
     const metadataName = sessionUser?.user_metadata?.full_name
       || sessionUser?.user_metadata?.name
@@ -141,7 +143,7 @@
   }
 
   function hasIdentity(identity){
-    return !!(state.session?.user?.id || identity.email);
+    return !!(state.session?.user?.id || window.currentSupabaseSession?.user?.id || identity.email);
   }
 
   function initials(identity){
@@ -319,6 +321,7 @@
   }
 
   function clearSupabaseStorage(supabase){
+    state.session = null;
     try{ window.currentSupabaseSession = null; }catch{}
     const clearKeys = ['user_email','user_token','user_refresh','user_name','ng_points'];
     clearKeys.forEach(key => { try{ localStorage.removeItem(key); }catch{} });
@@ -514,6 +517,7 @@
     if (supabase?.auth?.onAuthStateChange){
       supabase.auth.onAuthStateChange((_event, session)=>{
         state.session = session || null;
+        try{ window.currentSupabaseSession = session || null; }catch{}
         if (!session?.user) closeMenu();
       });
     }

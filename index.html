@@ -1079,7 +1079,61 @@ function showPanel(id){
 }
 var btnStart=$("#btnStart"); if(btnStart) btnStart.addEventListener("click",function(){ scrollToEl($("#searchPanel")); });
 // btnOrganizersTop sedaj kaže na /organizers.html - ne potrebuje JavaScript
-var hubPublish=$("#hubPublish"); if(hubPublish) hubPublish.addEventListener("click",function(){ showPanel('orgPanel'); });
+var DEFAULT_LOGIN_REDIRECT="/organizers.html#publish";
+function sanitiseNextTarget(target){
+  if(!target) return DEFAULT_LOGIN_REDIRECT;
+  try{
+    var url=new URL(target, window.location.origin);
+    if(url.origin===window.location.origin){
+      return url.pathname + url.search + url.hash;
+    }
+  }catch(err){
+    if(typeof target==="string" && target.charAt(0)==='/') return target;
+  }
+  return DEFAULT_LOGIN_REDIRECT;
+}
+function buildLoginUrl(target){
+  var params = new URLSearchParams();
+  params.set('next', sanitiseNextTarget(target));
+  var query = params.toString();
+  return query ? ('/login.html?'+query) : '/login.html';
+}
+function redirectToLogin(target){
+  window.location.href = buildLoginUrl(target);
+}
+var supabaseClientPromise=null;
+function loadSupabaseClient(){
+  if(window.supabase) return Promise.resolve(window.supabase);
+  if(!supabaseClientPromise){
+    supabaseClientPromise = import('/assets/supabase-client.js').then(function(mod){ return mod.supabase; }).catch(function(){ return null; });
+  }
+  return supabaseClientPromise;
+}
+async function fetchSupabaseSession(){
+  var supabase = await loadSupabaseClient();
+  if(supabase && supabase.auth && supabase.auth.getSession){
+    try{
+      var result = await supabase.auth.getSession();
+      var session = result && result.data ? (result.data.session || null) : null;
+      if(session){
+        try{ window.currentSupabaseSession = session; }catch(e){}
+        return session;
+      }
+    }catch(err){ console.warn('[auth] Failed to get session:', err && (err.message||err)); }
+  }
+  return window.currentSupabaseSession || null;
+}
+async function ensureOrganizerAuth(nextTarget){
+  var session = await fetchSupabaseSession();
+  if(session && session.user) return session;
+  redirectToLogin(nextTarget || DEFAULT_LOGIN_REDIRECT);
+  return null;
+}
+var hubPublish=$("#hubPublish"); if(hubPublish) hubPublish.addEventListener("click",async function(ev){
+  ev.preventDefault();
+  var session = await ensureOrganizerAuth(DEFAULT_LOGIN_REDIRECT);
+  if(session && session.user) showPanel('orgPanel');
+});
 // Premium button now links to /premium.html directly
 // Premium close button removed - now on separate page
 var btnCloseMap=$("#btnCloseMap"); if(btnCloseMap) btnCloseMap.addEventListener("click",function(){ scrollToEl($("#searchPanel")); });

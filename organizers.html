@@ -160,7 +160,7 @@
         const session = result?.session || result?.data?.session || null;
         if (session) updateLocalSession(session);
         const user = session?.user || result?.data?.user || result?.user;
-        if (user?.email && !session) {
+        if (user?.email && session) {
           try { localStorage.setItem('user_email', user.email); } catch {}
         }
         return session;

@@ -233,44 +233,52 @@
         document.addEventListener('DOMContentLoaded', function() {
           var loginModal = document.getElementById('loginModal');
           var closeLoginModal = document.getElementById('closeLoginModal');
-          var isLoggedIn = function() {
-            return !!(window.currentSupabaseSession?.user);
+
+          const hasActiveSession = () => Boolean(window.currentSupabaseSession?.user);
+          const refreshSupabaseSession = async () => {
+            if (window.supabase?.auth?.getSession) {
+              try {
+                const { data } = await window.supabase.auth.getSession();
+                const session = data?.session || null;
+                window.currentSupabaseSession = session;
+                return session;
+              } catch (err) {
+                console.warn('[auth] Failed to refresh session:', err?.message || err);
+              }
+            }
+            return hasActiveSession() ? window.currentSupabaseSession : null;
           };
 
-          // Check if user is already logged in
-          if (window.supabase) {
-            window.supabase.auth.getSession().then(({ data: { session } }) => {
-              if (session && session.user) {
-                window.currentSupabaseSession = session;
-                showPanel('orgPanel');
-                return;
-              }
-            }).catch(err => console.error('Auth check failed:', err));
-          }
+          refreshSupabaseSession().then((session) => {
+            if (session?.user) {
+              showPanel('orgPanel');
+            }
+          }).catch((err) => console.warn('[auth] Initial session check failed:', err?.message || err));
 
           var publishBtn = document.getElementById('hubPublish');
           if (publishBtn) {
-            publishBtn.onclick = function(e) {
-              if (!isLoggedIn()) {
-                if (loginModal) loginModal.style.display = 'flex';
-                // po prijavi/registraciji nadaljuj na obrazec za objavo
-                window.postAuthAction = () => {
-                  try { document.getElementById('loginModal').style.display = 'none'; } catch {}
-                  try { showPanel('orgPanel'); } catch {}
-                };
-                e.preventDefault();
-                return false;
-              }
-              // ...obstoječa logika za objavo dogodka...
+            publishBtn.onclick = async function(e) {
+              const session = await refreshSupabaseSession();
+              if (session?.user) return;
+              e.preventDefault();
+              if (loginModal) loginModal.style.display = 'flex';
+              window.postAuthAction = () => {
+                try { document.getElementById('loginModal').style.display = 'none'; } catch {}
+                try { showPanel('orgPanel'); } catch {}
+              };
             };
           }
           var scanQrLink = document.getElementById('scanQrLink');
           if (scanQrLink) {
-            scanQrLink.addEventListener('click', function(e) {
-              if (isLoggedIn()) return;
+            scanQrLink.addEventListener('click', async function(e) {
               e.preventDefault();
-              if (loginModal) loginModal.style.display = 'flex';
               var targetHref = scanQrLink.getAttribute('href') || '/scan.html';
+              const session = await refreshSupabaseSession();
+              if (session?.user) {
+                window.location.href = targetHref;
+                return;
+              }
+              if (loginModal) loginModal.style.display = 'flex';
               window.postAuthAction = () => {
                 try { document.getElementById('loginModal').style.display = 'none'; } catch {}
                 window.location.href = targetHref;

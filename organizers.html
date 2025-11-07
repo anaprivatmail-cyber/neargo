@@ -296,12 +296,18 @@
     /* ===== Stripe Checkout za Grow/Pro (ID-ji ostanejo isti) ===== */
     async function buyProviderPlan(plan, interval) {
       try {
+        const params = new URLSearchParams(window.location.search);
+        const nextParam = params.get("next");
+        const nextTarget = sanitiseNextTarget(nextParam);
+        const encodedNext = encodeURIComponent(nextTarget);
+        const successUrl = `${location.origin}/organizers.html?next=${encodedNext}#success`;
+        const cancelUrl = `${location.origin}/organizers.html?next=${encodedNext}#cancel`;
         const payload = {
           type: "provider-plan",
           plan,
           interval,
-          successUrl: `${location.origin}/organizers.html#success`,
-          cancelUrl: `${location.origin}/organizers.html#cancel`
+          successUrl,
+          cancelUrl
         };
         const r = await fetch("/api/checkout", {
           method: "POST",
@@ -377,10 +383,16 @@
 
     document.addEventListener("DOMContentLoaded", () => {
       const hash = window.location.hash;
+      const params = new URLSearchParams(window.location.search);
+      const nextTarget = sanitiseNextTarget(params.get("next"));
       if (hash === "#success") {
         showToast("Nakup paketa uspešen!", true);
+        try { sessionStorage.setItem("ng_org_plan_upgrade", "success"); } catch {}
+        setTimeout(() => { window.location.href = nextTarget; }, 800);
       } else if (hash === "#cancel") {
         showToast("Nakup paketa preklican.", false);
+        try { sessionStorage.setItem("ng_org_plan_upgrade", "cancel"); } catch {}
+        setTimeout(() => { window.location.href = nextTarget; }, 800);
       }
 
       refreshSupabaseSession().catch((error) => console.warn("[auth] Initial session check failed:", error?.message || error));

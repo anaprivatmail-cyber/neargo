@@ -99,8 +99,10 @@
 
     .auth-gate{display:flex; align-items:center; justify-content:center; min-height:40vh; font-weight:800; color:var(--muted);}
 
-    .info-banner{display:flex; flex-direction:column; gap:8px; padding:14px; border-radius:14px; background:color-mix(in srgb, var(--primary) 6%, #ffffff 94%); border:1px solid var(--chipborder); font-size:13px}
-    .info-banner strong{font-weight:900}
+  .info-banner{display:flex; flex-direction:column; gap:8px; padding:14px; border-radius:14px; background:color-mix(in srgb, var(--primary) 6%, #ffffff 94%); border:1px solid var(--chipborder); font-size:13px; text-decoration:none; color:inherit; cursor:pointer; transition:border-color .2s ease, box-shadow .2s ease}
+  .info-banner strong{font-weight:900}
+  .info-banner:hover{border-color:var(--primary); box-shadow:0 0 0 3px rgba(11,187,214,0.12)}
+  .info-banner:focus-visible{outline:2px solid var(--primary); box-shadow:0 0 0 4px rgba(11,187,214,0.16)}
     .badge{display:inline-flex; align-items:center; gap:4px; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:800; background:var(--chip); border:1px solid var(--chipborder)}
     .badge.free{color:#0b6b4b; border-color:#a6ddc0; background:#e8f9ef}
     .badge.grow{color:#0b537a; border-color:#9ad3f2; background:#eef8ff}
@@ -109,6 +111,10 @@
     .note span{display:block}
     .note a{color:var(--primary); font-weight:700}
     .mt-gap{margin-top:var(--gap)!important}
+
+    #featuredWrap{display:flex; flex-direction:column; gap:6px}
+    #featuredHint{font-size:12px; color:var(--muted); line-height:1.4}
+    .link-btn{background:none; border:none; padding:0; font:inherit; color:var(--primary); font-weight:700; cursor:pointer; text-decoration:underline}
 
     @media (max-width:640px){
       .info-banner{padding:12px}
@@ -215,15 +221,18 @@
     <div class="wrap">
       <section class="card panel" id="orgPanel" style="display:none">
         <div class="title">Objavi dogodek ali storitev</div>
-  <p class="muted lead">Objava je brezplačna. Prodaja vstopnic in kuponov poteka prek Stripe, naročnine in izpostavitve pa v nativnih aplikacijah. Za podrobno analitiko ter skeniranje vstopnic in kuponov lahko kadarkoli nadgradite svoj paket.</p>
+        <p class="muted lead" id="upsellIntro">Objava je brezplačna. Nadgradite, ko potrebujete analitiko, QR skener ali NearGo koledar z rezervacijami.</p>
 
-        <div class="info-banner" id="featureSummary">
-          <div><span class="badge free">Brezplačno</span> Objave + osnovni vpogled (prodano / unovčeno) in prikaz prostih terminov v aplikaciji.</div>
-          <div><span class="badge grow">Grow</span> QR skener na lokaciji ter hitri prevzemi kuponov in vstopnic, podprto z osnovno analitiko v realnem času.</div>
-          <div><span class="badge pro">Pro</span> NearGo koledar z upravljanjem zasedenosti, napredna analitika ter ekipni dostopi.</div>
-        </div>
+        <a class="info-banner mt-gap" id="featureSummaryFree" href="/organizers.html#providerPlans">
+          <div><span class="badge free">Brezplačno</span> Objave + osnovni vpogled (prodano / unovčeno) ter prikaz prostih terminov v aplikaciji.</div>
+          <div><span class="badge grow">Grow</span> QR skener in analitika v realnem času + 1 izpostavljen oglas na mesec (7 dni).</div>
+          <div><span class="badge pro">Pro</span> NearGo koledar z upravljanjem in sinhronizacijo, napredna poročila, ekipni dostopi ter 3 izpostavitve na mesec (7 dni).</div>
+        </a>
 
-        <a class="btn mini link mt-gap" href="/organizers.html#providerPlans" id="plansLink">Primerjaj pakete</a>
+        <a class="info-banner mt-gap" id="featureSummaryPro" href="/organizers.html#providerPlans" hidden>
+          <div><span class="badge pro">Pro</span> Nadgradite na Pro za NearGo koledar, napredna poročila in 3 izpostavitve na mesec (7 dni).</div>
+          <div class="note">Grow paket že vsebuje QR skener, hitre prevzeme in 1 izpostavitev na mesec.</div>
+        </a>
 
         <div class="row row--3">
           <label>Tip vnosa *
@@ -271,7 +280,7 @@
           <div class="title" style="margin:0">Storitve – nastavitve</div>
 
           <div class="note" id="svcCalendarInfo">
-            NearGo koledar omogoča obiskovalcem, da rezervirajo proste termine neposredno v aplikaciji. Označevanje prostih terminov je vključeno brezplačno, napredno upravljanje zasedenosti in sinhronizacija pa sta del Pro paketa. Dostop prejmete skupaj z urejanjem objav, QR skenerjem (Grow) in analitiko. <a href="/organizers.html#providerPlans">Več o paketih</a>
+            NearGo koledar omogoča rezervacije neposredno v aplikaciji. Napredne nastavitve in sinhronizacija so del Pro paketa. <button type="button" class="link-btn" data-plan-link="calendar">Prikaži pakete</button>
           </div>
 
           <div class="row row--3" id="svcWhenRow">
@@ -281,9 +290,9 @@
           </div>
 
           <div class="note" id="svcCalendarHelp">
-            <span data-mode="neargo">Koledar se prikaže v NearGo aplikaciji; termine urejate v Portalu ponudnika.</span>
-            <span data-mode="external" hidden>Dodaj povezavo do obstoječega rezervacijskega sistema (npr. Calendly, SimplyBook).</span>
-            <span data-mode="call" hidden>V opisu dodajte navodila za rezervacije preko telefona ali e-pošte.</span>
+            <span data-mode="neargo">Koledar je v NearGo aplikaciji; termine urejate v Portalu ponudnika.</span>
+            <span data-mode="external" hidden>Dodaj povezavo do zunanjega sistema (npr. Calendly ali SimplyBook).</span>
+            <span data-mode="call" hidden>V opisu dodaj navodila za rezervacije po telefonu ali e-pošti.</span>
           </div>
 
           <div class="row" id="svcCalendarRow" style="display:none">
@@ -395,11 +404,12 @@
           </div>
         </div>
 
-        <div class="inline mt-gap">
+        <div class="inline mt-gap" id="featuredWrap">
           <label class="inline" style="gap:8px; align-items:center">
             <input type="checkbox" id="featured">
             <span>Izpostavi (7 dni)</span>
           </label>
+          <div class="note" id="featuredHint" hidden></div>
         </div>
 
         <div class="row mt-gap">
@@ -444,7 +454,145 @@
       const $ = (sel) => document.querySelector(sel);
       const $$ = (sel) => Array.from(document.querySelectorAll(sel));
       const panels = ["orgPanel", "providerTermsPanel"];
+      const DRAFT_STORAGE_KEY = "ng_org_submit_draft";
+      const RETURN_STORAGE_KEY = "ng_org_submit_return";
+      const PLAN_FLAG_KEY = "ng_org_plan_upgrade";
+      const normalizePlan = (plan) => {
+        const value = (plan || "").toString().trim().toLowerCase();
+        if (value === "grow" || value === "pro") return value;
+        return "free";
+      };
+      let currentPlan = (() => {
+        try {
+          return normalizePlan(localStorage.getItem("ng_provider_plan") || "free");
+        } catch {
+          return "free";
+        }
+      })();
       let initialized = false;
+
+      function applyPlanUI(plan){
+        const normalized = normalizePlan(plan);
+        currentPlan = normalized;
+        const freeCard = document.getElementById("featureSummaryFree");
+        const proCard = document.getElementById("featureSummaryPro");
+        const featuredHint = document.getElementById("featuredHint");
+        const featuredInput = document.getElementById("featured");
+        const hintWrap = document.getElementById("featuredWrap");
+        const upsellIntro = document.getElementById("upsellIntro");
+
+        if (upsellIntro){
+          if (normalized === "grow"){
+            upsellIntro.textContent = "Na Grow paketu imate QR skener, analitiko in 1 izpostavitev na mesec. Pro doda NearGo koledar, napredna poročila in 3 izpostavitve na mesec.";
+            upsellIntro.hidden = false;
+          } else if (normalized === "pro"){
+            upsellIntro.hidden = true;
+          } else {
+            upsellIntro.textContent = "Objava je brezplačna. Nadgradite, ko potrebujete analitiko, QR skener ali NearGo koledar z rezervacijami.";
+            upsellIntro.hidden = false;
+          }
+        }
+
+        if (freeCard) freeCard.hidden = normalized !== "free";
+        if (proCard) proCard.hidden = normalized !== "grow";
+        if (normalized === "pro"){
+          if (freeCard) freeCard.hidden = true;
+          if (proCard) proCard.hidden = true;
+        }
+
+        document.querySelectorAll('[data-plan-link]').forEach((node) => {
+          if (!(node instanceof HTMLElement)) return;
+          if (normalized === "pro"){
+            node.hidden = true;
+          } else {
+            node.hidden = false;
+          }
+        });
+
+        if (featuredInput){
+          if (normalized === "free"){
+            featuredInput.checked = false;
+          } else if (featuredInput.dataset?.pending === "true"){
+            featuredInput.checked = true;
+          }
+        }
+
+        if (featuredHint){
+          if (normalized === "free"){
+            featuredHint.innerHTML = 'Za izpostavitve nadgradite na Grow (1 izpostavitev / mesec) ali Pro (3 izpostavitve / mesec). <button type="button" class="link-btn" data-plan-link="featured">Prikaži pakete</button>';
+            featuredHint.hidden = false;
+          } else if (normalized === "grow"){
+            featuredHint.textContent = "Grow vključuje 1 izpostavitev na mesec (7 dni). Pro prinaša 3 izpostavitve ter napredni NearGo koledar.";
+            featuredHint.hidden = false;
+          } else {
+            featuredHint.textContent = "";
+            featuredHint.hidden = true;
+          }
+        }
+
+        if (hintWrap){
+          hintWrap.dataset.plan = normalized;
+        }
+
+        try {
+          localStorage.setItem("ng_provider_plan", normalized);
+        } catch {}
+      }
+
+      function setCurrentPlan(plan){
+        applyPlanUI(plan);
+      }
+
+      async function fetchProviderPlan(session){
+        let plan = currentPlan;
+        const metaPlan = session?.user?.app_metadata?.provider_plan || session?.user?.app_metadata?.plan;
+        const userMetaPlan = session?.user?.user_metadata?.provider_plan || session?.user?.user_metadata?.plan;
+        plan = normalizePlan(metaPlan || userMetaPlan || plan);
+
+        if (plan !== "pro" && plan !== "grow" && window.supabase && session?.user?.id){
+          const tables = [
+            ["provider_accounts", "plan", "user_id"],
+            ["provider_profiles", "plan", "user_id"],
+            ["profiles", "provider_plan", "id"]
+          ];
+
+          for (const [table, column, key] of tables){
+            try {
+              const query = window.supabase
+                .from(table)
+                .select(column)
+                .eq(key, session.user.id)
+                .limit(1);
+              const { data, error } = query.maybeSingle ? await query.maybeSingle() : await query.single();
+              if (error) {
+                const msg = error?.message || "";
+                if (/permission denied|relation .* does not exist/i.test(msg)) continue;
+              }
+              if (data && data[column]){
+                plan = normalizePlan(data[column]);
+                if (plan !== "free") break;
+              }
+            } catch (err){
+              const msg = err?.message || "";
+              if (/permission denied|relation .* does not exist/i.test(msg)) continue;
+            }
+          }
+
+          if (plan === "free" && window.supabase?.rpc){
+            try {
+              const { data, error } = await window.supabase.rpc("current_provider_plan");
+              if (!error && data && (data.plan || data.provider_plan)){
+                plan = normalizePlan(data.plan || data.provider_plan);
+              }
+            } catch {}
+          }
+        }
+
+        setCurrentPlan(plan);
+        return plan;
+      }
+
+      applyPlanUI(currentPlan);
 
       function showPanel(id){
         panels.forEach((pid) => {
@@ -532,6 +680,336 @@
         const orgMsg = $("#orgMsg");
         const submitBtn = $("#btnSubmitEvent");
 
+        let restoringDraft = false;
+        let draftTimer = null;
+
+  const planLinkNodes = [$("#featureSummaryFree"), $("#featureSummaryPro")].filter(Boolean);
+
+        function buildDraft(){
+          const isService = entryType?.value === "service";
+          const svcOptions = [];
+          if (svcFixedOptions){
+            const optRows = svcFixedOptions.querySelectorAll(".row.row--2");
+            optRows.forEach((row) => {
+              const label = row.querySelector(".svcOptLabel")?.value || "";
+              const price = row.querySelector(".svcOptPrice")?.value || "";
+              if (label || price) svcOptions.push({ label, price });
+            });
+          }
+
+          const ticketRows = [];
+          if (ticketStepList){
+            ticketStepList.querySelectorAll(".row").forEach((row) => {
+              const label = row.querySelector(".tp-label")?.value || "";
+              const price = row.querySelector(".tp-price")?.value || "";
+              if (label || price) ticketRows.push({ label, price });
+            });
+          }
+
+          const extraCoupons = [];
+          if (couponList){
+            couponList.querySelectorAll(".row").forEach((row) => {
+              const kind = row.querySelector(".c-kind")?.value || "PERCENT";
+              const value = row.querySelector(".c-value")?.value || "";
+              if (kind || value) extraCoupons.push({ kind, value });
+            });
+          }
+
+          return {
+            entryType: entryType?.value || "event",
+            offerType: offerType?.value || "none",
+            organizer: $("#orgName")?.value || "",
+            organizerFullName: $("#orgFullName")?.value || "",
+            organizerEmail: $("#orgEmail")?.value || "",
+            eventName: $("#eventName")?.value || "",
+            venue: $("#venue")?.value || "",
+            city: $("#city2")?.value || "",
+            country: $("#country")?.value || "",
+            url: $("#url")?.value || "",
+            category: $("#category")?.value || "",
+            start: startInput?.value || "",
+            end: endInput?.value || "",
+            desc: desc?.value || "",
+            agreeFees: !!agreeFees?.checked,
+            featured: !!featured?.checked,
+            price: priceInput?.value || "",
+            stock: stockInput?.value || "",
+            maxPerOrder: maxPerOrderInput?.value || "",
+            couponKind: couponKind?.value || "PERCENT",
+            couponPercent: couponPercent?.value || "",
+            couponValue: couponValue?.value || "",
+            couponFreebie: couponFreebie?.value || "",
+            extraCoupons,
+            ticketRows,
+            svc: {
+              when: getSvcWhenValue(),
+              calendarUrl: svcCalendarUrl?.value || "",
+              priceMode: svcPriceMode?.value || "FIXED",
+              rateUrl: svcRateUrl?.value || "",
+              options: svcOptions,
+              couponKind: svcCouponKind?.value || "PERCENT",
+              percent: svcCouponPercent?.value || "",
+              value: svcCouponValue?.value || "",
+              freebie: svcCouponFreebie?.value || ""
+            },
+            isService
+          };
+        }
+
+        function persistDraft(){
+          try {
+            const draft = buildDraft();
+            sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+          } catch (error){
+            console.warn('[draft] save failed:', error?.message || error);
+          }
+        }
+
+        function scheduleDraftSave(){
+          if (restoringDraft) return;
+          clearTimeout(draftTimer);
+          draftTimer = setTimeout(() => {
+            persistDraft();
+          }, 200);
+        }
+
+        function applyServiceOptions(options){
+          const list = Array.isArray(options) ? options.filter(Boolean) : [];
+          const baseLabel = svcFixedOptions?.querySelector('.svcOptLabel');
+          const basePrice = svcFixedOptions?.querySelector('.svcOptPrice');
+          if (svcFixedMore) svcFixedMore.innerHTML = '';
+          if (list.length){
+            if (baseLabel) baseLabel.value = list[0]?.label || '';
+            if (basePrice) basePrice.value = list[0]?.price || '';
+            list.slice(1).forEach((opt) => {
+              addSvcOptionRow();
+              const last = svcFixedMore?.lastElementChild;
+              const lblNode = last?.querySelector('.svcOptLabel');
+              if (lblNode) lblNode.value = opt?.label || '';
+              const priceNode = last?.querySelector('.svcOptPrice');
+              if (priceNode) priceNode.value = opt?.price || '';
+            });
+          } else {
+            if (baseLabel) baseLabel.value = '';
+            if (basePrice) basePrice.value = '';
+          }
+        }
+
+        function restoreDraft(){
+          let raw = null;
+          try { raw = sessionStorage.getItem(DRAFT_STORAGE_KEY); }
+          catch { raw = null; }
+          if (!raw) return;
+          let draft;
+          try { draft = JSON.parse(raw); }
+          catch { return; }
+          restoringDraft = true;
+          try {
+            if (entryType && draft.entryType){
+              entryType.value = draft.entryType;
+            }
+            toggleEntryType();
+
+            if (offerType && draft.offerType){
+              offerType.value = draft.offerType;
+            }
+            toggleOffer();
+
+            const assign = (selector, value) => {
+              const node = $(selector);
+              if (node && typeof value !== 'undefined') node.value = value;
+            };
+
+            assign('#orgName', draft.organizer);
+            assign('#orgFullName', draft.organizerFullName);
+            assign('#orgEmail', draft.organizerEmail);
+            assign('#eventName', draft.eventName);
+            assign('#venue', draft.venue);
+            assign('#city2', draft.city);
+            assign('#country', draft.country);
+            assign('#url', draft.url);
+            assign('#category', draft.category);
+            if (startInput) startInput.value = draft.start || '';
+            if (endInput) endInput.value = draft.end || '';
+            if (priceInput) priceInput.value = draft.price || '';
+            if (stockInput) stockInput.value = draft.stock || '';
+            if (maxPerOrderInput) maxPerOrderInput.value = draft.maxPerOrder || '';
+            if (desc) desc.value = draft.desc || '';
+
+            if (agreeFees) agreeFees.checked = !!draft.agreeFees;
+            if (featured){
+              const wantsFeatured = Boolean(draft.pendingFeatured || draft.featured);
+              featured.dataset.pending = wantsFeatured ? 'true' : '';
+              if (wantsFeatured && currentPlan !== 'free'){
+                featured.checked = true;
+              } else {
+                featured.checked = false;
+              }
+            }
+
+            if (Array.isArray(draft.ticketRows) && ticketStepList){
+              ticketStepList.innerHTML = '';
+              draft.ticketRows.forEach((rowData) => {
+                addTicketRow();
+                const row = ticketStepList.lastElementChild;
+                row?.querySelector('.tp-label')?.setAttribute('value', rowData?.label || '');
+                const labelNode = row?.querySelector('.tp-label');
+                if (labelNode) labelNode.value = rowData?.label || '';
+                const priceNode = row?.querySelector('.tp-price');
+                if (priceNode) priceNode.value = rowData?.price || '';
+              });
+            }
+
+            if (Array.isArray(draft.extraCoupons) && couponList){
+              couponList.innerHTML = '';
+              draft.extraCoupons.forEach((extra) => {
+                addCouponRow(extra?.kind || 'PERCENT', extra?.value || '');
+              });
+            }
+
+            if (couponKind) couponKind.value = draft.couponKind || 'PERCENT';
+            if (couponPercent) couponPercent.value = draft.couponPercent || '';
+            if (couponValue) couponValue.value = draft.couponValue || '';
+            if (couponFreebie) couponFreebie.value = draft.couponFreebie || '';
+
+            if (svcCouponKind) svcCouponKind.value = draft.svc?.couponKind || 'PERCENT';
+            if (svcCouponPercent) svcCouponPercent.value = draft.svc?.percent || '';
+            if (svcCouponValue) svcCouponValue.value = draft.svc?.value || '';
+            if (svcCouponFreebie) svcCouponFreebie.value = draft.svc?.freebie || '';
+
+            if (svcPriceMode) svcPriceMode.value = draft.svc?.priceMode || 'FIXED';
+            if (svcRateUrl) svcRateUrl.value = draft.svc?.rateUrl || '';
+            if (svcCalendarUrl) svcCalendarUrl.value = draft.svc?.calendarUrl || '';
+
+            applyServiceOptions(draft.svc?.options);
+
+            if (Array.isArray(draft.svc?.options) === false && svcFixedMore){
+              svcFixedMore.innerHTML = '';
+            }
+
+            if (draft.svc?.when){
+              const radios = document.querySelectorAll('input[name="svcWhen"]');
+              radios.forEach((radio) => {
+                radio.checked = radio.value === draft.svc.when;
+              });
+              updateSvcWhenMode(draft.svc.when);
+            }
+
+            updateCouponKindUI();
+            updateSvcCouponUI();
+            updateSvcPriceMode();
+
+            if (descCount && desc){
+              const max = desc.getAttribute('maxlength') || 800;
+              descCount.textContent = `${desc.value.length} / ${max}`;
+            }
+          } finally {
+            restoringDraft = false;
+            scheduleDraftSave();
+          }
+        }
+
+        function goToPlans(reason){
+          try { persistDraft(); } catch {}
+          const nextPath = window.location.pathname + window.location.search + window.location.hash;
+          try {
+            sessionStorage.setItem(RETURN_STORAGE_KEY, nextPath);
+            if (reason) sessionStorage.setItem(`${PLAN_FLAG_KEY}_reason`, reason);
+          } catch {}
+          window.location.href = `/organizers.html?next=${encodeURIComponent(nextPath)}#providerPlans`;
+        }
+
+        function handlePlanRedirect(reason, opts = {}){
+          if (currentPlan === 'pro') return;
+          if (!opts.silent && orgMsg){
+            if (reason === 'featured'){
+              orgMsg.textContent = 'Za izpostavitve aktiviraj Grow (1 izpostavitev / mesec) ali Pro (3 izpostavitve / mesec).';
+            } else if (reason === 'calendar'){
+              orgMsg.textContent = 'Napredni NearGo koledar s sinhronizacijo je del Pro paketa.';
+            } else {
+              orgMsg.textContent = 'Oglej si pakete za dodatne funkcije.';
+            }
+            orgMsg.style.color = 'var(--bad)';
+          }
+          if (!opts.silent){
+            showToast('Oglej si pakete za nadgradnjo.', false);
+          }
+          try { persistDraft(); } catch {}
+          goToPlans(reason);
+        }
+
+        const planResult = (() => {
+          try { return sessionStorage.getItem(PLAN_FLAG_KEY); }
+          catch { return null; }
+        })();
+        const planReason = (() => {
+          try { return sessionStorage.getItem(`${PLAN_FLAG_KEY}_reason`); }
+          catch { return null; }
+        })();
+        if (planResult){
+          if (planResult === 'success'){
+            showToast('Paket uspešno nadgrajen!', true);
+            if (orgMsg){
+              if (planReason === 'featured'){
+                orgMsg.textContent = '✅ Paket nadgrajen. Izpostavitve so omogočene.';
+              } else if (planReason === 'calendar'){
+                orgMsg.textContent = '✅ Paket nadgrajen. NearGo koledar in napredne funkcije so na voljo.';
+              } else {
+                orgMsg.textContent = '✅ Paket je posodobljen.';
+              }
+              orgMsg.style.color = 'var(--ok)';
+            }
+          } else if (planResult === 'cancel'){
+            showToast('Nakup paketa preklican.', false);
+          }
+          try {
+            sessionStorage.removeItem(PLAN_FLAG_KEY);
+            sessionStorage.removeItem(`${PLAN_FLAG_KEY}_reason`);
+          } catch {}
+        }
+
+        planLinkNodes.forEach((node) => {
+          node.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            handlePlanRedirect('banner', { silent: true });
+          });
+        });
+
+        const formRoot = document.getElementById('orgPanel');
+        if (formRoot){
+          const draftListener = (ev) => {
+            const target = ev.target;
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement){
+              scheduleDraftSave();
+            }
+          };
+          formRoot.addEventListener('input', draftListener, true);
+          formRoot.addEventListener('change', draftListener, true);
+          formRoot.addEventListener('click', (ev) => {
+            const link = ev.target instanceof Element ? ev.target.closest('[data-plan-link]') : null;
+            if (!link) return;
+            ev.preventDefault();
+            const reason = link.getAttribute('data-plan-link') || 'banner';
+            handlePlanRedirect(reason);
+          });
+        }
+
+        featured?.addEventListener('change', () => {
+          if (!featured) return;
+          if (featured.checked){
+            featured.dataset.pending = 'true';
+            if (currentPlan === 'free'){
+              persistDraft();
+              featured.checked = false;
+              handlePlanRedirect('featured');
+              return;
+            }
+          } else {
+            featured.dataset.pending = '';
+          }
+          scheduleDraftSave();
+        });
+
         function populateCategories(){
           const select = $("#category");
           const isService = entryType?.value === "service";
@@ -615,6 +1093,7 @@
             '<div class="euro"><input class="tp-price" type="number" min="0" step="0.01" placeholder="Cena"><span>€</span></div>' +
             '<button class="btn mini link" type="button" data-remove="ticket">Odstrani</button>';
           ticketStepList.appendChild(row);
+          scheduleDraftSave();
         }
 
         function addCouponRow(kind = "PERCENT", value = ""){
@@ -648,6 +1127,7 @@
             }
           });
           couponList.appendChild(row);
+          scheduleDraftSave();
         }
 
         function addSvcOptionRow(){
@@ -659,16 +1139,20 @@
             '<div class="euro"><input class="svcOptPrice" type="number" min="0" step="0.01" placeholder="Cena"><span>€</span></div>' +
             '<button class="btn mini link" type="button" data-remove="svcopt">Odstrani</button>';
           svcFixedMore.appendChild(row);
+          scheduleDraftSave();
         }
 
-        function resetForm(){
+        function resetForm(clearDraft = false){
           ["#orgName", "#orgFullName", "#orgEmail", "#eventName", "#venue", "#city2", "#url", "#start", "#end", "#price", "#stock", "#maxPerOrder", "#desc"].forEach((sel) => {
             const node = $(sel);
             if (node) node.value = "";
           });
           if (entryType) entryType.value = "event";
           if (offerType) offerType.value = "none";
-          if (featured) featured.checked = false;
+          if (featured){
+            featured.checked = false;
+            featured.dataset.pending = "";
+          }
           if (agreeFees) agreeFees.checked = false;
           if (imageInput) imageInput.value = "";
           if (fileName) fileName.textContent = "Fotografija ni izbrana";
@@ -704,6 +1188,14 @@
             const max = desc?.getAttribute("maxlength") || 800;
             descCount.textContent = `0 / ${max}`;
           }
+          if (clearDraft){
+            try {
+              sessionStorage.removeItem(PLAN_FLAG_KEY);
+              sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+              sessionStorage.removeItem(RETURN_STORAGE_KEY);
+              sessionStorage.removeItem(`${PLAN_FLAG_KEY}_reason`);
+            } catch {}
+          }
           showPanel("orgPanel");
         }
 
@@ -720,6 +1212,7 @@
           const btn = ev.target instanceof Element ? ev.target.closest("button[data-remove]") : null;
           if (!btn) return;
           btn.parentElement?.remove();
+          scheduleDraftSave();
         });
 
         document.addEventListener("change", (ev) => {
@@ -727,6 +1220,7 @@
           if (!(target instanceof HTMLInputElement)) return;
           if (target.name === "svcWhen"){
             updateSvcWhenMode(target.value);
+            scheduleDraftSave();
           }
         });
 
@@ -1031,7 +1525,7 @@
               }
               showToast("Dogodek/storitev uspešno objavljen!", true);
               setTimeout(() => {
-                resetForm();
+                resetForm(true);
               }, 1500);
             } else {
               if (orgMsg){
@@ -1048,8 +1542,9 @@
             if (submitBtn) submitBtn.disabled = false;
           }
         });
-
-        resetForm();
+        resetForm(false);
+        restoreDraft();
+        applyPlanUI(currentPlan);
       }
 
       document.addEventListener("DOMContentLoaded", () => {
@@ -1066,6 +1561,7 @@
           gate.style.display = "none";
           if (app) app.hidden = false;
           initForm();
+          fetchProviderPlan(session).catch((error) => console.warn('[plan] fetch failed:', error?.message || error));
         }).catch((error) => {
           console.warn('[auth] ensure session failed:', error?.message || error);
           gate.textContent = error?.message || 'Ni uspelo preveriti prijave.';

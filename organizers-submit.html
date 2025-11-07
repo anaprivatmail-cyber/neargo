@@ -110,6 +110,8 @@
     .note{font-size:13px; color:var(--muted); line-height:1.5}
     .note span{display:block}
     .note a{color:var(--primary); font-weight:700}
+    #svcCalendarHelp ul{margin:6px 0 10px 18px; padding:0; list-style:disc}
+    #svcCalendarHelp li{margin:4px 0; color:var(--muted)}
     .mt-gap{margin-top:var(--gap)!important}
 
     #featuredWrap{display:flex; flex-direction:column; gap:6px}
@@ -290,9 +292,20 @@
           </div>
 
           <div class="note" id="svcCalendarHelp">
-            <span data-mode="neargo">Koledar je v NearGo aplikaciji; termine urejate v Portalu ponudnika.</span>
-            <span data-mode="external" hidden>Dodaj povezavo do zunanjega sistema (npr. Calendly ali SimplyBook).</span>
-            <span data-mode="call" hidden>V opisu dodaj navodila za rezervacije po telefonu ali e-pošti.</span>
+            <div data-mode="neargo">
+              <div data-plan="upsell">
+                <strong>Pro paket odklene NearGo koledar z:</strong>
+                <ul>
+                  <li>Sinhronizacijo z Google in Apple koledarji</li>
+                  <li>Analitiko rezervacij v realnem času</li>
+                  <li>Dodatnimi dostopi za ekipo in upravljanje terminov</li>
+                </ul>
+                <button type="button" class="link-btn" data-plan-link="calendar">Nadgradi na Pro</button>
+              </div>
+              <div data-plan="pro" hidden>Koledar je v NearGo aplikaciji; termine urejate v Portalu ponudnika.</div>
+            </div>
+            <div data-mode="external" hidden>Dodaj povezavo do zunanjega sistema (npr. Calendly ali SimplyBook).</div>
+            <div data-mode="call" hidden>V opisu dodaj navodila za rezervacije po telefonu ali e-pošti.</div>
           </div>
 
           <div class="row" id="svcCalendarRow" style="display:none">
@@ -457,6 +470,7 @@
       const DRAFT_STORAGE_KEY = "ng_org_submit_draft";
       const RETURN_STORAGE_KEY = "ng_org_submit_return";
       const PLAN_FLAG_KEY = "ng_org_plan_upgrade";
+      const PLAN_FALLBACK_KEY = "ng_org_plan_svc_fallback";
       const normalizePlan = (plan) => {
         const value = (plan || "").toString().trim().toLowerCase();
         if (value === "grow" || value === "pro") return value;
@@ -470,6 +484,7 @@
         }
       })();
       let initialized = false;
+      let lastSvcWhenValue = "neargo";
 
       function applyPlanUI(plan){
         const normalized = normalizePlan(plan);
@@ -480,6 +495,8 @@
         const featuredInput = document.getElementById("featured");
         const hintWrap = document.getElementById("featuredWrap");
         const upsellIntro = document.getElementById("upsellIntro");
+        const calendarUpsell = document.querySelector('#svcCalendarHelp [data-plan="upsell"]');
+        const calendarProNote = document.querySelector('#svcCalendarHelp [data-plan="pro"]');
 
         if (upsellIntro){
           if (normalized === "grow"){
@@ -528,6 +545,12 @@
             featuredHint.textContent = "";
             featuredHint.hidden = true;
           }
+        }
+
+        if (calendarUpsell && calendarProNote){
+          const isPro = normalized === "pro";
+          calendarUpsell.hidden = isPro;
+          calendarProNote.hidden = !isPro;
         }
 
         if (hintWrap){
@@ -888,11 +911,7 @@
             }
 
             if (draft.svc?.when){
-              const radios = document.querySelectorAll('input[name="svcWhen"]');
-              radios.forEach((radio) => {
-                radio.checked = radio.value === draft.svc.when;
-              });
-              updateSvcWhenMode(draft.svc.when);
+              setSvcWhenValue(draft.svc.when, { skipSave: true });
             }
 
             updateCouponKindUI();
@@ -946,6 +965,10 @@
           try { return sessionStorage.getItem(`${PLAN_FLAG_KEY}_reason`); }
           catch { return null; }
         })();
+        const planFallback = (() => {
+          try { return sessionStorage.getItem(PLAN_FALLBACK_KEY); }
+          catch { return null; }
+        })();
         if (planResult){
           if (planResult === 'success'){
             showToast('Paket uspešno nadgrajen!', true);
@@ -959,12 +982,20 @@
               }
               orgMsg.style.color = 'var(--ok)';
             }
+            if (planReason === 'calendar'){
+              setSvcWhenValue('neargo');
+            }
           } else if (planResult === 'cancel'){
             showToast('Nakup paketa preklican.', false);
+            if (planReason === 'calendar' && currentPlan !== 'pro'){
+              const fallbackMode = planFallback || 'external';
+              setSvcWhenValue(fallbackMode);
+            }
           }
           try {
             sessionStorage.removeItem(PLAN_FLAG_KEY);
             sessionStorage.removeItem(`${PLAN_FLAG_KEY}_reason`);
+            sessionStorage.removeItem(PLAN_FALLBACK_KEY);
           } catch {}
         }
 
@@ -1055,6 +1086,7 @@
           const checked = document.querySelector('input[name="svcWhen"]:checked');
           return checked?.value || "neargo";
         };
+        lastSvcWhenValue = getSvcWhenValue();
 
         function updateSvcWhenMode(mode){
           if (svcCalendarRow) svcCalendarRow.style.display = mode === "external" ? "block" : "none";
@@ -1064,6 +1096,34 @@
               node.hidden = node.getAttribute('data-mode') !== mode;
             });
           }
+        }
+
+        function setSvcWhenValue(mode, opts = {}){
+          const radios = document.querySelectorAll('input[name="svcWhen"]');
+          if (!radios.length){
+            lastSvcWhenValue = mode;
+            if (!opts.skipSave) scheduleDraftSave();
+            return mode;
+          }
+          let applied = mode;
+          let matched = false;
+          radios.forEach((radio) => {
+            if (radio.value === mode){
+              radio.checked = true;
+              matched = true;
+            }
+          });
+          if (!matched && radios.length){
+            const fallbackRadio = Array.from(radios).find((radio) => radio.value !== "neargo") || radios[0];
+            if (fallbackRadio){
+              fallbackRadio.checked = true;
+              applied = fallbackRadio.value;
+            }
+          }
+          updateSvcWhenMode(applied);
+          lastSvcWhenValue = applied;
+          if (!opts.skipSave) scheduleDraftSave();
+          return applied;
         }
 
         function toggleEntryType(){
@@ -1080,7 +1140,8 @@
           if (isService){
             updateSvcCouponUI();
             updateSvcPriceMode();
-            updateSvcWhenMode(getSvcWhenValue());
+            const currentMode = getSvcWhenValue();
+            setSvcWhenValue(currentMode, { skipSave: true });
           }
         }
 
@@ -1158,8 +1219,7 @@
           if (fileName) fileName.textContent = "Fotografija ni izbrana";
           if (imgPreview){ imgPreview.src = ""; imgPreview.style.display = "none"; }
           if (svcCalendarUrl) svcCalendarUrl.value = "";
-          const svcWhen = $$('input[name="svcWhen"]');
-          svcWhen.forEach((radio) => { radio.checked = radio.value === "neargo"; });
+          setSvcWhenValue("neargo", { skipSave: true });
           if (svcPriceMode) svcPriceMode.value = "FIXED";
           if (svcRateUrl) svcRateUrl.value = "";
           if (svcFixedMore) svcFixedMore.innerHTML = "";
@@ -1171,7 +1231,6 @@
           if (svcCouponPercent) svcCouponPercent.value = "";
           if (svcCouponValue) svcCouponValue.value = "";
           if (svcCouponFreebie) svcCouponFreebie.value = "";
-          updateSvcWhenMode("neargo");
           if (couponKind) couponKind.value = "PERCENT";
           if (couponPercent) couponPercent.value = "";
           if (couponValue) couponValue.value = "";
@@ -1194,6 +1253,7 @@
               sessionStorage.removeItem(DRAFT_STORAGE_KEY);
               sessionStorage.removeItem(RETURN_STORAGE_KEY);
               sessionStorage.removeItem(`${PLAN_FLAG_KEY}_reason`);
+              sessionStorage.removeItem(PLAN_FALLBACK_KEY);
             } catch {}
           }
           showPanel("orgPanel");
@@ -1219,8 +1279,23 @@
           const target = ev.target;
           if (!(target instanceof HTMLInputElement)) return;
           if (target.name === "svcWhen"){
-            updateSvcWhenMode(target.value);
-            scheduleDraftSave();
+            const mode = target.value;
+            if (mode === "neargo" && currentPlan !== "pro"){
+              let fallback = lastSvcWhenValue;
+              if (!fallback || fallback === "neargo"){
+                fallback = document.querySelector('input[name="svcWhen"][value="external"]') ? "external" : "call";
+              }
+              const confirmUpgrade = window.confirm("NearGo Pro vključuje:\n• Sinhronizacijo Google/Apple koledarjev\n• Analitiko rezervacij v realnem času\n• Dostop za ekipo in upravljanje terminov\n\nŽeliš nadgraditi na Pro?");
+              if (confirmUpgrade){
+                try { sessionStorage.setItem(PLAN_FALLBACK_KEY, fallback); } catch {}
+                setSvcWhenValue("neargo", { skipSave: true });
+                handlePlanRedirect('calendar');
+                return;
+              }
+              setSvcWhenValue(fallback);
+              return;
+            }
+            setSvcWhenValue(mode);
           }
         });
 

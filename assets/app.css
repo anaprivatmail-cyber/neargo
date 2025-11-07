@@ -145,6 +145,13 @@ input[type=range]{accent-color:#7cdbe9; height:28px; width:100%}
 .always-two{ display:grid; grid-template-columns:repeat(2,1fr); gap:6px; }
 .always-two input{ min-width:0; }
 
+/* Category chips */
+.cat-chip{ min-width:56px; min-height:56px; padding:10px 14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; border-radius:18px; }
+.cat-chip img{ width:28px; height:28px; display:block; }
+.cat-chip .cat-label{ font-size:12px; font-weight:800; color:var(--muted); display:none; text-align:center; line-height:1.25; }
+.cat-chip.show-label .cat-label{ display:block; }
+.cat-chip.active .cat-label{ color:#fff; }
+
 /* HERO + FEATURED */
 .hero, #searchPanel, #featuredCard, #mapPanel, #carousel{ position:static }
 .hero.card h1{ font-size:clamp(22px, 4.8vw, 32px); line-height:1.2; }

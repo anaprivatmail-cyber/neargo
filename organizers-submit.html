@@ -58,6 +58,8 @@
     textarea{min-height:120px}
     input:focus,select:focus,textarea:focus{border-color:var(--brand); box-shadow:0 0 0 4px var(--focus)}
     input::placeholder, textarea::placeholder{color:#93a3b3}
+    #category{display:none}
+    #categoryChips{display:flex; flex-wrap:wrap; gap:10px; margin-top:6px}
 
   .row{display:grid; grid-template-columns:1fr; gap:var(--gap)}
   .row + .row{margin-top:var(--gap)}
@@ -135,6 +137,7 @@
     window.SUPABASE_URL = window.SUPABASE_URL || "https://wqdfteajjcrzcniotvhh.supabase.co";
     window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
   </script>
+  <script type="module" src="assets/categories.js"></script>
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
@@ -278,6 +281,7 @@
           <input id="url" placeholder="Povezava za več info / nakup (če obstaja)">
           <label>Kategorija (glede na tip) *
             <select id="category" required></select>
+            <div id="categoryChips" class="chips"></div>
           </label>
         </div>
 
@@ -705,9 +709,12 @@
         const imgPreview = $("#imgPreview");
         const orgMsg = $("#orgMsg");
         const submitBtn = $("#btnSubmitEvent");
+  const categorySelect = $("#category");
+  const categoryChips = $("#categoryChips");
 
         let restoringDraft = false;
         let draftTimer = null;
+  let waitingForCategories = false;
 
   const planLinkNodes = [$("#featureSummaryFree"), $("#featureSummaryPro")].filter(Boolean);
 
@@ -855,6 +862,7 @@
             assign('#country', draft.country);
             assign('#url', draft.url);
             assign('#category', draft.category);
+            syncCategoryChipsFromSelect({ forceLabel: !!draft.category });
             if (startInput) startInput.value = draft.start || '';
             if (endInput) endInput.value = draft.end || '';
             if (priceInput) priceInput.value = draft.price || '';
@@ -1044,16 +1052,107 @@
           scheduleDraftSave();
         });
 
+        function showChipLabel(node, show){
+          if (!(node instanceof HTMLElement)) return;
+          if (show){
+            node.classList.add("show-label");
+          } else if (!node.classList.contains("active")){
+            node.classList.remove("show-label");
+          }
+        }
+
+        function syncCategoryChipsFromSelect(opts = {}){
+          if (!categoryChips) return;
+          const value = categorySelect?.value || "";
+          const forceLabel = !!opts.forceLabel;
+          categoryChips.querySelectorAll(".cat-chip").forEach((chip) => {
+            const isActive = chip.dataset.key === value && value !== "";
+            chip.classList.toggle("active", isActive);
+            chip.setAttribute("aria-pressed", isActive ? "true" : "false");
+            if (isActive || forceLabel){
+              chip.classList.add("show-label");
+            } else {
+              chip.classList.remove("show-label");
+            }
+          });
+        }
+
+        function handleChipSelection(key){
+          if (!categorySelect) return;
+          const nextValue = key || "";
+          if (categorySelect.value !== nextValue){
+            categorySelect.value = nextValue;
+            categorySelect.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+          syncCategoryChipsFromSelect({ forceLabel: true });
+        }
+
         function populateCategories(){
-          const select = $("#category");
-          const isService = entryType?.value === "service";
-          const opts = isService
-            ? ["", "frizer", "wellness", "zdravje", "kozmetika", "fitnes", "avto-moto", "turizem", "gospodinjske", "ostalo"]
-            : ["", "koncert", "kultura", "otroci", "hrana", "narava", "sport", "zabava", "za-podjetja"];
-          if (!select) return;
-          const options = ['<option value="">(izberi)</option>']
-            .concat(opts.filter(Boolean).map((v) => `<option value="${v}">${v.replace("-", " ").replace(/\b\w/g, (m) => m.toUpperCase())}</option>`));
-          select.innerHTML = options.join("");
+          if (!categorySelect || !categoryChips) return;
+          const apply = () => {
+            const type = entryType?.value === "service" ? "services" : "events";
+            const source = window.NearGoCategories || {};
+            const list = Array.isArray(source[type]) ? source[type] : [];
+            const currentValue = categorySelect.value;
+
+            categorySelect.innerHTML = "";
+            const placeholder = document.createElement("option");
+            placeholder.value = "";
+            placeholder.textContent = "(izberi)";
+            categorySelect.appendChild(placeholder);
+
+            list.forEach((cat) => {
+              const option = document.createElement("option");
+              option.value = cat.key;
+              option.textContent = cat.label;
+              categorySelect.appendChild(option);
+            });
+
+            const hasCurrent = list.some((cat) => cat.key === currentValue);
+            categorySelect.value = hasCurrent ? currentValue : "";
+
+            categoryChips.innerHTML = "";
+            list.forEach((cat) => {
+              const btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = "cat-chip";
+              btn.dataset.key = cat.key;
+              btn.setAttribute("aria-label", cat.label);
+              btn.setAttribute("aria-pressed", "false");
+              btn.title = cat.label;
+
+              const img = document.createElement("img");
+              img.src = cat.icon;
+              img.alt = "";
+              img.setAttribute("loading", "lazy");
+
+              const label = document.createElement("span");
+              label.className = "cat-label";
+              label.textContent = cat.label;
+
+              btn.append(img, label);
+              btn.addEventListener("click", () => handleChipSelection(cat.key));
+              btn.addEventListener("pointerenter", () => showChipLabel(btn, true));
+              btn.addEventListener("pointerleave", () => showChipLabel(btn, false));
+              btn.addEventListener("focus", () => showChipLabel(btn, true));
+              btn.addEventListener("blur", () => showChipLabel(btn, false));
+              btn.addEventListener("touchstart", () => showChipLabel(btn, true), { passive: true });
+              categoryChips.appendChild(btn);
+            });
+
+            syncCategoryChipsFromSelect({ forceLabel: !!categorySelect.value });
+          };
+
+          const data = window.NearGoCategories;
+          if (data && (Array.isArray(data.events) || Array.isArray(data.services))){
+            apply();
+          } else if (!waitingForCategories){
+            waitingForCategories = true;
+            document.addEventListener("neargo:categories-ready", () => {
+              waitingForCategories = false;
+              populateCategories();
+            }, { once: true });
+          }
         }
 
         function toggleOffer(){
@@ -1264,6 +1363,9 @@
 
         entryType?.addEventListener("change", toggleEntryType);
         offerType?.addEventListener("change", toggleOffer);
+        categorySelect?.addEventListener("change", () => {
+          syncCategoryChipsFromSelect({ forceLabel: !!categorySelect.value });
+        });
         couponKind?.addEventListener("change", updateCouponKindUI);
         svcCouponKind?.addEventListener("change", updateSvcCouponUI);
         svcPriceMode?.addEventListener("change", updateSvcPriceMode);

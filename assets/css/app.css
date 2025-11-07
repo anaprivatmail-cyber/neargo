@@ -57,8 +57,10 @@ main > section{margin-top:14px}
 .hero h1{font-size:clamp(26px,5.6vw,48px); line-height:1.15; margin:6px 0}
 .hero p{color:var(--muted); font-size:16px; margin:6px 0 0}
 .chips{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px}
-.chip{border:1px solid var(--chipborder); border-radius:999px; padding:10px 14px; background:var(--chip); color:var(--muted); font-weight:700; cursor:pointer}
+.chip{border:1px solid var(--chipborder); border-radius:999px; padding:10px 14px; background:var(--chip); color:var(--muted); font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;}
 .chip.active{ background:var(--primary); color:#fff; border-color:#fff; }
+.chip-icon{width:16px; height:16px; flex-shrink:0; opacity:0.8;}
+.chip.active .chip-icon{opacity:1;}
 
 .btn{background:var(--primary); color:#fff; border:none; padding:12px 18px; border-radius:14px; font-weight:900; cursor:pointer; font-size:16px}
 .btn.mini{padding:8px 12px; font-size:13px; border-radius:12px}

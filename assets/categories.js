@@ -1,84 +1,171 @@
-// Centraliziran seznam kategorij za NearGo.
-// Vse spremembe (nazivi, ikone, vrstni red) uredite tukaj.
+import { EVENT_CATEGORY_SOURCE, SERVICE_CATEGORY_SOURCE } from './data/categories/index.js';
 
 const ICON_BASE = '/assets/icons';
-const icon = (name) => `${ICON_BASE}/${name}`;
 
-export const EVENT_CATEGORIES = [
-  { key: 'koncert', label: 'Koncerti', icon: icon('guitar.svg') },
-  { key: 'hrana', label: 'Kulinarika', icon: icon('food.svg') },
-  { key: 'otroci', label: 'Družina & otroci', icon: icon('family.svg') },
-  { key: 'sport', label: 'Šport & rekreacija', icon: icon('sport.svg') },
-  { key: 'kultura', label: 'Kultura & umetnost', icon: icon('culture.svg') },
-  { key: 'sejmi', label: 'Sejmi & tržnice', icon: icon('fair.svg') },
-  { key: 'narava', label: 'Narava & izleti', icon: icon('nature.svg') },
-  { key: 'zabava', label: 'Zabava & nočno življenje', icon: icon('party.svg') },
-  { key: 'za-podjetja', label: 'Za podjetja', icon: icon('service.svg') },
-  { key: 'ostalo', label: 'Ostalo', icon: icon('other.svg') }
-];
+const canonicalEventCategories = EVENT_CATEGORY_SOURCE;
+const canonicalServiceCategories = SERVICE_CATEGORY_SOURCE;
 
-export const SERVICE_CATEGORIES = [
-  { key: 'frizer', label: 'Frizerji & lepota', icon: icon('beauty.svg') },
-  { key: 'kozmetika', label: 'Kozmetika & nega', icon: icon('beauty.svg') },
-  { key: 'wellness', label: 'Wellness & spa', icon: icon('wellness.svg') },
-  { key: 'zdravje', label: 'Zdravje & optike', icon: icon('health.svg') },
-  { key: 'kulinarika', label: 'Kulinarika & catering', icon: icon('food.svg') },
-  { key: 'fitnes', label: 'Šport & fitnes', icon: icon('fit.svg') },
-  { key: 'avto-moto', label: 'Avto & moto', icon: icon('car.svg') },
-  { key: 'turizem', label: 'Turizem & doživetja', icon: icon('travel.svg') },
-  { key: 'gospodinjske', label: 'Dom & gospodinjstvo', icon: icon('home-garden.svg') },
-  { key: 'ostalo', label: 'Ostalo', icon: icon('other.svg') }
-];
-
-export const EVENT_CATEGORY_MAP = EVENT_CATEGORIES.reduce((acc, cat) => {
-  acc[cat.key] = cat;
-  return acc;
-}, {});
-
-export const SERVICE_CATEGORY_MAP = SERVICE_CATEGORIES.reduce((acc, cat) => {
-  acc[cat.key] = cat;
-  return acc;
-}, {});
-
-export const getEventCategory = (key) => EVENT_CATEGORY_MAP[key] || null;
-export const getServiceCategory = (key) => SERVICE_CATEGORY_MAP[key] || null;
-
-export const formatCategoryLabel = (key = '') => (key || '')
-  .split('-')
-  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-  .join(' ');
-
-export const getCategoryList = (type = 'events') => {
-  if (type === 'services') return [...SERVICE_CATEGORIES];
-  return [...EVENT_CATEGORIES];
+const normalizeIcon = (iconName) => {
+  if (!iconName) return null;
+  return iconName.startsWith('/') ? iconName : `${ICON_BASE}/${iconName}`;
 };
 
-export const getCategoryKeys = (type = 'events') => getCategoryList(type).map((cat) => cat.key);
+const deepCloneCategory = (cat) => ({
+  key: cat.key,
+  label: cat.label,
+  emoji: cat.emoji || null,
+  icon: normalizeIcon(cat.icon || null),
+  sub: Array.isArray(cat.sub) ? cat.sub.map((item) => ({ ...item })) : [],
+  aliases: Array.isArray(cat.aliases) ? [...cat.aliases] : []
+});
+
+const EVENT_CATEGORIES = canonicalEventCategories.map(deepCloneCategory);
+const SERVICE_CATEGORIES = canonicalServiceCategories.map(deepCloneCategory);
+
+const toMap = (list) => list.reduce((acc, cat) => {
+  acc[cat.key] = cat;
+  return acc;
+}, {});
+
+const EVENT_CATEGORY_MAP = toMap(EVENT_CATEGORIES);
+const SERVICE_CATEGORY_MAP = toMap(SERVICE_CATEGORIES);
+
+const normalizeKey = (value) => {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/&/g, ' in ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+};
+
+const registerAlias = (map, aliasValue, canonical) => {
+  const norm = normalizeKey(aliasValue);
+  if (!norm) return;
+  if (!map[norm]) map[norm] = canonical;
+};
+
+const buildAliasMap = (list) => {
+  const map = Object.create(null);
+  list.forEach((cat) => {
+    registerAlias(map, cat.key, cat.key);
+    registerAlias(map, cat.label, cat.key);
+    registerAlias(map, cat.emoji, cat.key);
+    if (Array.isArray(cat.aliases)) {
+      cat.aliases.forEach((alias) => registerAlias(map, alias, cat.key));
+    }
+    if (Array.isArray(cat.sub)) {
+      cat.sub.forEach((sub) => registerAlias(map, sub.key, cat.key));
+    }
+  });
+  return map;
+};
+
+const CATEGORY_ALIASES = {
+  events: buildAliasMap(canonicalEventCategories),
+  services: buildAliasMap(canonicalServiceCategories)
+};
+
+const resolveCategoryKey = (type = 'events', value = '') => {
+  const norm = normalizeKey(value);
+  if (!norm) return '';
+  const map = type === 'services' ? SERVICE_CATEGORY_MAP : EVENT_CATEGORY_MAP;
+  if (map[norm]) return norm;
+  const aliasMap = CATEGORY_ALIASES[type] || {};
+  return aliasMap[norm] || norm;
+};
+
+const getCategoryList = (type = 'events') => {
+  const list = type === 'services' ? SERVICE_CATEGORIES : EVENT_CATEGORIES;
+  return list.map((cat) => ({
+    ...cat,
+    aliases: [...cat.aliases],
+    sub: cat.sub.map((sub) => ({ ...sub }))
+  }));
+};
+
+const getCategoryKeys = (type = 'events') => getCategoryList(type).map((cat) => cat.key);
+
+const getSubcategories = (type = 'events', key = '') => {
+  const canonical = resolveCategoryKey(type, key);
+  const map = type === 'services' ? SERVICE_CATEGORY_MAP : EVENT_CATEGORY_MAP;
+  const target = map[canonical];
+  return target ? target.sub.map((sub) => ({ ...sub })) : [];
+};
+
+const formatCategoryLabel = (key = '') => {
+  const canonicalEvent = resolveCategoryKey('events', key);
+  const canonicalService = resolveCategoryKey('services', key);
+  const resolvedKey = EVENT_CATEGORY_MAP[canonicalEvent] ? canonicalEvent : canonicalService;
+  const target = EVENT_CATEGORY_MAP[resolvedKey] || SERVICE_CATEGORY_MAP[resolvedKey];
+  if (target) return target.label;
+  return key
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
 
 const createUtils = () => ({
   getList: getCategoryList,
   getKeys: getCategoryKeys,
-  getByKey(type, key){
-    const list = getCategoryList(type);
-    return list.find((cat) => cat.key === key) || null;
+  getByKey(type, key) {
+    const canonical = resolveCategoryKey(type, key);
+    const map = type === 'services' ? SERVICE_CATEGORY_MAP : EVENT_CATEGORY_MAP;
+    const item = map[canonical];
+    return item ? {
+      ...item,
+      aliases: [...item.aliases],
+      sub: item.sub.map((sub) => ({ ...sub }))
+    } : null;
   },
-  formatLabel: formatCategoryLabel
+  getSubcategories,
+  resolveKey: resolveCategoryKey,
+  formatLabel: formatCategoryLabel,
+  getAliases(type = 'events') {
+    const aliasMap = CATEGORY_ALIASES[type] || {};
+    return { ...aliasMap };
+  }
 });
 
-if (typeof window !== 'undefined'){
+const publishToWindow = () => {
+  if (typeof window === 'undefined') return;
+  const utils = createUtils();
   window.NearGoCategories = {
-    events: EVENT_CATEGORIES,
-    services: SERVICE_CATEGORIES
+    events: getCategoryList('events'),
+    services: getCategoryList('services')
   };
   window.NearGoCategoryMaps = {
-    events: EVENT_CATEGORY_MAP,
-    services: SERVICE_CATEGORY_MAP
+    events: { ...EVENT_CATEGORY_MAP },
+    services: { ...SERVICE_CATEGORY_MAP }
   };
-  window.NearGoCategoryUtils = createUtils();
-  document.dispatchEvent(new CustomEvent('neargo:categories-ready', {
-    detail: {
-      events: EVENT_CATEGORIES,
-      services: SERVICE_CATEGORIES
-    }
-  }));
-}
+  window.NearGoCategoryAliases = {
+    events: { ...CATEGORY_ALIASES.events },
+    services: { ...CATEGORY_ALIASES.services }
+  };
+  window.NearGoCategoryUtils = utils;
+  if (typeof document !== 'undefined' && typeof document.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
+    document.dispatchEvent(new CustomEvent('neargo:categories-ready', {
+      detail: {
+        events: window.NearGoCategories.events,
+        services: window.NearGoCategories.services
+      }
+    }));
+  }
+};
+
+publishToWindow();
+
+export {
+  EVENT_CATEGORIES,
+  SERVICE_CATEGORIES,
+  EVENT_CATEGORY_MAP,
+  SERVICE_CATEGORY_MAP,
+  CATEGORY_ALIASES,
+  getCategoryList,
+  getCategoryKeys,
+  getSubcategories,
+  formatCategoryLabel,
+  createUtils,
+  resolveCategoryKey
+};

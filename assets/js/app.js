@@ -130,65 +130,136 @@ document.addEventListener('DOMContentLoaded', function() {
 "use strict";
 
 /* ===== Helpers ===== */
-// ===== Kategorije z ikonami =====
-//
-const CATEGORY_EMOJI = [
-  { cat: 'Dogodki', emoji: '🎫' },
-  { cat: 'Koncerti', emoji: '🎵' },
-  { cat: 'Kulinarika', emoji: '🍴' },
-  { cat: 'Družina & otroci', emoji: '👨‍👩‍👧' },
-  { cat: 'Šport', emoji: '🏃‍♀️' },
-  { cat: 'Kultura', emoji: '🎭' },
-  { cat: 'Sejmi', emoji: '🏕️' },
-  { cat: 'Ostalo', emoji: '✨' },
-  { cat: 'Storitve', emoji: '🧰' },
-  { cat: 'Lepota', emoji: '💄' },
-  { cat: 'Zdravje', emoji: '❤️' },
-  { cat: 'Wellness', emoji: '🌿' },
-  { cat: 'Šport & fit', emoji: '🏋️‍♂️' },
-  { cat: 'Kulinarika storitve', emoji: '👨‍🍳' },
-  { cat: 'Avto', emoji: '🚗' },
-  { cat: 'Dom & vrt', emoji: '🏡' },
-  { cat: 'Servis', emoji: '🔧' },
-  { cat: 'Učenje', emoji: '📚' },
-  { cat: 'Ostalo storitve', emoji: '🌈' }
-];
+const withCategories = (callback) => {
+  const data = window.NearGoCategories;
+  if (data && (Array.isArray(data.events) || Array.isArray(data.services))) {
+    callback(data);
+    return;
+  }
+  document.addEventListener('neargo:categories-ready', () => {
+    callback(window.NearGoCategories || {});
+  }, { once: true });
+};
+
+const getCategoriesForType = (type = 'events') => {
+  const source = window.NearGoCategories;
+  if (!source) return [];
+  const list = source[type];
+  return Array.isArray(list) ? list : [];
+};
+
+const toggleChipLabel = (chip, show) => {
+  const label = chip?.querySelector('.cat-label');
+  if (!label) return;
+  if (show) {
+    label.style.display = 'inline';
+  } else if (!chip.classList.contains('active')) {
+    label.style.display = 'none';
+  }
+};
 
 function renderCategoryChips() {
-  const cats = document.getElementById('cats');
-  if (!cats) return;
-  cats.innerHTML = '';
-  CATEGORY_EMOJI.forEach(({cat, emoji}) => {
-    const btn = document.createElement('button');
-    btn.className = 'chip';
-    btn.setAttribute('data-cat', cat);
-    btn.setAttribute('aria-label', cat);
-    btn.innerHTML = `<span class="cat-emoji" style="font-size:2em;">${emoji}</span><span class="cat-label" style="display:none;font-size:1em;margin-top:2px;">${cat}</span>`;
-    btn.addEventListener('mouseenter', function(){
-      if(!btn.classList.contains('active')) btn.querySelector('.cat-label').style.display = 'inline';
-    });
-    btn.addEventListener('mouseleave', function(){
-      if(!btn.classList.contains('active')) btn.querySelector('.cat-label').style.display = 'none';
-    });
-    btn.addEventListener('touchstart', function(){
-      if(!btn.classList.contains('active')) btn.querySelector('.cat-label').style.display = 'inline';
-    });
-    btn.addEventListener('touchend', function(){
-      if(!btn.classList.contains('active')) btn.querySelector('.cat-label').style.display = 'none';
-    });
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('#cats .chip').forEach(b => {
-        b.classList.remove('active');
-        b.querySelector('.cat-label').style.display = 'none';
+  const wrap = document.getElementById('cats');
+  if (!wrap) return;
+  const subWrap = document.getElementById('searchSubcategoryWrap');
+  const subSelect = document.getElementById('searchSubcategory');
+  let activeKey = wrap.dataset.selectedCat || '';
+
+  const apply = (categories) => {
+    wrap.innerHTML = '';
+    if (!Array.isArray(categories) || !categories.length) return;
+
+    const setActive = (key, opts = {}) => {
+      const { silent } = opts;
+      const nextBtn = key ? wrap.querySelector(`[data-cat="${key}"]`) : null;
+      const fallbackBtn = wrap.querySelector('.chip');
+      const target = nextBtn || fallbackBtn;
+      if (!target) return;
+
+      wrap.querySelectorAll('.chip').forEach((btn) => {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
+        toggleChipLabel(btn, false);
       });
-      btn.classList.add('active');
-      btn.querySelector('.cat-label').style.display = 'inline';
-      doSearch(0);
+      target.classList.add('active');
+      target.setAttribute('aria-pressed', 'true');
+      toggleChipLabel(target, true);
+      activeKey = target.dataset.cat || '';
+      wrap.dataset.selectedCat = activeKey;
+      if (subSelect) populateSubcategories(activeKey);
+      if (!silent) doSearch(0);
+    };
+
+    categories.forEach((cat) => {
+      if (!cat?.key) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip';
+      btn.dataset.cat = cat.key;
+      btn.setAttribute('aria-label', cat.label || cat.key);
+      btn.setAttribute('aria-pressed', 'false');
+      btn.innerHTML = `
+        <span class="cat-emoji" aria-hidden="true" style="font-size:1.8em;line-height:1;">${cat.emoji || '🏷️'}</span>
+        <span class="cat-label" style="display:none;font-size:1em;margin-top:2px;">${cat.label || cat.key}</span>
+      `;
+      btn.addEventListener('mouseenter', () => toggleChipLabel(btn, true));
+      btn.addEventListener('mouseleave', () => toggleChipLabel(btn, false));
+      btn.addEventListener('focus', () => toggleChipLabel(btn, true));
+      btn.addEventListener('blur', () => toggleChipLabel(btn, false));
+      btn.addEventListener('touchstart', () => toggleChipLabel(btn, true), { passive: true });
+      btn.addEventListener('touchend', () => toggleChipLabel(btn, false));
+      btn.addEventListener('click', () => {
+        subSelect?.removeAttribute('data-selected-sub');
+        setActive(cat.key);
+      });
+      wrap.appendChild(btn);
     });
-    cats.appendChild(btn);
-  });
+
+    const initialKey = activeKey && categories.some((cat) => cat.key === activeKey)
+      ? activeKey
+      : categories[0].key;
+    setActive(initialKey, { silent: true });
+  };
+
+  const populateSubcategories = (key) => {
+    if (!subSelect) return;
+    const utils = window.NearGoCategoryUtils;
+    const subs = utils?.getSubcategories('events', key) || [];
+    subSelect.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Podkategorija (neobvezno)';
+    subSelect.appendChild(placeholder);
+    subs.forEach((sub) => {
+      const option = document.createElement('option');
+      option.value = sub.key;
+      option.textContent = sub.label;
+      subSelect.appendChild(option);
+    });
+    const hasSubs = subs.length > 0;
+    if (subWrap) subWrap.style.display = hasSubs ? 'block' : 'none';
+    subSelect.disabled = !hasSubs;
+    if (!hasSubs) {
+      subSelect.value = '';
+      subSelect.dataset.selectedSub = '';
+    } else if (subSelect.dataset.selectedSub) {
+      const wanted = subSelect.dataset.selectedSub;
+      const hasWanted = Array.from(subSelect.options).some((opt) => opt.value === wanted);
+      subSelect.value = hasWanted ? wanted : '';
+    }
+  };
+
+  withCategories((data) => apply(Array.isArray(data.events) ? data.events : []));
 }
-document.addEventListener('DOMContentLoaded', renderCategoryChips);
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderCategoryChips();
+  document.getElementById('searchSubcategory')?.addEventListener('change', () => {
+    const select = document.getElementById('searchSubcategory');
+    if (select) select.dataset.selectedSub = select.value || '';
+    doSearch(0);
+  });
+});
 const $  = s => document.querySelector(s);
 const el = (t,c)=>{const x=document.createElement(t); if(c) x.className=c; return x;};
 const qs = o => new URLSearchParams(o).toString();
@@ -378,20 +449,32 @@ async function doSearch(page=0, byGeo=false){
 
   const qVal = $("#q")?.value.trim() || "";
   const cityVal = $("#city")?.value.trim() || "";
-  const catVal = document.querySelector(".cat.active")?.dataset.cat || "";
+  const catVal = document.querySelector('#cats .chip.active')?.dataset.cat || '';
+  const subVal = document.getElementById('searchSubcategory')?.value || '';
   const radiusVal = $("#radius")?.value || 30;
 
   const params = { q:qVal, radiuskm:radiusVal, page, size:20 };
   if (byGeo && GEO) params.latlon = GEO;
   else if (cityVal) params.city = cityVal;
   else if (GEO) params.latlon = GEO;
+  if (subVal) params.subcategory = subVal;
 
   let data=null;
   try{ const r=await fetch(`/api/search?${qs(params)}`); data=await r.json(); }catch{}
   const items=(data && data.ok && data.results)||[];
   updateLiveBanner(items);
 
-  const filtered = catVal ? items.filter(e=>(e.category||"")===catVal) : items;
+  let filtered = catVal ? items.filter(e=>(e.category||"")===catVal) : items;
+  if (subVal) {
+    const target = String(subVal).toLowerCase();
+    filtered = filtered.filter((item) => {
+      const raw = item?.subcategory || item?.subCategory || item?.subcategoryKey || '';
+      if (raw) return String(raw).toLowerCase() === target;
+      const tags = Array.isArray(item?.tags) ? item.tags.map((tag) => String(tag).toLowerCase()) : [];
+      if (tags.length) return tags.includes(target);
+      return true;
+    });
+  }
   const box=$("#results"); if(!box) return;
   box.innerHTML="";
 
@@ -574,60 +657,137 @@ async function doSearch(page=0, byGeo=false){
   // ...existing code...
 }
   // ===== Ikone kategorij v obrazcu za dodajanje =====
-  const FORM_EVENT_CATS = {
-    'Koncerti': 'guitar.svg',
-    'Kulinarika': 'food.svg',
-    'Družina & otroci': 'family.svg',
-    'Šport': 'sport.svg',
-    'Kultura': 'culture.svg',
-    'Sejmi': 'fair.svg',
-    'Ostalo': 'other.svg',
-  };
-  const FORM_SERVICE_CATS = {
-    'Lepota': 'beauty.svg',
-    'Zdravje': 'health.svg',
-    'Wellness': 'wellness.svg',
-    'Šport & fit': 'fit.svg',
-    'Kulinarika': 'food.svg',
-    'Učenje': 'learn.svg',
-    'Servis': 'service.svg',
-    'Avto': 'car.svg',
-    'Dom & vrt': 'home-garden.svg',
-    'Ostalo': 'other.svg',
-  };
-
   function renderFormCategoryIcons() {
     const entryType = document.getElementById('entryType');
     const catsContainer = document.getElementById('formCatsIcons');
     const sel = document.getElementById('category');
+    const subWrap = document.getElementById('formSubcategoryWrap');
+    const subSelect = document.getElementById('formSubcategory');
     if (!catsContainer || !sel) return;
     catsContainer.innerHTML = '';
     sel.style.display = 'none';
-    const cats = (entryType?.value === 'service') ? FORM_SERVICE_CATS : FORM_EVENT_CATS;
-    Object.entries(cats).forEach(([cat, icon]) => {
-      const btn = document.createElement('button');
-      btn.className = 'chip';
-      btn.setAttribute('type', 'button');
-      btn.setAttribute('data-cat', cat);
-      btn.setAttribute('aria-label', cat);
-      btn.innerHTML = `<img src="assets/icons/${icon}" alt="${cat}" class="cat-icon"/><span class="cat-label" style="display:none">${cat}</span>`;
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('#formCatsIcons .chip').forEach(b => {
-          b.classList.remove('active');
-          b.querySelector('.cat-label').style.display = 'none';
+
+    const type = entryType?.value === 'service' ? 'services' : 'events';
+    const fallback = type === 'service'
+      ? [
+          { key: 'frizer', label: 'Frizerji & saloni', emoji: '💇‍♀️' },
+          { key: 'kozmetika', label: 'Kozmetika & nega', emoji: '💄' },
+          { key: 'wellness', label: 'Wellness & spa', emoji: '🌿' },
+          { key: 'zdravje', label: 'Zdravje & terapije', emoji: '❤️' },
+          { key: 'fitnes', label: 'Šport & fitnes', emoji: '🏋️‍♂️' },
+          { key: 'avto-moto', label: 'Avto & moto', emoji: '🚗' },
+          { key: 'turizem', label: 'Turizem & doživetja', emoji: '🧭' },
+          { key: 'gospodinjske', label: 'Dom & gospodinjstvo', emoji: '🏡' },
+          { key: 'ostalo', label: 'Ostale storitve', emoji: '🌈' }
+        ]
+      : [
+          { key: 'koncert', label: 'Koncerti', emoji: '🎸' },
+          { key: 'hrana', label: 'Kulinarika', emoji: '🍲' },
+          { key: 'kultura', label: 'Kultura & umetnost', emoji: '🎭' },
+          { key: 'izobrazevanje', label: 'Izobraževanje & delavnice', emoji: '🎓' },
+          { key: 'otroci', label: 'Družina & otroci', emoji: '🧸' },
+          { key: 'sport', label: 'Šport & rekreacija', emoji: '⚽' },
+          { key: 'narava', label: 'Outdoor & narava', emoji: '⛰️' },
+          { key: 'zabava', label: 'Zabava & nočno življenje', emoji: '🎉' },
+          { key: 'za-podjetja', label: 'Poslovni dogodki', emoji: '🏢' },
+          { key: 'ostalo', label: 'Ostalo', emoji: '✨' }
+        ];
+
+    const currentValue = sel.value;
+    const apply = (source) => {
+      const list = Array.isArray(source) && source.length ? source : fallback;
+      catsContainer.innerHTML = '';
+
+      const populateSubs = (catKey) => {
+        if (!subSelect) return;
+        const utils = window.NearGoCategoryUtils;
+        const subs = utils?.getSubcategories(type, catKey) || [];
+        subSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Podkategorija (neobvezno)';
+        subSelect.appendChild(placeholder);
+        subs.forEach((sub) => {
+          const opt = document.createElement('option');
+          opt.value = sub.key;
+          opt.textContent = sub.label;
+          subSelect.appendChild(opt);
         });
-        btn.classList.add('active');
-        btn.querySelector('.cat-label').style.display = 'block';
-        sel.value = cat;
-        sel.dispatchEvent(new Event('change'));
+        const hasSubs = subs.length > 0;
+        if (subWrap) subWrap.style.display = hasSubs ? 'block' : 'none';
+        subSelect.disabled = !hasSubs;
+        if (!hasSubs) {
+          subSelect.value = '';
+        } else if (subSelect.dataset.selectedSub) {
+          const wanted = subSelect.dataset.selectedSub;
+          const exists = Array.from(subSelect.options).some((opt) => opt.value === wanted);
+          subSelect.value = exists ? wanted : '';
+        }
+      };
+
+      list.forEach((cat) => {
+        if (!cat?.key) return;
+        const btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.type = 'button';
+        btn.dataset.cat = cat.key;
+        btn.setAttribute('aria-label', cat.label || cat.key);
+        btn.innerHTML = `
+          <span class="cat-emoji" aria-hidden="true" style="font-size:1.6em;line-height:1;">${cat.emoji || '🏷️'}</span>
+          <span class="cat-label" style="display:none">${cat.label || cat.key}</span>
+        `;
+        btn.addEventListener('mouseenter', () => toggleChipLabel(btn, true));
+        btn.addEventListener('mouseleave', () => toggleChipLabel(btn, false));
+        btn.addEventListener('focus', () => toggleChipLabel(btn, true));
+        btn.addEventListener('blur', () => toggleChipLabel(btn, false));
+        btn.addEventListener('touchstart', () => toggleChipLabel(btn, true), { passive: true });
+        btn.addEventListener('touchend', () => toggleChipLabel(btn, false));
+        btn.addEventListener('click', () => {
+          catsContainer.querySelectorAll('.chip').forEach((chip) => {
+            chip.classList.remove('active');
+            chip.setAttribute('aria-pressed', 'false');
+            toggleChipLabel(chip, false);
+          });
+          btn.classList.add('active');
+          btn.setAttribute('aria-pressed', 'true');
+          toggleChipLabel(btn, true);
+          sel.value = cat.key;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          if (subSelect) {
+            delete subSelect.dataset.selectedSub;
+            populateSubs(cat.key);
+          }
+        });
+        catsContainer.appendChild(btn);
       });
-      catsContainer.appendChild(btn);
+
+      const defaultKey = (currentValue && list.some((cat) => cat.key === currentValue)) ? currentValue : (list[0]?.key || '');
+      if (defaultKey) {
+        const btn = catsContainer.querySelector(`[data-cat="${defaultKey}"]`) || catsContainer.querySelector('.chip');
+        if (btn) {
+          btn.classList.add('active');
+          btn.setAttribute('aria-pressed', 'true');
+          toggleChipLabel(btn, true);
+          sel.value = btn.dataset.cat;
+          if (subSelect) populateSubs(btn.dataset.cat);
+        }
+      }
+    };
+
+    withCategories((data) => {
+      const sourceList = Array.isArray(data[type]) ? data[type] : [];
+      apply(sourceList);
     });
   }
   document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('formCatsIcons')) renderFormCategoryIcons();
     document.getElementById('entryType')?.addEventListener('change', renderFormCategoryIcons);
+    document.getElementById('formSubcategory')?.addEventListener('change', (ev) => {
+      const target = ev.target;
+      if (target) target.dataset.selectedSub = target.value || '';
+    });
   });
+  document.addEventListener('neargo:categories-ready', renderFormCategoryIcons);
 
 setInterval(refreshEventsRealtime, 15000); // osveži vsakih 15s
 

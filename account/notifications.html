@@ -15,8 +15,8 @@
     header.slim{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:10px;padding:8px 14px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.06)}
     header.slim .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:20px;letter-spacing:-1px}
     header.slim svg{width:30px;height:30px}
-    main{max-width:900px;margin:0 auto;padding:12px 14px 48px}
-    .card{background:#fff;border:1px solid var(--chipborder,#cfe1ee);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.06);margin-top:14px}
+  main{max-width:900px;margin:0 auto;padding:8px 14px 40px}
+  .card{background:#fff;border:1px solid var(--chipborder,#cfe1ee);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.06);margin-top:12px}
     h1{font-size:1.55em;margin:0 0 4px 0;font-weight:900;letter-spacing:-0.5px}
     .muted{color:var(--muted,#5b6b7b)}
     .benefit{background:#e6fbf5;border:1px solid #baf0df;padding:10px 14px;border-radius:14px;font-weight:700;color:#05614d;font-size:.95em;margin-top:10px}
@@ -70,9 +70,13 @@
   <main>
     <div class="card" id="introCard">
       <h1>Predhodna obvestila</h1>
-  <p class="muted" style="line-height:1.5;font-size:.98em">Kot <b>Premium</b> uporabnik prejmeš obvestila o novih dogodkih in storitvah <b>15 minut pred ostalimi</b> – dovolj zgodaj, da si prvi pri ekskluzivnih ponudbah. Nastavi svojo lokacijo in izberi do dve podkategoriji, ki te najbolj zanimata.</p>
-  <p class="muted" style="line-height:1.4;font-size:.9em;margin-top:8px">Pridržujemo si pravico, da ne pošljemo obvestila, če v izbrani kategoriji v tem mesecu ni nobenih ustreznih ponudb.</p>
-      <div class="benefit">⚡ Hitreje obveščeno • 🎯 Bolj relevantno • 🗺️ Po tvoji lokaciji</div>
+      <ul class="muted" style="margin:8px 0 0 18px; padding:0; line-height:1.4; font-size:.96em">
+        <li><b>15 minut prej</b> kot ostali</li>
+        <li><b>Prvi do novih ponudb</b>, tudi brezplačnih promo akcij</li>
+        <li><b>Po tvoji lokaciji</b> in <b>interesih</b></li>
+      </ul>
+      <div class="benefit" style="margin-top:10px">⚡ Hitreje • 🎯 Relevantno • 🗺️ Lokalno</div>
+      <div class="muted" style="font-size:.86em;margin-top:8px">Pridržujemo si pravico, da obvestila ne pošljemo, če v izbrani kategoriji v tem mesecu ni ustreznih ponudb.</div>
       <div id="nonPremiumBox" class="upgrade-box" style="display:none">Za aktivacijo predhodnih obvestil nadgradi račun v <a href="/premium.html" style="color:#d64c4c;text-decoration:underline;font-weight:900">Premium</a>.</div>
       <div id="quotaInfo" class="quota">Preostale menjave ta mesec: …</div>
   <div id="monthlyNotifCount" class="quota" style="display:none">Obvestila ta mesec: …</div>
@@ -124,7 +128,7 @@
         <div class="map-tools">
           <div style="flex:1;min-width:120px">
             <label class="input" style="margin-top:0">Polmer (km)
-              <input id="notifRadius" type="range" min="3" max="50" step="1" value="25" aria-label="Polmer obveščanja v kilometrih">
+              <input id="notifRadius" type="range" min="1" max="100" step="1" value="25" aria-label="Polmer obveščanja v kilometrih">
             </label>
             <div class="muted" id="radiusLbl" style="font-size:.75em;font-weight:800;margin-top:-4px">25 km</div>
           </div>
@@ -132,7 +136,7 @@
           <button type="button" class="btn secondary" id="btnResetLoc" style="padding:10px 14px;font-size:13px">Počisti</button>
         </div>
         <div id="earlyMap"></div>
-        <div class="muted" style="font-size:.85em;margin-top:8px">Premakni marker ali kroga na zemljevidu, ter prilagodi polmer, da natančno določiš območje obveščanja. Moja lokacija se uporablja le kot izhodišče za zemljevid.</div>
+        
       </fieldset>
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
         <button id="saveNotify" class="btn" type="submit">Shrani nastavitve</button>

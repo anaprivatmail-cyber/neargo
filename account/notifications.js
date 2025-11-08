@@ -128,7 +128,7 @@ const renderSubcategories = () => {
 		chip.type = 'button';
 		chip.className = 'cat-chip';
 		chip.dataset.key = sub.key;
-		chip.innerHTML = `<span class="cat-label">${sub.label}</span>`;
+		chip.innerHTML = `${sub.icon ? `<img src="${sub.icon}" alt="">` : `<span class='cat-emoji'>${sub.emoji||'🏷️'}</span>`}<span class="cat-label">${sub.label}</span>`;
 		if (state.selected.has(sub.key)) chip.classList.add('active','show-label');
 		chip.addEventListener('click', () => toggleSubcategory(sub.key, sub.label));
 		wrap.appendChild(chip);
@@ -367,14 +367,14 @@ function initMap(){
 }
 function getRadius(){
 	const r = Number(document.getElementById('notifRadius')?.value||25);
-	return Math.max(3, Math.min(50, r));
+	return Math.max(1, Math.min(100, r));
 }
 function bindMapControls(){
 	const radius = document.getElementById('notifRadius');
 	const lbl = document.getElementById('radiusLbl');
 	const gps = document.getElementById('btnUseGPS');
 	const reset = document.getElementById('btnResetLoc');
-	const upd = () => { if(lbl) lbl.textContent = `${getRadius()} km`; try{ state.circle?.setRadius(getRadius()*1000); }catch{} };
+	const upd = () => { if(lbl) lbl.textContent = `${getRadius()} km`; try{ state.circle?.setRadius(getRadius()*1000); handleRadiusHandle(); }catch{} };
 	['input','change','pointerup','touchend'].forEach((ev)=> radius?.addEventListener(ev, upd));
 	upd();
 	gps?.addEventListener('click', ()=>{
@@ -388,8 +388,62 @@ function bindMapControls(){
 	reset?.addEventListener('click', ()=>{
 		try{ state.map.setView([46.05,14.51],7); state.marker.setLatLng([46.05,14.51]); state.circle.setLatLng([46.05,14.51]); }catch{}
 		const loc = document.getElementById('notifLocation'); if(loc) loc.value='';
-		const r = document.getElementById('notifRadius'); if(r){ r.value=25; lbl.textContent='25 km'; try{ state.circle?.setRadius(25*1000);}catch{} }
+		const r = document.getElementById('notifRadius'); if(r){ r.value=25; lbl.textContent='25 km'; try{ state.circle?.setRadius(25*1000); handleRadiusHandle(); }catch{} }
 	});
+}
+
+// Add a draggable small handle on circle edge to resize radius intuitively
+function handleRadiusHandle(){
+	try{
+		if (!state.map || !state.circle) return;
+		if (!state._radiusHandle){
+			const el = document.createElement('div');
+			el.style.width='18px'; el.style.height='18px'; el.style.background='#0bbbd6'; el.style.border='2px solid #fff'; el.style.borderRadius='50%'; el.style.boxShadow='0 2px 6px rgba(0,0,0,.25)'; el.style.cursor='grab';
+			state._radiusHandle = L.marker(state.circle.getLatLng(), { draggable:true, icon: L.divIcon({ className:'radius-handle', html: el.outerHTML, iconSize:[18,18] }) }).addTo(state.map);
+			state._radiusHandle.on('move', (e)=>{
+				const center = state.circle.getLatLng();
+				const pt = e.latlng;
+				const distKm = Math.min(100, Math.max(1, center.distanceTo(pt)/1000));
+				const rInput = document.getElementById('notifRadius');
+				if (rInput){ rInput.value = Math.round(distKm); }
+				state.circle.setRadius(distKm*1000);
+				const lbl = document.getElementById('radiusLbl'); if(lbl) lbl.textContent = `${Math.round(distKm)} km`;
+				// reposition handle exactly on circle edge toward drag point
+				const bearing = Math.atan2(pt.lat - center.lat, pt.lng - center.lng);
+				const factor = distKm / (center.distanceTo(pt)/1000 || 1);
+				const newLat = center.lat + (pt.lat - center.lat)*factor;
+				const newLng = center.lng + (pt.lng - center.lng)*factor;
+				try{ state._radiusHandle.setLatLng([newLat,newLng]); }catch{}
+			});
+			// keep handle on edge when center moves
+			state.marker.on('move', ()=>{
+				const center = state.marker.getLatLng();
+				const radKm = getRadius();
+				// simple east point for default placement
+				const earthRadiusKm = 6371;
+				const d = radKm/earthRadiusKm;
+				const lat1 = center.lat * Math.PI/180;
+				const lng1 = center.lng * Math.PI/180;
+				const lat2 = lat1;
+				const lng2 = lng1 + d/Math.cos(lat1);
+				const newLat = lat2*180/Math.PI;
+				const newLng = lng2*180/Math.PI;
+				try{ state._radiusHandle.setLatLng([newLat,newLng]); }catch{}
+			});
+		}
+		// position handle at east edge based on current radius
+		const center = state.circle.getLatLng();
+		const radKm = getRadius();
+		const earthRadiusKm = 6371;
+		const d = radKm/earthRadiusKm;
+		const lat1 = center.lat * Math.PI/180;
+		const lng1 = center.lng * Math.PI/180;
+		const lat2 = lat1;
+		const lng2 = lng1 + d/Math.cos(lat1);
+		const newLat = lat2*180/Math.PI;
+		const newLng = lng2*180/Math.PI;
+		try{ state._radiusHandle.setLatLng([newLat,newLng]); }catch{}
+	}catch{}
 }
 
 function gatePremium(){

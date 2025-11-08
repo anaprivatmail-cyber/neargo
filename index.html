@@ -1727,7 +1727,7 @@ document.addEventListener('click', function(ev){
 });
 
 /* ====== Map picker ====== */
-var pickMap, pickMarker, pickCircle, pickRadiusKm=30;
+var pickMap, pickMarker, pickCircle, pickRadiusKm=30, pickHandle=null;
 function openPick(){
   var modal=$("#pickModal"); if(modal) modal.style.display="flex";
   setTimeout(function(){
@@ -1736,7 +1736,8 @@ function openPick(){
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OSM"}).addTo(pickMap);
       pickMarker=L.marker([46.05,14.51],{draggable:true}).addTo(pickMap);
       pickCircle=L.circle([46.05,14.51],{radius:pickRadiusKm*1000,color:"#0bbbd6"}).addTo(pickMap);
-      pickMarker.on("move",function(e){ pickCircle.setLatLng(e.latlng); });
+      pickMarker.on("move",function(e){ pickCircle.setLatLng(e.latlng); pickerEnsureHandle(); });
+      pickerEnsureHandle();
     }
     try{ pickMap.invalidateSize(); }catch(e){}
   },20);
@@ -1764,6 +1765,37 @@ var pickSearch=$("#pickSearch"); if(pickSearch) pickSearch.addEventListener("key
     .then(function(d){ if(d && d[0]){ var lat=+d[0].lat, lon=+d[0].lon; pickMap.setView([lat,lon],11); pickMarker.setLatLng([lat,lon]); pickCircle.setLatLng([lat,lon]); } })
     .catch(function(){});
 });
+
+function pickerEnsureHandle(){
+  try{
+    if(!pickMap||!pickCircle) return;
+    if(!pickHandle){
+      var el=document.createElement('div');
+      el.style.width='18px'; el.style.height='18px'; el.style.background='#0bbbd6'; el.style.border='2px solid #fff'; el.style.borderRadius='50%'; el.style.boxShadow='0 2px 6px rgba(0,0,0,.25)'; el.style.cursor='grab';
+      pickHandle=L.marker(pickCircle.getLatLng(),{draggable:true, icon:L.divIcon({className:'radius-handle', html:el.outerHTML, iconSize:[18,18]})}).addTo(pickMap);
+      pickHandle.on('move', function(e){
+        var center=pickCircle.getLatLng(); var pt=e.latlng; var distKm=Math.max(1, center.distanceTo(pt)/1000);
+        pickRadiusKm=Math.round(distKm);
+        try{ pickCircle.setRadius(pickRadiusKm*1000); }catch(_){ }
+        updatePickLbl();
+        // place handle on exact edge eastward for stability
+        var earthR=6371, d=pickRadiusKm/earthR, lat1=center.lat*Math.PI/180, lng1=center.lng*Math.PI/180;
+        var lat2=lat1, lng2=lng1 + d/Math.cos(lat1);
+        var newLat=lat2*180/Math.PI, newLng=lng2*180/Math.PI;
+        try{ pickHandle.setLatLng([newLat,newLng]); }catch(_){ }
+      });
+      pickMarker.on('move', function(){
+        var center=pickMarker.getLatLng(); var earthR=6371, d=pickRadiusKm/earthR, lat1=center.lat*Math.PI/180, lng1=center.lng*Math.PI/180;
+        var lat2=lat1, lng2=lng1 + d/Math.cos(lat1); var newLat=lat2*180/Math.PI, newLng=lng2*180/Math.PI;
+        try{ pickHandle.setLatLng([newLat,newLng]); }catch(_){ }
+      });
+    }
+    // align handle to east edge
+    var center=pickCircle.getLatLng(); var earthR=6371, d=pickRadiusKm/earthR, lat1=center.lat*Math.PI/180, lng1=center.lng*Math.PI/180;
+    var lat2=lat1, lng2=lng1 + d/Math.cos(lat1); var newLat=lat2*180/Math.PI, newLng=lng2*180/Math.PI;
+    try{ pickHandle.setLatLng([newLat,newLng]); }catch(_){ }
+  }catch(_){ }
+}
 
 /* ====== Števec znakov ====== */
 (function(){

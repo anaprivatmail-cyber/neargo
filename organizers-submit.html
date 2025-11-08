@@ -1088,12 +1088,33 @@
           syncCategoryChipsFromSelect({ forceLabel: true });
         }
 
+        function normalizeIconPath(icon){
+          if (!icon) return '';
+          return icon.startsWith('/') ? icon : `/assets/icons/${icon}`;
+        }
+
+        function getCanonicalCategoryList(type){
+          const sources = [window.NearGoCategories, window.NearGoCategoryBootstrap, window.NearGoCategorySource];
+          for (const source of sources){
+            if (!source || !Array.isArray(source?.[type]) || !source[type].length) continue;
+            return source[type].map((cat) => ({
+              key: cat.key,
+              label: cat.label || cat.key,
+              icon: normalizeIconPath(cat.icon || ''),
+              emoji: cat.emoji || ''
+            }));
+          }
+          return [];
+        }
+
         function populateCategories(){
           if (!categorySelect || !categoryChips) return;
           const apply = () => {
             const type = entryType?.value === "service" ? "services" : "events";
             const source = window.NearGoCategories || {};
-            const list = Array.isArray(source[type]) ? source[type] : [];
+            const list = Array.isArray(source[type]) && source[type].length
+              ? source[type]
+              : getCanonicalCategoryList(type);
             const currentValue = categorySelect.value;
 
             categorySelect.innerHTML = "";
@@ -1122,16 +1143,25 @@
               btn.setAttribute("aria-pressed", "false");
               btn.title = cat.label;
 
-              const img = document.createElement("img");
-              img.src = cat.icon;
-              img.alt = "";
-              img.setAttribute("loading", "lazy");
+              if (cat.icon){
+                const img = document.createElement("img");
+                img.src = normalizeIconPath(cat.icon);
+                img.alt = "";
+                img.setAttribute("loading", "lazy");
+                btn.appendChild(img);
+              } else {
+                const emoji = document.createElement("span");
+                emoji.className = "cat-emoji";
+                emoji.textContent = cat.emoji || "✨";
+                emoji.setAttribute("aria-hidden", "true");
+                btn.appendChild(emoji);
+              }
 
               const label = document.createElement("span");
               label.className = "cat-label";
               label.textContent = cat.label;
 
-              btn.append(img, label);
+              btn.appendChild(label);
               btn.addEventListener("click", () => handleChipSelection(cat.key));
               btn.addEventListener("pointerenter", () => showChipLabel(btn, true));
               btn.addEventListener("pointerleave", () => showChipLabel(btn, false));

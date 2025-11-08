@@ -1,5 +1,6 @@
 // netlify/functions/provider-edit.js
 import { createClient } from '@supabase/supabase-js';
+import { EVENT_CATEGORY_SOURCE } from '../../assets/data/categories/index.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -33,18 +34,11 @@ const ALLOWED_FIELDS = new Set([
   'display_title', 'tags'
 ]);
 
-const FALLBACK_EVENT_CATEGORIES = [
-  { key: 'koncerti', label: 'Koncerti', emoji: '🎸' },
-  { key: 'kulinarika', label: 'Kulinarika', emoji: '🍽️' },
-  { key: 'kultura-umetnost', label: 'Kultura & umetnost', emoji: '🎨' },
-  { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧸' },
-  { key: 'sport-tekmovanja', label: 'Šport & tekmovanja', emoji: '⚽' },
-  { key: 'outdoor-narava', label: 'Outdoor & narava', emoji: '🏞️' },
-  { key: 'ucenje-skill', label: 'Učenje & skill', emoji: '💡' },
-  { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
-  { key: 'posel-networking', label: 'Posel & networking', emoji: '🧑‍💼' },
-  { key: 'ostalo', label: 'Ostalo', emoji: '✨' }
-];
+const FALLBACK_EVENT_CATEGORIES = EVENT_CATEGORY_SOURCE.map((cat) => ({
+  key: cat.key,
+  label: cat.label,
+  emoji: cat.emoji || ''
+}));
 
 function sanitizePatch(p){
   if (!p || typeof p !== 'object') return {};

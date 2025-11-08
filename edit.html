@@ -59,22 +59,36 @@
           <input type="hidden" id="category">
           <script>
           (function(){
-            const fallback = [
-              { key: 'koncerti', label: 'Koncerti', emoji: '🎸' },
-              { key: 'kulinarika', label: 'Kulinarika', emoji: '🍽️' },
-              { key: 'kultura-umetnost', label: 'Kultura & umetnost', emoji: '🎨' },
-              { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧸' },
-              { key: 'sport-tekmovanja', label: 'Šport & tekmovanja', emoji: '⚽' },
-              { key: 'outdoor-narava', label: 'Outdoor & narava', emoji: '🏞️' },
-              { key: 'ucenje-skill', label: 'Učenje & skill', emoji: '💡' },
-              { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
-              { key: 'posel-networking', label: 'Posel & networking', emoji: '🧑‍💼' },
-              { key: 'ostalo', label: 'Ostalo', emoji: '✨' }
-            ];
-
             let wrapEl = null;
             let inputEl = null;
-            let cache = fallback;
+            let cache = [];
+
+            const normalizeList = (list) => {
+              if (!Array.isArray(list)) return [];
+              return list
+                .filter((cat) => cat && cat.key)
+                .map((cat) => ({
+                  key: cat.key,
+                  label: cat.label || cat.key,
+                  emoji: cat.emoji || '✨'
+                }));
+            };
+
+            const getCanonicalList = () => {
+              const published = window.NearGoCategories;
+              if (published && Array.isArray(published.events) && published.events.length) {
+                return normalizeList(published.events);
+              }
+              const bootstrap = window.NearGoCategoryBootstrap;
+              if (bootstrap && Array.isArray(bootstrap.events) && bootstrap.events.length) {
+                return normalizeList(bootstrap.events);
+              }
+              const source = window.NearGoCategorySource;
+              if (source && Array.isArray(source.events) && source.events.length) {
+                return normalizeList(source.events);
+              }
+              return [];
+            };
 
             const toggleLabel = (chip, show) => {
               const label = chip.querySelector('.cat-label');
@@ -138,7 +152,7 @@
             const render = (cats) => {
               if (!wrapEl || !inputEl) return;
               wrapEl.innerHTML = '';
-              cache = cats && cats.length ? cats : fallback;
+              cache = normalizeList(cats && cats.length ? cats : getCanonicalList());
               cache.forEach((cat) => {
                 wrapEl.appendChild(buildChip(cat));
               });
@@ -150,9 +164,7 @@
               wrapEl = document.getElementById('editCategoryChips');
               inputEl = document.getElementById('category');
               if (!wrapEl || !inputEl) return;
-              const utils = window.NearGoCategoryUtils;
-              const cats = utils?.getList ? utils.getList('events') : fallback;
-              render(cats);
+              render(getCanonicalList());
             };
 
             if (document.readyState === 'loading') {
@@ -162,9 +174,7 @@
             }
 
             document.addEventListener('neargo:categories-ready', () => {
-              const utils = window.NearGoCategoryUtils;
-              if (!utils?.getList) return;
-              render(utils.getList('events'));
+              render(getCanonicalList());
             }, { once: true });
           })();
           </script>

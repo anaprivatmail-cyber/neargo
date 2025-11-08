@@ -1,5 +1,6 @@
-import { getCategoryList, resolveCategoryKey } from '../categories.js';
+import { getCategoryList } from '../categories.js';
 import { getUserPoints } from '../../providers/supabase-points.js';
+import { CATEGORY_SOURCE } from '../data/categories/index.js';
 
 // ===== PREMIUM / PROVIDER PLAN CHECKS =====
 function checkPremiumAccess() {
@@ -18,109 +19,208 @@ function checkProviderPlan(requiredPlan) {
   return true;
 }
 
-const EARLY_NOTIFY_EVENT_CATEGORIES = (() => {
-  const list = getCategoryList('events');
-  return Array.isArray(list) && list.length ? list : [
-    { key: 'koncerti', label: 'Koncerti', emoji: '🎸' },
-    { key: 'kulinarika', label: 'Kulinarika', emoji: '🍽️' },
-    { key: 'kultura-umetnost', label: 'Kultura & umetnost', emoji: '🎨' },
-    { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧸' },
-    { key: 'sport-tekmovanja', label: 'Šport & tekmovanja', emoji: '⚽' },
-    { key: 'outdoor-narava', label: 'Outdoor & narava', emoji: '🏞️' },
-    { key: 'ucenje-skill', label: 'Učenje & skill', emoji: '💡' },
-    { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
-    { key: 'posel-networking', label: 'Posel & networking', emoji: '🧑‍💼' },
-    { key: 'ostalo', label: 'Ostalo', emoji: '✨' }
-  ];
-})();
 
-// ===== Early-notify simple renderer (populate premium.html) =====
+const ICON_BASE = '/assets/icons';
+
+const normalizeIconPath = (icon) => {
+  if (!icon) return null;
+  return icon.startsWith('/') ? icon : `${ICON_BASE}/${icon}`;
+};
+
+const cloneSourceCategory = (cat = {}) => ({
+  key: cat.key,
+  label: cat.label,
+  emoji: cat.emoji || null,
+  icon: normalizeIconPath(cat.icon || ''),
+  sub: Array.isArray(cat.sub) ? cat.sub.map((item) => ({ key: item.key, label: item.label })) : []
+});
+
+const deepCloneList = (list = []) => list.map((cat) => ({
+  ...cat,
+  sub: Array.isArray(cat.sub) ? cat.sub.map((sub) => ({ ...sub })) : []
+}));
+
+const SOURCE_FALLBACK = {
+  events: Array.isArray(CATEGORY_SOURCE?.events) ? CATEGORY_SOURCE.events.map(cloneSourceCategory) : [],
+  services: Array.isArray(CATEGORY_SOURCE?.services) ? CATEGORY_SOURCE.services.map(cloneSourceCategory) : []
+};
+
+const getCanonicalCategories = (type = 'events') => {
+  const list = getCategoryList(type);
+  if (Array.isArray(list) && list.length) return deepCloneList(list);
+  const fallback = SOURCE_FALLBACK[type] || [];
+  return deepCloneList(fallback);
+};
+
+// ===== Early-notify renderer (populate premium.html) =====
 const buildEarlyNotifyCategoryList = (selectedKeys = []) => {
   const container = document.getElementById('earlyNotifyCategoryList');
   if (!container) return;
-  const saved = Array.isArray(selectedKeys) ? selectedKeys : [];
-  const events = getCategoryList('events');
-  const services = getCategoryList('services');
+  const selectedSet = new Set(Array.isArray(selectedKeys) ? selectedKeys : []);
   container.innerHTML = '';
 
-  const renderSection = (title, list) => {
+  const sections = [
+    { title: 'Dogodki', type: 'events' },
+    { title: 'Storitve', type: 'services' }
+  ];
+
+  sections.forEach(({ title, type }) => {
+    const list = getCanonicalCategories(type);
     if (!Array.isArray(list) || !list.length) return;
-    const h = document.createElement('h3'); h.textContent = title; h.style.marginTop = '8px';
-    container.appendChild(h);
-    const ul = document.createElement('div'); ul.className = 'early-list';
+
+    const section = document.createElement('section');
+    section.className = 'early-notify-section';
+    section.style.marginBottom = '18px';
+
+    const heading = document.createElement('h3');
+    heading.textContent = title;
+    heading.className = 'early-notify-title';
+    heading.style.margin = '0 0 8px 0';
+    heading.style.fontSize = '1.05em';
+    heading.style.fontWeight = '800';
+    section.appendChild(heading);
+
+    const itemsWrap = document.createElement('div');
+    itemsWrap.className = 'early-notify-grid';
+    itemsWrap.style.display = 'flex';
+    itemsWrap.style.flexWrap = 'wrap';
+    itemsWrap.style.gap = '10px';
+
     list.forEach((cat) => {
       if (!cat?.key) return;
-      const id = `early_cat_${cat.key}`;
-      const wrap = document.createElement('label');
-      wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '8px'; wrap.style.margin = '6px 0';
-      const input = document.createElement('input'); input.type = 'checkbox'; input.id = id; input.value = cat.key;
-      if (saved.includes(cat.key)) input.checked = true;
-      const span = document.createElement('span'); span.textContent = cat.label || cat.key;
-      wrap.appendChild(input);
-      if (cat.icon) {
-        const img = document.createElement('img'); img.src = cat.icon; img.alt = ''; img.style.width = '22px'; img.style.height = '22px'; img.style.marginRight = '6px'; wrap.insertBefore(img, input);
-      }
-      wrap.appendChild(span);
-      ul.appendChild(wrap);
-    });
-    container.appendChild(ul);
-  };
+      const item = document.createElement('div');
+      item.className = 'early-notify-item';
+  item.style.display = 'flex';
+  item.style.flexDirection = 'column';
+  item.style.gap = '6px';
 
-  renderSection('Dogodki', events);
-  renderSection('Storitve', services);
+      const label = document.createElement('label');
+      label.className = 'cat-chip early-cat';
+      label.dataset.cat = cat.key;
+      label.setAttribute('aria-pressed', 'false');
+      label.style.position = 'relative';
+      label.style.display = 'inline-flex';
+      label.style.alignItems = 'center';
+      label.style.gap = '8px';
+      label.style.cursor = 'pointer';
+
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.name = 'categories';
+      input.value = cat.key;
+      input.style.position = 'absolute';
+      input.style.opacity = '0';
+      input.style.pointerEvents = 'none';
+      input.style.width = '1px';
+      input.style.height = '1px';
+
+      const setChipState = (checked) => {
+        if (checked) {
+          label.classList.add('active');
+          label.setAttribute('aria-pressed', 'true');
+          toggleChipLabel(label, true);
+        } else {
+          label.classList.remove('active');
+          label.setAttribute('aria-pressed', 'false');
+          toggleChipLabel(label, false);
+        }
+      };
+
+      input.addEventListener('change', () => {
+        setChipState(input.checked);
+      });
+
+      label.addEventListener('mouseenter', () => toggleChipLabel(label, true));
+      label.addEventListener('mouseleave', () => toggleChipLabel(label, false));
+      label.addEventListener('focus', () => toggleChipLabel(label, true));
+      label.addEventListener('blur', () => toggleChipLabel(label, false));
+      label.addEventListener('touchstart', () => toggleChipLabel(label, true), { passive: true });
+      label.addEventListener('touchend', () => toggleChipLabel(label, false));
+
+      if (cat.icon) {
+        const img = document.createElement('img');
+        img.src = cat.icon;
+        img.alt = '';
+        img.loading = 'lazy';
+        label.appendChild(img);
+      } else {
+        const emoji = document.createElement('span');
+        emoji.className = 'cat-emoji';
+        emoji.setAttribute('aria-hidden', 'true');
+        emoji.textContent = cat.emoji || '🏷️';
+        label.appendChild(emoji);
+      }
+
+      const text = document.createElement('span');
+      text.className = 'cat-label';
+      text.textContent = cat.label || cat.key;
+      label.appendChild(text);
+
+      if (selectedSet.has(cat.key)) {
+        input.checked = true;
+      }
+      setChipState(input.checked);
+
+      label.appendChild(input);
+      item.appendChild(label);
+
+      if (Array.isArray(cat.sub) && cat.sub.length) {
+        const subList = document.createElement('ul');
+        subList.className = 'early-subcategories';
+        subList.style.margin = '0 0 0 26px';
+        subList.style.padding = '0';
+        subList.style.listStyle = 'disc';
+        subList.style.color = 'var(--muted, #555)';
+        subList.style.fontSize = '13px';
+        cat.sub.forEach((sub) => {
+          if (!sub?.label) return;
+          const li = document.createElement('li');
+          li.textContent = sub.label;
+          subList.appendChild(li);
+        });
+        item.appendChild(subList);
+      }
+
+      itemsWrap.appendChild(item);
+    });
+
+    section.appendChild(itemsWrap);
+    container.appendChild(section);
+  });
+};
+
+const readEarlyNotifyState = () => {
+  try {
+    const stored = JSON.parse(localStorage.getItem('ng_early_notify_categories') || '{}');
+    return {
+      categories: Array.isArray(stored?.categories) ? stored.categories : [],
+      location: stored?.location || '',
+      radius: Number.isFinite(Number(stored?.radius)) ? Number(stored.radius) : 30
+    };
+  } catch {
+    return { categories: [], location: '', radius: 30 };
+  }
+};
+
+const hydrateEarlyNotifyUI = () => {
+  const container = document.getElementById('earlyNotifyCategoryList');
+  if (!container) return;
+  const { categories, location, radius } = readEarlyNotifyState();
+  buildEarlyNotifyCategoryList(categories);
+  const locationInput = document.getElementById('earlyNotifyLocation');
+  if (locationInput) locationInput.value = location || '';
+  const radiusInput = document.getElementById('earlyNotifyRadius');
+  if (radiusInput) radiusInput.value = Number.isFinite(radius) ? radius : 30;
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  // auto-render if on premium page
-  const el = document.getElementById('earlyNotifyCategoryList');
-  if (!el) return;
-  const saved = (() => { try { return JSON.parse(localStorage.getItem('ng_early_notify_categories') || '{}')?.categories || []; } catch { return []; } })();
-  buildEarlyNotifyCategoryList(Array.isArray(saved) ? saved : []);
+  hydrateEarlyNotifyUI();
 });
 
 document.addEventListener('neargo:categories-ready', () => {
-  const el = document.getElementById('earlyNotifyCategoryList');
-  if (!el) return;
-  const saved = (() => { try { return JSON.parse(localStorage.getItem('ng_early_notify_categories') || '{}')?.categories || []; } catch { return []; } })();
-  buildEarlyNotifyCategoryList(Array.isArray(saved) ? saved : []);
+  hydrateEarlyNotifyUI();
 });
 
-const EARLY_NOTIFY_SERVICE_CATEGORIES = (() => {
-  const list = getCategoryList('services');
-  return Array.isArray(list) && list.length ? list : [
-    { key: 'lepota', label: 'Lepota', emoji: '✂️' },
-    { key: 'nega-kozmetika', label: 'Nega & kozmetika', emoji: '💆' },
-    { key: 'wellness', label: 'Wellness', emoji: '🧖' },
-    { key: 'zdravje', label: 'Zdravje', emoji: '🩺' },
-    { key: 'trening', label: 'Trening', emoji: '🏋️' },
-    { key: 'kulinarika-catering', label: 'Kulinarika & catering', emoji: '🍲' },
-    { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
-    { key: 'avto', label: 'Avto', emoji: '🚗' },
-    { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧑‍�' },
-    { key: 'poslovne', label: 'Poslovne storitve', emoji: '📈' },
-    { key: 'izobrazevanje', label: 'Izobraževanje & mentoring', emoji: '📚' },
-    { key: 'ljubljencki', label: 'Ljubljenčki', emoji: '🐾' },
-    { key: 'ostalo', label: 'Ostalo', emoji: '🌈' }
-  ];
-})();
-
-const EARLY_NOTIFY_EVENT_KEYS = new Set(EARLY_NOTIFY_EVENT_CATEGORIES.map((cat) => cat.key));
-const EARLY_NOTIFY_SERVICE_KEYS = new Set(EARLY_NOTIFY_SERVICE_CATEGORIES.map((cat) => cat.key));
-
-const EARLY_NOTIFY_LEGACY_MAP = {
-  koncerti: 'koncerti',
-  kulinarika: 'kulinarika',
-  sport: 'sport-tekmovanja',
-  šport: 'sport-tekmovanja',
-  kultura: 'kultura-umetnost',
-  dogodki: 'ostalo',
-  zabava: 'ostalo',
-  druzina: 'druzina-otroci',
-  družina: 'druzina-otroci',
-  otroci: 'druzina-otroci',
-  narava: 'outdoor-narava',
-  storitve: 'lepota'
-};
 // ===== Points badge (osveževanje) =====
 async function refreshPointsBadge() {
   const badge = document.getElementById('pointsBadge');
@@ -186,30 +286,13 @@ document.addEventListener("DOMContentLoaded", function() {
       const location = document.getElementById("earlyNotifyLocation")?.value?.trim() || "";
       const radius = Number(document.getElementById("earlyNotifyRadius")?.value || 30);
       localStorage.setItem("ng_early_notify_categories", JSON.stringify({categories: checked, location, radius}));
+      hydrateEarlyNotifyUI();
       if (confirmation) {
         confirmation.textContent = "Predčasna obvestila so vključena za izbrane kategorije in lokacijo.";
         confirmation.style.display = "block";
         setTimeout(() => { confirmation.style.display = "none"; }, 4000);
       }
     });
-    // Ob nalaganju strani označi že izbrane kategorije, lokacijo in radij
-    const saved = localStorage.getItem("ng_early_notify_categories");
-    if (saved) {
-      try {
-        const obj = JSON.parse(saved);
-        if (obj.categories) {
-          form.querySelectorAll("input[type=checkbox]").forEach(cb => {
-            cb.checked = obj.categories.includes(cb.value);
-          });
-        }
-        if (obj.location) {
-          document.getElementById("earlyNotifyLocation").value = obj.location;
-        }
-        if (obj.radius) {
-          document.getElementById("earlyNotifyRadius").value = obj.radius;
-        }
-      } catch {}
-    }
   }
 // ===== Analitika in Boost izpostavitev (Provider plan) =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -242,16 +325,23 @@ const withCategories = (callback) => {
     callback(data);
     return;
   }
+
+  const bootstrap = window.NearGoCategoryBootstrap;
+  if (bootstrap && (Array.isArray(bootstrap.events) || Array.isArray(bootstrap.services))) {
+    callback(bootstrap);
+  }
+
   document.addEventListener('neargo:categories-ready', () => {
-    callback(window.NearGoCategories || {});
+    const latest = window.NearGoCategories || window.NearGoCategoryBootstrap || {};
+    callback(latest);
   }, { once: true });
 };
 
 const getCategoriesForType = (type = 'events') => {
-  const source = window.NearGoCategories;
-  if (!source) return [];
+  const source = window.NearGoCategories || window.NearGoCategoryBootstrap || {};
   const list = source[type];
-  return Array.isArray(list) ? list : [];
+  if (Array.isArray(list) && list.length) return list;
+  return getCanonicalCategories(type);
 };
 
 const toggleChipLabel = (chip, show) => {
@@ -332,7 +422,11 @@ function renderCategoryChips() {
   const populateSubcategories = (key) => {
     if (!subSelect) return;
     const utils = window.NearGoCategoryUtils;
-    const subs = utils?.getSubcategories('events', key) || [];
+    let subs = utils?.getSubcategories('events', key) || [];
+    if (!subs.length) {
+      const fallbackCat = getCanonicalCategories('events').find((cat) => cat.key === key);
+      subs = fallbackCat && Array.isArray(fallbackCat.sub) ? fallbackCat.sub : [];
+    }
     subSelect.innerHTML = '';
     const placeholder = document.createElement('option');
     placeholder.value = '';
@@ -357,7 +451,12 @@ function renderCategoryChips() {
     }
   };
 
-  withCategories((data) => apply(Array.isArray(data.events) ? data.events : []));
+  withCategories((data) => {
+    const list = Array.isArray(data.events) && data.events.length
+      ? data.events
+      : getCanonicalCategories('events');
+    apply(list);
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -776,34 +875,7 @@ async function doSearch(page=0, byGeo=false){
     sel.style.display = 'none';
 
     const type = entryType?.value === 'service' ? 'services' : 'events';
-    const fallback = type === 'services'
-      ? [
-          { key: 'lepota', label: 'Lepota', emoji: '✂️' },
-          { key: 'nega-kozmetika', label: 'Nega & kozmetika', emoji: '�' },
-          { key: 'wellness', label: 'Wellness', emoji: '🧖' },
-          { key: 'zdravje', label: 'Zdravje', emoji: '🩺' },
-          { key: 'trening', label: 'Trening', emoji: '🏋️' },
-          { key: 'kulinarika-catering', label: 'Kulinarika & catering', emoji: '�' },
-          { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
-          { key: 'avto', label: 'Avto', emoji: '🚗' },
-          { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '�‍👧' },
-          { key: 'poslovne', label: 'Poslovne storitve', emoji: '📈' },
-          { key: 'izobrazevanje', label: 'Izobraževanje & mentoring', emoji: '📚' },
-          { key: 'ljubljencki', label: 'Ljubljenčki', emoji: '🐾' },
-          { key: 'ostalo', label: 'Ostalo', emoji: '🌈' }
-        ]
-      : [
-          { key: 'koncerti', label: 'Koncerti', emoji: '🎸' },
-          { key: 'kulinarika', label: 'Kulinarika', emoji: '�️' },
-          { key: 'kultura-umetnost', label: 'Kultura & umetnost', emoji: '�' },
-          { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧸' },
-          { key: 'sport-tekmovanja', label: 'Šport & tekmovanja', emoji: '⚽' },
-          { key: 'outdoor-narava', label: 'Outdoor & narava', emoji: '🏞️' },
-          { key: 'ucenje-skill', label: 'Učenje & skill', emoji: '💡' },
-          { key: 'dom-vrt', label: 'Dom & vrt', emoji: '�' },
-          { key: 'posel-networking', label: 'Posel & networking', emoji: '🧑‍💼' },
-          { key: 'ostalo', label: 'Ostalo', emoji: '✨' }
-        ];
+    const fallback = getCanonicalCategories(type);
 
     const currentValue = sel.value;
     const apply = (source) => {
@@ -813,7 +885,11 @@ async function doSearch(page=0, byGeo=false){
       const populateSubs = (catKey) => {
         if (!subSelect) return;
         const utils = window.NearGoCategoryUtils;
-        const subs = utils?.getSubcategories(type, catKey) || [];
+        let subs = utils?.getSubcategories(type, catKey) || [];
+        if (!subs.length) {
+          const fallbackCat = fallback.find((cat) => cat.key === catKey);
+          subs = fallbackCat && Array.isArray(fallbackCat.sub) ? fallbackCat.sub : [];
+        }
         subSelect.innerHTML = '';
         const placeholder = document.createElement('option');
         placeholder.value = '';

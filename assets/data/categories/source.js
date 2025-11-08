@@ -318,7 +318,7 @@ export const CATEGORY_SOURCE = {
       key: 'ljubljencki',
       label: 'Ljubljenčki',
       emoji: '🐾',
-      icon: 'nature.svg',
+      icon: 'other.svg',
       aliases: ['pets', 'zivali', 'zival'],
       sub: [
         { key: 'veterinar', label: 'Veterinar' },

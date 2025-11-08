@@ -91,21 +91,40 @@ const renderCategories = () => {
 	label.className = 'cat-chip notify-cat';
 	// keep a small margin so chips don't touch
 	label.style.margin = '4px 8px 4px 0';
+	label.dataset.key = cat.key;
 
 		const input = document.createElement('input');
 		input.type = 'checkbox';
 		input.id = id;
 		input.value = cat.key;
 		input.checked = state.selected.has(cat.key);
+		label.setAttribute('aria-pressed', input.checked ? 'true' : 'false');
+
+		const showHoverLabel = (show) => {
+			if (show) {
+				label.classList.add('show-label');
+			} else if (!input.checked) {
+				label.classList.remove('show-label');
+			}
+		};
+
+		label.addEventListener('mouseenter', () => showHoverLabel(true));
+		label.addEventListener('mouseleave', () => showHoverLabel(false));
+		label.addEventListener('focus', () => showHoverLabel(true));
+		label.addEventListener('blur', () => showHoverLabel(false));
+		label.addEventListener('touchstart', () => showHoverLabel(true), { passive: true });
+		label.addEventListener('touchend', () => showHoverLabel(false));
 
 		// toggle label visibility when checkbox changes and keep visual active state
 		input.addEventListener('change', (ev) => {
-			const checked = !!ev.target.checked;
-			handleCategoryToggle(cat.key, checked);
-			if (checked) {
+			handleCategoryToggle(cat.key, ev.target.checked);
+			const isChecked = !!ev.target.checked;
+			if (isChecked) {
 				label.classList.add('show-label', 'active');
+				label.setAttribute('aria-pressed', 'true');
 			} else {
 				label.classList.remove('show-label', 'active');
+				label.setAttribute('aria-pressed', 'false');
 			}
 		});
 
@@ -128,8 +147,16 @@ const renderCategories = () => {
 		text.className = 'cat-label';
 		text.textContent = cat.label;
 
-		// if initially selected, show label
-		if (input.checked) label.classList.add('show-label', 'active');
+	// if initially selected, show label
+	if (input.checked) label.classList.add('show-label', 'active');
+
+	// hide the checkbox visually while keeping it in DOM for accessibility/state sync
+	input.style.position = 'absolute';
+	input.style.opacity = '0';
+	input.style.width = '1px';
+	input.style.height = '1px';
+	input.style.margin = '0';
+	input.style.padding = '0';
 
 		label.append(input, text);
 		wrap.appendChild(label);

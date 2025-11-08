@@ -146,11 +146,41 @@ input[type=range]{accent-color:#7cdbe9; height:28px; width:100%}
 .always-two input{ min-width:0; }
 
 /* Category chips */
-.cat-chip{ min-width:56px; min-height:56px; padding:10px 14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; border-radius:18px; }
+.cat-chip{
+  min-width:56px;
+  min-height:56px;
+  padding:10px 14px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  border-radius:18px;
+  background:var(--chip);
+  border:1px solid var(--chipborder);
+  color:var(--muted);
+  font-weight:800;
+  transition:background .2s ease, color .2s ease, border .2s ease, transform .15s ease;
+  cursor:pointer;
+  position:relative;
+}
+.cat-chip:hover{ transform:translateY(-1px); border-color:var(--primary); }
 .cat-chip img{ width:28px; height:28px; display:block; }
 .cat-chip .cat-label{ font-size:12px; font-weight:800; color:var(--muted); display:none; text-align:center; line-height:1.25; }
 .cat-chip.show-label .cat-label{ display:block; }
+.cat-chip.active{
+  background:var(--primary);
+  border-color:transparent;
+  color:#fff;
+  transform:translateY(-1px);
+}
 .cat-chip.active .cat-label{ color:#fff; }
+.cat-chip input[type="checkbox"]{
+  position:absolute;
+  inset:0;
+  opacity:0;
+  pointer-events:none;
+}
 
 /* HERO + FEATURED */
 .hero, #searchPanel, #featuredCard, #mapPanel, #carousel{ position:static }

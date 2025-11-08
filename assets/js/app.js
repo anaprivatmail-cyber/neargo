@@ -204,12 +204,11 @@ const getCategoriesForType = (type = 'events') => {
 };
 
 const toggleChipLabel = (chip, show) => {
-  const label = chip?.querySelector('.cat-label');
-  if (!label) return;
+  if (!chip) return;
   if (show) {
-    label.style.display = 'inline';
+    chip.classList.add('show-label');
   } else if (!chip.classList.contains('active')) {
-    label.style.display = 'none';
+    chip.classList.remove('show-label');
   }
 };
 
@@ -227,11 +226,11 @@ function renderCategoryChips() {
     const setActive = (key, opts = {}) => {
       const { silent } = opts;
       const nextBtn = key ? wrap.querySelector(`[data-cat="${key}"]`) : null;
-      const fallbackBtn = wrap.querySelector('.chip');
+      const fallbackBtn = wrap.querySelector('.cat-chip');
       const target = nextBtn || fallbackBtn;
       if (!target) return;
 
-      wrap.querySelectorAll('.chip').forEach((btn) => {
+      wrap.querySelectorAll('.cat-chip').forEach((btn) => {
         btn.classList.remove('active');
         btn.setAttribute('aria-pressed', 'false');
         toggleChipLabel(btn, false);
@@ -508,7 +507,7 @@ async function doSearch(page=0, byGeo=false){
 
   const qVal = $("#q")?.value.trim() || "";
   const cityVal = $("#city")?.value.trim() || "";
-  const catVal = document.querySelector('#cats .chip.active')?.dataset.cat || '';
+  const catVal = document.querySelector('#cats .cat-chip.active')?.dataset.cat || '';
   const subVal = document.getElementById('searchSubcategory')?.value || '';
   const radiusVal = $("#radius")?.value || 30;
 
@@ -791,14 +790,32 @@ async function doSearch(page=0, byGeo=false){
       list.forEach((cat) => {
         if (!cat?.key) return;
         const btn = document.createElement('button');
-        btn.className = 'chip';
+        btn.className = 'cat-chip';
         btn.type = 'button';
         btn.dataset.cat = cat.key;
         btn.setAttribute('aria-label', cat.label || cat.key);
-        btn.innerHTML = `
-          <span class="cat-emoji" aria-hidden="true" style="font-size:1.6em;line-height:1;">${cat.emoji || '🏷️'}</span>
-          <span class="cat-label" style="display:none">${cat.label || cat.key}</span>
-        `;
+        btn.setAttribute('aria-pressed', 'false');
+
+        if (cat.icon) {
+          const img = document.createElement('img');
+          img.src = cat.icon;
+          img.alt = '';
+          img.loading = 'lazy';
+          btn.appendChild(img);
+        } else {
+          const emoji = document.createElement('span');
+          emoji.className = 'cat-emoji';
+          emoji.textContent = cat.emoji || '🏷️';
+          emoji.style.fontSize = '1.6em';
+          emoji.style.lineHeight = '1';
+          btn.appendChild(emoji);
+        }
+
+        const labelNode = document.createElement('span');
+        labelNode.className = 'cat-label';
+        labelNode.textContent = cat.label || cat.key;
+        btn.appendChild(labelNode);
+
         btn.addEventListener('mouseenter', () => toggleChipLabel(btn, true));
         btn.addEventListener('mouseleave', () => toggleChipLabel(btn, false));
         btn.addEventListener('focus', () => toggleChipLabel(btn, true));
@@ -806,7 +823,7 @@ async function doSearch(page=0, byGeo=false){
         btn.addEventListener('touchstart', () => toggleChipLabel(btn, true), { passive: true });
         btn.addEventListener('touchend', () => toggleChipLabel(btn, false));
         btn.addEventListener('click', () => {
-          catsContainer.querySelectorAll('.chip').forEach((chip) => {
+          catsContainer.querySelectorAll('.cat-chip').forEach((chip) => {
             chip.classList.remove('active');
             chip.setAttribute('aria-pressed', 'false');
             toggleChipLabel(chip, false);
@@ -826,13 +843,12 @@ async function doSearch(page=0, byGeo=false){
 
       const defaultKey = (currentValue && list.some((cat) => cat.key === currentValue)) ? currentValue : (list[0]?.key || '');
       if (defaultKey) {
-        const btn = catsContainer.querySelector(`[data-cat="${defaultKey}"]`) || catsContainer.querySelector('.chip');
-        if (btn) {
-          btn.classList.add('active');
-          btn.setAttribute('aria-pressed', 'true');
-          toggleChipLabel(btn, true);
-          sel.value = btn.dataset.cat;
-          if (subSelect) populateSubs(btn.dataset.cat);
+        const defaultBtn = catsContainer.querySelector(`[data-cat="${defaultKey}"]`) || catsContainer.querySelector('.cat-chip');
+        if (defaultBtn) {
+          defaultBtn.classList.add('active', 'show-label');
+          defaultBtn.setAttribute('aria-pressed', 'true');
+          sel.value = defaultBtn.dataset.cat;
+          if (subSelect) populateSubs(defaultBtn.dataset.cat);
         }
       }
     };

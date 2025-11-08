@@ -43,12 +43,21 @@ function debounce(fn,ms){ var t; return function(){ var a=arguments; clearTimeou
 function isExternalAPI(e){ var u=(e && e.url ? e.url : "").toLowerCase(); return u.indexOf("ticketmaster")>-1 || u.indexOf("eventbrite")>-1; }
 
 // Stabilen ID za kartico
-const hashId = e => {
-  if(e.id) return `ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}`;
-  const n=(e.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,40);
-  const t=(e.start||'').replace(/[^0-9]/g,'').slice(0,14);
-  return `ev-${n}-${t}`;
-};
+// Use any existing global `hashId` if present, otherwise provide a local fallback as `_hashId`.
+const _hashId = (function(){
+  try {
+    if (typeof window !== 'undefined' && typeof window.hashId === 'function') return window.hashId;
+  } catch (err) {}
+  try {
+    if (typeof hashId === 'function') return hashId;
+  } catch (err) {}
+  return function(e){
+    if(e?.id) return `ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}`;
+    const n=(e.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,40);
+    const t=(e.start||'').replace(/[^0-9]/g,'').slice(0,14);
+    return `ev-${n}-${t}`;
+  };
+})();
 
 // ===== STATE =====
 let GEO=null, currentPage=0, quickMode="";
@@ -132,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const gmHref=(e.venue?.lat && e.venue?.lon)
       ? `https://www.google.com/maps?q=${e.venue.lat},${e.venue.lon}`
       : (addr?`https://www.google.com/maps?q=${encodeURIComponent(addr)}`:"");
-    const id=hashId(e);
+  const id=_hashId(e);
 
     const isExt=isExternalAPI(e);
     const moreBtn=isExt?(e.url?`<a class="btn mini link" href="${e.url}" target="_blank">Več</a>`:"")
@@ -170,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const lat=e.venue?.lat, lon=e.venue?.lon;
       if(Number.isFinite(+lat)&&Number.isFinite(+lon)){
         const m=L.marker([+lat,+lon]).addTo(map);
-        const id=hashId(e);
+  const id=_hashId(e);
         m.bindPopup(`<a href="#${id}">${(e.name||"Dogodek").slice(0,80)}</a>`);
         ms.push(m);
       }

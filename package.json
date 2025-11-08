@@ -26,5 +26,11 @@
     "stripe": "^12.18.0",
     "twilio": "^5.10.4",
     "uuid": "^9.0.1"
-  }
+  },
+  "description": "Important setup steps for rewards & Supabase",
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  },
+  "keywords": [],
+  "author": ""
 }

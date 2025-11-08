@@ -2,3 +2,9 @@
 
 # Local Netlify folder
 .netlify
+
+# Dependencies / tooling
+node_modules/
+pnpm-lock.yaml
+dist/
+.DS_Store

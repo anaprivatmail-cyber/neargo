@@ -128,6 +128,9 @@ const createUtils = () => ({
 
 const publishToWindow = () => {
   if (typeof window === 'undefined') return;
+  if (typeof console !== 'undefined' && console.debug) {
+    console.debug('[categories] publishToWindow start');
+  }
   const utils = createUtils();
   const eventsList = cloneList(EVENT_CATEGORIES);
   const servicesList = cloneList(SERVICE_CATEGORIES);

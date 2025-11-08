@@ -86,28 +86,52 @@ const renderCategories = () => {
 	const list = state.type === 'services' ? SERVICE_CATEGORIES : EVENT_CATEGORIES;
 	list.forEach((cat) => {
 		const id = `notif_${state.type}_${cat.key}`;
-		const label = document.createElement('label');
-		label.className = 'notify-cat';
-		label.style.display = 'inline-flex';
-		label.style.alignItems = 'center';
-		label.style.gap = '6px';
-		label.style.margin = '4px 8px 4px 0';
+	const label = document.createElement('label');
+	// reuse the app's cat-chip styles for consistent appearance
+	label.className = 'cat-chip notify-cat';
+	// keep a small margin so chips don't touch
+	label.style.margin = '4px 8px 4px 0';
 
 		const input = document.createElement('input');
 		input.type = 'checkbox';
 		input.id = id;
 		input.value = cat.key;
 		input.checked = state.selected.has(cat.key);
-		input.addEventListener('change', (ev) => handleCategoryToggle(cat.key, ev.target.checked));
 
-		const emoji = document.createElement('span');
-		emoji.textContent = cat.emoji || '•';
-		emoji.style.fontSize = '1.1em';
+		// toggle label visibility when checkbox changes and keep visual active state
+		input.addEventListener('change', (ev) => {
+			const checked = !!ev.target.checked;
+			handleCategoryToggle(cat.key, checked);
+			if (checked) {
+				label.classList.add('show-label', 'active');
+			} else {
+				label.classList.remove('show-label', 'active');
+			}
+		});
+
+		// render icon (prefer image) + label text to match other chips
+		if (cat.icon) {
+			const img = document.createElement('img');
+			img.src = cat.icon;
+			img.alt = '';
+			img.loading = 'lazy';
+			label.appendChild(img);
+		} else {
+			const emoji = document.createElement('span');
+			emoji.className = 'cat-emoji';
+			emoji.textContent = cat.emoji || '•';
+			emoji.style.fontSize = '1.3em';
+			label.appendChild(emoji);
+		}
 
 		const text = document.createElement('span');
+		text.className = 'cat-label';
 		text.textContent = cat.label;
 
-		label.append(input, emoji, text);
+		// if initially selected, show label
+		if (input.checked) label.classList.add('show-label', 'active');
+
+		label.append(input, text);
 		wrap.appendChild(label);
 	});
 };

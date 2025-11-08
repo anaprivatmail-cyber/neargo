@@ -249,13 +249,17 @@ function renderCategoryChips() {
       if (!cat?.key) return;
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'chip';
+      // use the unified cat-chip styling so appearance matches app
+      btn.className = 'cat-chip';
       btn.dataset.cat = cat.key;
       btn.setAttribute('aria-label', cat.label || cat.key);
       btn.setAttribute('aria-pressed', 'false');
+
+      // icon (prefer image) + label
+      const imgHtml = cat.icon ? `<img src="${cat.icon}" alt="" loading="lazy">` : `<span class="cat-emoji" aria-hidden="true" style="font-size:1.6em;line-height:1;">${cat.emoji || '🏷️'}</span>`;
       btn.innerHTML = `
-        <span class="cat-emoji" aria-hidden="true" style="font-size:1.8em;line-height:1;">${cat.emoji || '🏷️'}</span>
-        <span class="cat-label" style="display:none;font-size:1em;margin-top:2px;">${cat.label || cat.key}</span>
+        ${imgHtml}
+        <span class="cat-label">${cat.label || cat.key}</span>
       `;
       btn.addEventListener('mouseenter', () => toggleChipLabel(btn, true));
       btn.addEventListener('mouseleave', () => toggleChipLabel(btn, false));

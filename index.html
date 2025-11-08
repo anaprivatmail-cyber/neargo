@@ -512,27 +512,31 @@
           if (!wrap) return;
 
           var fallbackEvents = [
-            { key: 'koncert', label: 'Koncerti', emoji: '🎸' },
-            { key: 'hrana', label: 'Kulinarika', emoji: '🍲' },
-            { key: 'kultura', label: 'Kultura & umetnost', emoji: '🎭' },
-            { key: 'izobrazevanje', label: 'Izobraževanje & delavnice', emoji: '🎓' },
-            { key: 'otroci', label: 'Družina & otroci', emoji: '🧸' },
-            { key: 'sport', label: 'Šport & rekreacija', emoji: '⚽' },
-            { key: 'narava', label: 'Outdoor & narava', emoji: '⛰️' },
-            { key: 'zabava', label: 'Zabava & nočno življenje', emoji: '🎉' },
-            { key: 'za-podjetja', label: 'Poslovni dogodki', emoji: '🏢' },
+            { key: 'koncerti', label: 'Koncerti', emoji: '🎸' },
+            { key: 'kulinarika', label: 'Kulinarika', emoji: '🍽️' },
+            { key: 'kultura-umetnost', label: 'Kultura & umetnost', emoji: '🎨' },
+            { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧸' },
+            { key: 'sport-tekmovanja', label: 'Šport & tekmovanja', emoji: '⚽' },
+            { key: 'outdoor-narava', label: 'Outdoor & narava', emoji: '🏞️' },
+            { key: 'ucenje-skill', label: 'Učenje & skill', emoji: '💡' },
+            { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
+            { key: 'posel-networking', label: 'Posel & networking', emoji: '🧑‍💼' },
             { key: 'ostalo', label: 'Ostalo', emoji: '✨' }
           ];
           var fallbackServices = [
-            { key: 'frizer', label: 'Frizerji & saloni', emoji: '💇‍♀️' },
-            { key: 'kozmetika', label: 'Kozmetika & nega', emoji: '💄' },
-            { key: 'wellness', label: 'Wellness & spa', emoji: '🌿' },
-            { key: 'zdravje', label: 'Zdravje & terapije', emoji: '❤️' },
-            { key: 'fitnes', label: 'Šport & fitnes', emoji: '🏋️‍♂️' },
-            { key: 'avto-moto', label: 'Avto & moto', emoji: '🚗' },
-            { key: 'turizem', label: 'Turizem & doživetja', emoji: '🧭' },
-            { key: 'gospodinjske', label: 'Dom & gospodinjstvo', emoji: '🏡' },
-            { key: 'ostalo', label: 'Ostale storitve', emoji: '🌈' }
+            { key: 'lepota', label: 'Lepota', emoji: '✂️' },
+            { key: 'nega-kozmetika', label: 'Nega & kozmetika', emoji: '💆' },
+            { key: 'wellness', label: 'Wellness', emoji: '🧖' },
+            { key: 'zdravje', label: 'Zdravje', emoji: '🩺' },
+            { key: 'trening', label: 'Trening', emoji: '🏋️' },
+            { key: 'kulinarika-catering', label: 'Kulinarika & catering', emoji: '🍲' },
+            { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
+            { key: 'avto', label: 'Avto', emoji: '🚗' },
+            { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧑‍👧' },
+            { key: 'poslovne', label: 'Poslovne storitve', emoji: '📈' },
+            { key: 'izobrazevanje', label: 'Izobraževanje & mentoring', emoji: '📚' },
+            { key: 'ljubljencki', label: 'Ljubljenčki', emoji: '🐾' },
+            { key: 'ostalo', label: 'Ostalo', emoji: '🌈' }
           ];
 
           function getMode(){
@@ -957,16 +961,18 @@
     <script>
     // Emoji chips for notification form
     (function(){
-      var cats = [
-        { key: "koncert", emoji: "🎸", label: "Koncerti" },
-        { key: "kultura", emoji: "🎭", label: "Kultura" },
-        { key: "otroci", emoji: "🧸", label: "Otroci" },
-        { key: "hrana", emoji: "🍔", label: "Hrana" },
-        { key: "narava", emoji: "🌳", label: "Narava" },
-        { key: "sport", emoji: "⚽", label: "Šport" },
-        { key: "zabava", emoji: "🎉", label: "Zabava" },
-        { key: "za-podjetja", emoji: "🏢", label: "Za podjetja" }
+      var fallback = [
+        { key: 'koncerti', emoji: '🎸', label: 'Koncerti' },
+        { key: 'kulinarika', emoji: '🍽️', label: 'Kulinarika' },
+        { key: 'kultura-umetnost', emoji: '🎨', label: 'Kultura & umetnost' },
+        { key: 'druzina-otroci', emoji: '🧸', label: 'Družina & otroci' },
+        { key: 'sport-tekmovanja', emoji: '⚽', label: 'Šport & tekmovanja' },
+        { key: 'outdoor-narava', emoji: '🏞️', label: 'Outdoor & narava' },
+        { key: 'ucenje-skill', emoji: '💡', label: 'Učenje & skill' },
+        { key: 'posel-networking', emoji: '🧑‍💼', label: 'Posel & networking' }
       ];
+      var globals = window.NearGoCategories;
+      var cats = (globals && Array.isArray(globals.events) && globals.events.length) ? globals.events : fallback;
       var wrap = document.getElementById("earlyNotifyCategories");
       if(!wrap) return;
       cats.forEach(function(cat){
@@ -974,7 +980,7 @@
         chip.className = "chip cat";
         chip.type = "button";
         chip.setAttribute("data-cat", cat.key);
-        chip.innerHTML = '<span class="cat-icon">'+cat.emoji+'</span>' + '<span class="cat-label" style="display:none;">'+cat.label+'</span>';
+        chip.innerHTML = '<span class="cat-icon">'+(cat.emoji || '🏷️')+'</span>' + '<span class="cat-label" style="display:none;">'+(cat.label || cat.key)+'</span>';
         chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
         chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
         chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
@@ -1418,7 +1424,7 @@ function startAutoScroll(){
 var carousel=$("#carousel"); if(carousel) carousel.addEventListener("click",function(){ featuredPaused=true; setTimeout(function(){featuredPaused=false;},1500); });
 
 /* Heuristika za storitve */
-var EVENT_CATS=["","koncert","kultura","otroci","hrana","narava","sport","zabava","za-podjetja"];
+var EVENT_CATS=["","koncerti","kultura-umetnost","druzina-otroci","kulinarika","outdoor-narava","sport-tekmovanja","ucenje-skill","posel-networking","dom-vrt","ostalo"];
 var SERVICE_CATS_UI=["","frizer","wellness","zdravje","kozmetika","fitnes","avto-moto","turizem","gospodinjske","ostalo"];
 
 function looksService(e){
@@ -1862,15 +1868,16 @@ function loadAllForTopMap(){
 /* ====== DETECT CATEGORY (fallback) ====== */
 function detectCategory(e){
   var t=((e.name||e.title||"").toLowerCase()+" "+(e.description||"").toLowerCase());
-  if(t.indexOf("koncert")>-1||t.indexOf("band")>-1) return "koncert";
-  if(t.indexOf("otro")>-1||t.indexOf("family")>-1) return "otroci";
-  if(t.indexOf("food")>-1||t.indexOf("hrana")>-1||t.indexOf("street")>-1) return "hrana";
-  if(t.indexOf("šport")>-1||t.indexOf("sport")>-1) return "sport";
-  if(t.indexOf("narav")>-1||t.indexOf("hike")>-1||t.indexOf("outdoor")>-1) return "narava";
-  if(t.indexOf("party")>-1||t.indexOf("žur")>-1||t.indexOf("zabav")>-1) return "zabava";
-  if(t.indexOf("podjet")>-1||t.indexOf("biz")>-1||t.indexOf("b2b")>-1) return "za-podjetja";
-  if(looksService(e)) return "storitve";
-  return "kultura";
+  if(/koncert|band|music|festival/.test(t)) return "koncerti";
+  if(/otro[kc]|family|kids/.test(t)) return "druzina-otroci";
+  if(/food|hrana|kulinar|street/.test(t)) return "kulinarika";
+  if(/šport|sport|tek|match|liga|fit/.test(t)) return "sport-tekmovanja";
+  if(/narav|hike|trek|outdoor|park/.test(t)) return "outdoor-narava";
+  if(/uč|ucenje|workshop|delavn|tečaj|tecaj|skill/.test(t)) return "ucenje-skill";
+  if(/party|žur|zabav|afterwork|lounge/.test(t)) return "ostalo";
+  if(/podjet|biz|business|b2b|konferenc/.test(t)) return "posel-networking";
+  if(looksService(e)) return "kulinarika-catering";
+  return "kultura-umetnost";
 }
 
 /* ====== OBRAZEC: LOGIKA ====== */
@@ -1896,11 +1903,44 @@ function detectCategory(e){
   function populateCategories(){
     var ct=$("#category");
     var isSvc = (entryType && entryType.value==="service");
-    var opts = isSvc ? ["","frizer","wellness","zdravje","kozmetika","fitnes","avto-moto","turizem","gospodinjske","ostalo"]
-                     : ["","koncert","kultura","otroci","hrana","narava","sport","zabava","za-podjetja"];
+    var utils = window.NearGoCategoryUtils;
+    var list = utils ? utils.getList(isSvc ? 'services' : 'events') : null;
+    var fallback = isSvc
+      ? [
+          { key: 'lepota', label: 'Lepota' },
+          { key: 'nega-kozmetika', label: 'Nega & kozmetika' },
+          { key: 'wellness', label: 'Wellness' },
+          { key: 'zdravje', label: 'Zdravje' },
+          { key: 'trening', label: 'Trening' },
+          { key: 'kulinarika-catering', label: 'Kulinarika & catering' },
+          { key: 'dom-vrt', label: 'Dom & vrt' },
+          { key: 'avto', label: 'Avto' },
+          { key: 'druzina-otroci', label: 'Družina & otroci' },
+          { key: 'poslovne', label: 'Poslovne storitve' },
+          { key: 'izobrazevanje', label: 'Izobraževanje & mentoring' },
+          { key: 'ljubljencki', label: 'Ljubljenčki' },
+          { key: 'ostalo', label: 'Ostalo' }
+        ]
+      : [
+          { key: 'koncerti', label: 'Koncerti' },
+          { key: 'kulinarika', label: 'Kulinarika' },
+          { key: 'kultura-umetnost', label: 'Kultura & umetnost' },
+          { key: 'druzina-otroci', label: 'Družina & otroci' },
+          { key: 'sport-tekmovanja', label: 'Šport & tekmovanja' },
+          { key: 'outdoor-narava', label: 'Outdoor & narava' },
+          { key: 'ucenje-skill', label: 'Učenje & skill' },
+          { key: 'dom-vrt', label: 'Dom & vrt' },
+          { key: 'posel-networking', label: 'Posel & networking' },
+          { key: 'ostalo', label: 'Ostalo' }
+        ];
+    var opts = Array.isArray(list) && list.length ? list : fallback;
     if(ct){
       var html=['<option value="">(izberi)</option>'];
-      for(var i=0;i<opts.length;i++){ if(opts[i]) html.push('<option value="'+opts[i]+'">'+opts[i].replace("-"," ").replace(/\b\w/g,function(m){return m.toUpperCase();})+'</option>'); }
+      for(var i=0;i<opts.length;i++){
+        var cat = opts[i];
+        if(!cat||!cat.key) continue;
+        html.push('<option value="'+cat.key+'">'+(cat.label||cat.key)+'</option>');
+      }
       ct.innerHTML=html.join("");
     }
   }

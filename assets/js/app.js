@@ -1,3 +1,6 @@
+import { getCategoryList, resolveCategoryKey } from '../categories.js';
+import { getUserPoints } from '../../providers/supabase-points.js';
+
 // ===== PREMIUM / PROVIDER PLAN CHECKS =====
 function checkPremiumAccess() {
   if (typeof IS_PREMIUM !== 'undefined' && !IS_PREMIUM) {
@@ -14,8 +17,60 @@ function checkProviderPlan(requiredPlan) {
   }
   return true;
 }
+
+const EARLY_NOTIFY_EVENT_CATEGORIES = (() => {
+  const list = getCategoryList('events');
+  return Array.isArray(list) && list.length ? list : [
+    { key: 'koncerti', label: 'Koncerti', emoji: '🎸' },
+    { key: 'kulinarika', label: 'Kulinarika', emoji: '🍽️' },
+    { key: 'kultura-umetnost', label: 'Kultura & umetnost', emoji: '🎨' },
+    { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧸' },
+    { key: 'sport-tekmovanja', label: 'Šport & tekmovanja', emoji: '⚽' },
+    { key: 'outdoor-narava', label: 'Outdoor & narava', emoji: '🏞️' },
+    { key: 'ucenje-skill', label: 'Učenje & skill', emoji: '💡' },
+    { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
+    { key: 'posel-networking', label: 'Posel & networking', emoji: '🧑‍💼' },
+    { key: 'ostalo', label: 'Ostalo', emoji: '✨' }
+  ];
+})();
+
+const EARLY_NOTIFY_SERVICE_CATEGORIES = (() => {
+  const list = getCategoryList('services');
+  return Array.isArray(list) && list.length ? list : [
+    { key: 'lepota', label: 'Lepota', emoji: '✂️' },
+    { key: 'nega-kozmetika', label: 'Nega & kozmetika', emoji: '💆' },
+    { key: 'wellness', label: 'Wellness', emoji: '🧖' },
+    { key: 'zdravje', label: 'Zdravje', emoji: '🩺' },
+    { key: 'trening', label: 'Trening', emoji: '🏋️' },
+    { key: 'kulinarika-catering', label: 'Kulinarika & catering', emoji: '🍲' },
+    { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
+    { key: 'avto', label: 'Avto', emoji: '🚗' },
+    { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧑‍�' },
+    { key: 'poslovne', label: 'Poslovne storitve', emoji: '📈' },
+    { key: 'izobrazevanje', label: 'Izobraževanje & mentoring', emoji: '📚' },
+    { key: 'ljubljencki', label: 'Ljubljenčki', emoji: '🐾' },
+    { key: 'ostalo', label: 'Ostalo', emoji: '🌈' }
+  ];
+})();
+
+const EARLY_NOTIFY_EVENT_KEYS = new Set(EARLY_NOTIFY_EVENT_CATEGORIES.map((cat) => cat.key));
+const EARLY_NOTIFY_SERVICE_KEYS = new Set(EARLY_NOTIFY_SERVICE_CATEGORIES.map((cat) => cat.key));
+
+const EARLY_NOTIFY_LEGACY_MAP = {
+  koncerti: 'koncerti',
+  kulinarika: 'kulinarika',
+  sport: 'sport-tekmovanja',
+  šport: 'sport-tekmovanja',
+  kultura: 'kultura-umetnost',
+  dogodki: 'ostalo',
+  zabava: 'ostalo',
+  druzina: 'druzina-otroci',
+  družina: 'druzina-otroci',
+  otroci: 'druzina-otroci',
+  narava: 'outdoor-narava',
+  storitve: 'lepota'
+};
 // ===== Points badge (osveževanje) =====
-import { getUserPoints } from '../../providers/supabase-points.js';
 async function refreshPointsBadge() {
   const badge = document.getElementById('pointsBadge');
   const email = localStorage.getItem('user_email');
@@ -668,28 +723,32 @@ async function doSearch(page=0, byGeo=false){
     sel.style.display = 'none';
 
     const type = entryType?.value === 'service' ? 'services' : 'events';
-    const fallback = type === 'service'
+    const fallback = type === 'services'
       ? [
-          { key: 'frizer', label: 'Frizerji & saloni', emoji: '💇‍♀️' },
-          { key: 'kozmetika', label: 'Kozmetika & nega', emoji: '💄' },
-          { key: 'wellness', label: 'Wellness & spa', emoji: '🌿' },
-          { key: 'zdravje', label: 'Zdravje & terapije', emoji: '❤️' },
-          { key: 'fitnes', label: 'Šport & fitnes', emoji: '🏋️‍♂️' },
-          { key: 'avto-moto', label: 'Avto & moto', emoji: '🚗' },
-          { key: 'turizem', label: 'Turizem & doživetja', emoji: '🧭' },
-          { key: 'gospodinjske', label: 'Dom & gospodinjstvo', emoji: '🏡' },
-          { key: 'ostalo', label: 'Ostale storitve', emoji: '🌈' }
+          { key: 'lepota', label: 'Lepota', emoji: '✂️' },
+          { key: 'nega-kozmetika', label: 'Nega & kozmetika', emoji: '�' },
+          { key: 'wellness', label: 'Wellness', emoji: '🧖' },
+          { key: 'zdravje', label: 'Zdravje', emoji: '🩺' },
+          { key: 'trening', label: 'Trening', emoji: '🏋️' },
+          { key: 'kulinarika-catering', label: 'Kulinarika & catering', emoji: '�' },
+          { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
+          { key: 'avto', label: 'Avto', emoji: '🚗' },
+          { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '�‍👧' },
+          { key: 'poslovne', label: 'Poslovne storitve', emoji: '📈' },
+          { key: 'izobrazevanje', label: 'Izobraževanje & mentoring', emoji: '📚' },
+          { key: 'ljubljencki', label: 'Ljubljenčki', emoji: '🐾' },
+          { key: 'ostalo', label: 'Ostalo', emoji: '🌈' }
         ]
       : [
-          { key: 'koncert', label: 'Koncerti', emoji: '🎸' },
-          { key: 'hrana', label: 'Kulinarika', emoji: '🍲' },
-          { key: 'kultura', label: 'Kultura & umetnost', emoji: '🎭' },
-          { key: 'izobrazevanje', label: 'Izobraževanje & delavnice', emoji: '🎓' },
-          { key: 'otroci', label: 'Družina & otroci', emoji: '🧸' },
-          { key: 'sport', label: 'Šport & rekreacija', emoji: '⚽' },
-          { key: 'narava', label: 'Outdoor & narava', emoji: '⛰️' },
-          { key: 'zabava', label: 'Zabava & nočno življenje', emoji: '🎉' },
-          { key: 'za-podjetja', label: 'Poslovni dogodki', emoji: '🏢' },
+          { key: 'koncerti', label: 'Koncerti', emoji: '🎸' },
+          { key: 'kulinarika', label: 'Kulinarika', emoji: '�️' },
+          { key: 'kultura-umetnost', label: 'Kultura & umetnost', emoji: '�' },
+          { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧸' },
+          { key: 'sport-tekmovanja', label: 'Šport & tekmovanja', emoji: '⚽' },
+          { key: 'outdoor-narava', label: 'Outdoor & narava', emoji: '🏞️' },
+          { key: 'ucenje-skill', label: 'Učenje & skill', emoji: '💡' },
+          { key: 'dom-vrt', label: 'Dom & vrt', emoji: '�' },
+          { key: 'posel-networking', label: 'Posel & networking', emoji: '🧑‍💼' },
           { key: 'ostalo', label: 'Ostalo', emoji: '✨' }
         ];
 

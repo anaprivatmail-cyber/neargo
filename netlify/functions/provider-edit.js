@@ -2,45 +2,84 @@
 import { createClient } from '@supabase/supabase-js';
 
 const CORS = {
-            <script type="module">
-            import { SERVICE_CATEGORIES } from '../../assets/categories.js';
-            (function(){
-              function renderChips(){
-                const cats = SERVICE_CATEGORIES;
-                const wrap = document.getElementById("providerEditCategoryChips");
-                const input = document.getElementById("category");
-                if(!wrap || !input) return;
-                wrap.innerHTML = "";
-                cats.forEach(function(cat){
-                  const chip = document.createElement("button");
-                  chip.className = "chip cat" + (input.value === cat.key ? " active" : "");
-                  chip.type = "button";
-                  chip.setAttribute("data-cat", cat.key);
-                  chip.innerHTML = '<span class="cat-icon">'+cat.emoji+'</span>' + '<span class="cat-label" style="display:none;">'+cat.label+'</span>';
-                  chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
-                  chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
-                  chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
-                  chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
-                  chip.addEventListener("click", function(){
-                    const all = wrap.querySelectorAll(".cat");
-                    all.forEach(function(b){ b.classList.remove("active"); b.querySelector(".cat-label").style.display = "none"; });
-                    chip.classList.add("active");
-                    chip.querySelector(".cat-label").style.display = "block";
-                    input.value = cat.key;
-                  });
-                  wrap.appendChild(chip);
-                });
-              }
-              document.addEventListener("DOMContentLoaded", renderChips);
-            })();
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+};
+const json = (d, s = 200) => ({
+  statusCode: s,
+  headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS },
+  body: JSON.stringify(d)
+});
+const res = (html, s = 200) => ({
+  statusCode: s,
+  headers: { 'Content-Type': 'text/html; charset=utf-8', ...CORS },
+  body: html
+});
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const BUCKET = 'event-images';
+const DESC_MAX = 800;
+
+const ALLOWED_FIELDS = new Set([
+  'organizer', 'organizerEmail', 'eventName', 'venue', 'city', 'city2', 'country',
+  'start', 'end', 'url', 'offerType', 'saleType', 'price', 'stock', 'maxPerOrder',
+  'description', 'category', 'subcategory', 'featured', 'featuredUntil', 'imagePublicUrl',
+  'venueLat', 'venueLon', 'couponKind', 'couponPercentOff', 'couponValueEur',
+  'couponFreebieLabel', 'couponDesc', 'display_benefit', 'display_price', 'display_cta',
+  'display_badge', 'display_badge_color', 'display_badge_text', 'display_description',
+  'display_button', 'display_button_url', 'display_image', 'display_subtitle',
+  'display_title', 'tags'
+]);
+
+const FALLBACK_EVENT_CATEGORIES = [
+  { key: 'koncerti', label: 'Koncerti', emoji: '🎸' },
+  { key: 'kulinarika', label: 'Kulinarika', emoji: '🍽️' },
+  { key: 'kultura-umetnost', label: 'Kultura & umetnost', emoji: '🎨' },
+  { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧸' },
+  { key: 'sport-tekmovanja', label: 'Šport & tekmovanja', emoji: '⚽' },
+  { key: 'outdoor-narava', label: 'Outdoor & narava', emoji: '🏞️' },
+  { key: 'ucenje-skill', label: 'Učenje & skill', emoji: '💡' },
+  { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
+  { key: 'posel-networking', label: 'Posel & networking', emoji: '🧑‍💼' },
+  { key: 'ostalo', label: 'Ostalo', emoji: '✨' }
+];
+
+function sanitizePatch(p){
+  if (!p || typeof p !== 'object') return {};
   const out = {};
-  for (const k of allowed) if (k in p) out[k] = p[k];
-  if ('featured' in out) out.featured = !!(out.featured === true || out.featured === 'on' || out.featured === 'true' || out.featured === 1 || out.featured === '1');
+  for (const key of ALLOWED_FIELDS) {
+    if (key in p) out[key] = p[key];
+  }
+  if ('featured' in out) {
+    const val = out.featured;
+    out.featured = !!(val === true || val === 'on' || val === 'true' || val === 1 || val === '1');
+  }
   if ('price' in out && out.price !== '' && out.price != null) out.price = Number(out.price);
   if ('stock' in out && out.stock !== '' && out.stock != null) out.stock = Number(out.stock);
   if ('maxPerOrder' in out && out.maxPerOrder !== '' && out.maxPerOrder != null) out.maxPerOrder = Number(out.maxPerOrder);
+  if (out.offerType && !out.saleType) out.saleType = out.offerType;
+  if (out.saleType && !out.offerType) out.offerType = out.saleType;
   return out;
 }
+
+async function loadEvent(supabase, key){
+  const { data, error } = await supabase.storage.from(BUCKET).download(key);
+  if (error) throw new Error(error.message || 'Napaka pri branju dogodka');
+  const text = await data.text();
+  return JSON.parse(text);
+}
+
+async function saveEvent(supabase, key, obj){
+  const payload = Buffer.from(JSON.stringify(obj, null, 2), 'utf8');
+  const { error } = await supabase.storage.from(BUCKET).upload(key, payload, {
+    contentType: 'application/json; charset=utf-8',
+    upsert: true
+  });
+  if (error) throw new Error(error.message || 'Napaka pri shranjevanju dogodka');
+}
+
 async function geocodeIfNeeded(supabase, city, country){
   const cityQ = String(city || '').trim();
   const countryQ = String(country || '').trim().toUpperCase();
@@ -168,47 +207,84 @@ export const handler = async (event) => {
           <label>Kategorija
             <div id="providerEditCategoryChips" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"></div>
             <input type="hidden" name="category" id="category" value="${obj.category||''}">
-            <script>
-            // User-specified emoji chips for category selection in provider-edit form
-            (function(){
-              var cats = [
-                { key: "koncert", emoji: "🎸", label: "Koncerti" },
-                { key: "kultura", emoji: "🎭", label: "Kultura" },
-                { key: "otroci", emoji: "🧸", label: "Otroci" },
-                { key: "hrana", emoji: "🍔", label: "Hrana" },
-                { key: "narava", emoji: "🌳", label: "Narava" },
-                { key: "sport", emoji: "⚽", label: "Šport" },
-                { key: "zabava", emoji: "🎉", label: "Zabava" },
-                { key: "za-podjetja", emoji: "🏢", label: "Za podjetja" }
-              ];
-              function renderChips(){
-                var wrap = document.getElementById("providerEditCategoryChips");
-                var input = document.getElementById("category");
-                if(!wrap || !input) return;
-                wrap.innerHTML = "";
-                cats.forEach(function(cat){
-                  var chip = document.createElement("button");
-                  chip.className = "chip cat" + (input.value === cat.key ? " active" : "");
-                  chip.type = "button";
-                  chip.setAttribute("data-cat", cat.key);
-                  chip.innerHTML = '<span class="cat-icon">'+cat.emoji+'</span>' + '<span class="cat-label" style="display:none;">'+cat.label+'</span>';
-                  chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
-                  chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
-                  chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
-                  chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
-                  chip.addEventListener("click", function(){
-                    var all = wrap.querySelectorAll(".cat");
-                    all.forEach(function(b){ b.classList.remove("active"); b.querySelector(".cat-label").style.display = "none"; });
-                    chip.classList.add("active");
-                    chip.querySelector(".cat-label").style.display = "block";
+            <script type="module">
+              const fallback = ${JSON.stringify(FALLBACK_EVENT_CATEGORIES)};
+
+              function renderCategoryChips(categories){
+                const wrap = document.getElementById('providerEditCategoryChips');
+                const input = document.getElementById('category');
+                if (!wrap || !input) return;
+                wrap.innerHTML = '';
+
+                categories.forEach((cat) => {
+                  const chip = document.createElement('button');
+                  chip.className = 'chip cat' + (input.value === cat.key ? ' active' : '');
+                  chip.type = 'button';
+                  chip.dataset.cat = cat.key;
+
+                  const iconSpan = document.createElement('span');
+                  iconSpan.className = 'cat-icon';
+                  iconSpan.textContent = cat.emoji || '✨';
+
+                  const labelSpan = document.createElement('span');
+                  labelSpan.className = 'cat-label';
+                  labelSpan.textContent = cat.label || cat.key;
+                  if (input.value !== cat.key) labelSpan.style.display = 'none';
+
+                  chip.append(iconSpan, labelSpan);
+
+                  const hideIfInactive = () => {
+                    if (!chip.classList.contains('active')) labelSpan.style.display = 'none';
+                  };
+
+                  chip.addEventListener('mouseenter', () => { labelSpan.style.display = 'inline'; });
+                  chip.addEventListener('mouseleave', hideIfInactive);
+                  chip.addEventListener('touchstart', () => { labelSpan.style.display = 'inline'; });
+                  chip.addEventListener('touchend', hideIfInactive);
+                  chip.addEventListener('click', () => {
+                    const buttons = wrap.querySelectorAll('.cat');
+                    buttons.forEach((btn) => {
+                      btn.classList.remove('active');
+                      const lbl = btn.querySelector('.cat-label');
+                      if (lbl) lbl.style.display = 'none';
+                    });
+                    chip.classList.add('active');
+                    labelSpan.style.display = 'inline';
                     input.value = cat.key;
                   });
+
                   wrap.appendChild(chip);
                 });
               }
-              document.addEventListener("DOMContentLoaded", renderChips);
-            })();
-            </script>
+
+              async function loadCategories(){
+                try {
+                  const mod = await import('/assets/data/categories/index.js');
+                  const cats = mod?.EVENT_CATEGORIES || mod?.EVENTS || mod?.categories?.events || [];
+                  if (Array.isArray(cats) && cats.length) {
+                    return cats.map((cat) => ({
+                      key: cat.key,
+                      emoji: cat.emoji || '',
+                      label: cat.label || cat.key
+                    }));
+                  }
+                } catch (err) {
+                  console.warn('provider-edit: kategorični fallback', err);
+                }
+                return fallback;
+              }
+
+              async function init(){
+                const categories = await loadCategories();
+                renderCategoryChips(categories);
+              }
+
+              if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+              } else {
+                init();
+              }
+            <\/script>
           </label>
           <label>Opis (max ${DESC_MAX})
             <span class="count"><span id="cnt">0</span> / ${DESC_MAX}</span>
@@ -307,10 +383,10 @@ export const handler = async (event) => {
 
   if (event.httpMethod === 'POST'){
     try{
-      const body = JSON.parse(event.body || '{}');
-      const key   = body.key   || '';
-      const token = body.token || '';
-      const patch = sanitizePatch(body.patch || {});
+    const body = JSON.parse(event.body || '{}');
+    const key   = body.key   || '';
+    const token = body.token || '';
+    const patch = sanitizePatch(body.patch || {});
       if (!key || !token) return json({ ok:false, error:'Manjka key/token' }, 400);
 
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

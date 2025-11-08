@@ -246,13 +246,14 @@ async function doSearch(page=0, byGeo=false){
 }
 function detectCategory(e){
   const t=((e.name||'')+' '+(e.description||'')).toLowerCase();
-  if(/koncert|music|band|rock|jazz/.test(t)) return 'koncert';
-  if(/otrok|otroci|kids|family|družin/.test(t)) return 'otroci';
-  if(/hrana|food|street food|kulinar/.test(t)) return 'hrana';
-  if(/gora|narav|hike|trek|outdoor|park/.test(t)) return 'narava';
-  if(/šport|sport|tek|match|game|liga|nogomet|košarka/.test(t)) return 'sport';
-  if(/podjetj|biz|business|b2b|konferenc/.test(t)) return 'za-podjetja';
-  if(/gledali|muzej|razstav|opera|film|kino|kulturn/.test(t)) return 'kultura';
+  if(/koncert|music|band|rock|jazz|festival/.test(t)) return 'koncerti';
+  if(/otrok|otroci|kids|family|družin/.test(t)) return 'druzina-otroci';
+  if(/hrana|food|street food|kulinar/.test(t)) return 'kulinarika';
+  if(/gora|narav|hike|trek|outdoor|park/.test(t)) return 'outdoor-narava';
+  if(/šport|sport|tek|match|game|liga|nogomet|košarka/.test(t)) return 'sport-tekmovanja';
+  if(/podjetj|biz|business|b2b|konferenc/.test(t)) return 'posel-networking';
+  if(/uč|ucenje|workshop|delavn|tečaj|tecaj|skill/.test(t)) return 'ucenje-skill';
+  if(/gledali|muzej|razstav|opera|film|kino|kulturn/.test(t)) return 'kultura-umetnost';
   return '';
 }
 

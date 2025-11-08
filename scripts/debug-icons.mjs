@@ -15,7 +15,7 @@ const page = await browser.newPage();
 const results = [];
 
 for (const path of PAGES) {
-  const url = `http://127.0.0.1:8000${path}`;
+  const url = `http://localhost:8888${path}`;
   const pageInfo = { url, console: [], requestsFailed: [], chips: [] };
 
   page.on('console', (msg) => {
@@ -27,7 +27,7 @@ for (const path of PAGES) {
 
   try {
   await page.goto(url, { waitUntil: 'networkidle', timeout: 20000 });
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(5000);
   pageInfo.content = await page.content();
 
     const scan = await page.evaluate(() => {

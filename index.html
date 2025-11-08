@@ -686,18 +686,18 @@
             });
           }
 
+          var categoriesInitialized = false;
+
           function init(){
+            if (categoriesInitialized) return;
+            categoriesInitialized = true;
             var mode = getMode();
             var data = window.NearGoCategories || {};
             var list = Array.isArray(data[mode]) ? data[mode] : [];
             buildChips(mode, list);
           }
 
-          if (window.NearGoCategories && (Array.isArray(window.NearGoCategories.events) || Array.isArray(window.NearGoCategories.services))) {
-            init();
-          } else {
-            document.addEventListener('neargo:categories-ready', init, { once: true });
-          }
+          document.addEventListener('neargo:categories-ready', init, { once: true });
 
           window.NearGoRefreshSearchCategories = init;
         })();

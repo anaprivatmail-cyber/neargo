@@ -11,6 +11,7 @@
   <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0bbbd6">
+  <link rel="stylesheet" href="/assets/app.css">
   <script>
     window.SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
@@ -97,10 +98,16 @@
     }
 
     .chips{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px}
-    .chip{border:1px solid var(--chipborder); border-radius:999px; padding:10px 14px; background:var(--chip); color:var(--muted); font-weight:700; cursor:pointer}
-  .chip{border:1px solid var(--chipborder); border-radius:999px; padding:10px 14px 6px 14px; background:var(--chip); color:var(--muted); font-weight:700; cursor:pointer; min-width:48px; min-height:48px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative;}
-    .chip.active{ background:var(--primary); color:#fff; border-color:#fff; }
-  .chip.active .cat-label{ display:block !important; color:#fff; font-weight:900; font-size:13px; margin-top:4px; }
+    .cat-chip{display:inline-flex; align-items:center; gap:8px; padding:8px 16px; border-radius:999px; background:var(--chip); border:1px solid var(--chipborder); color:var(--muted); font-weight:800; font-size:14px; line-height:1; transition:background .2s ease, color .2s ease, border .2s ease, transform .15s ease; cursor:pointer; position:relative; white-space:nowrap;}
+    .cat-chip:hover{transform:translateY(-1px); border-color:var(--primary);}
+    .cat-chip img,
+    .cat-chip .cat-emoji{width:20px; height:20px; display:block; flex-shrink:0;}
+    .cat-chip .cat-emoji{line-height:20px; font-size:18px;}
+    .cat-chip .cat-label{display:none; font-size:14px; font-weight:800; color:var(--muted);}
+    .cat-chip.show-label .cat-label,
+    .cat-chip.active .cat-label{display:inline;}
+    .cat-chip.active{background:var(--primary); border-color:transparent; color:#fff; transform:translateY(-1px);}
+    .cat-chip.active .cat-label{color:#fff;}
   
   /* Koralni poudarki */
   .badge{background:var(--accent); color:#fff; padding:2px 6px; border-radius:10px; font-size:11px; font-weight:800; margin-left:6px}
@@ -125,7 +132,6 @@
     50% { transform: scale(1.05); }
   }
   .cat-icon{ width:32px; height:32px; display:block; margin:0 auto; }
-  .cat-label{ display:none; position:relative; font-size:13px; font-weight:700; margin-top:4px; color:var(--muted); }
 
     label{display:flex; flex-direction:column; gap:6px; font-weight:800; font-size:13px}
     input,select,textarea{ width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--chipborder); background:var(--card); color:var(--text); outline:none; min-height:40px; font-size:15px; }
@@ -548,10 +554,9 @@
           }
 
           function toggleLabel(node, show){
-            var label = node ? node.querySelector('.cat-label') : null;
-            if (!label) return;
-            if (show || node.classList.contains('active')) label.style.display = 'block';
-            else label.style.display = 'none';
+            if (!node) return;
+            if (show) node.classList.add('show-label');
+            else if (!node.classList.contains('active')) node.classList.remove('show-label');
           }
 
           function populateSubcategories(mode, key){
@@ -594,7 +599,7 @@
             wrap.innerHTML = '';
 
             function handleSelect(btn, silent){
-              wrap.querySelectorAll('.chip').forEach(function(node){
+              wrap.querySelectorAll('.cat-chip').forEach(function(node){
                 node.classList.remove('active');
                 node.setAttribute('aria-pressed', 'false');
                 toggleLabel(node, false);
@@ -612,13 +617,13 @@
             cats.forEach(function(cat){
               if (!cat || !cat.key) return;
               var chip = document.createElement('button');
-              chip.className = 'chip';
+              chip.className = 'cat-chip';
               chip.type = 'button';
               chip.dataset.cat = cat.key;
               chip.setAttribute('aria-label', cat.label || cat.key);
               chip.setAttribute('aria-pressed', 'false');
-              chip.innerHTML = '<span class="cat-emoji" aria-hidden="true" style="font-size:1.8em;line-height:1;">'+(cat.emoji || '🏷️')+'</span>' +
-                               '<span class="cat-label" style="display:none;font-size:0.95em;margin-top:2px;">'+(cat.label || cat.key)+'</span>';
+              var iconHtml = cat.icon ? '<img src="'+cat.icon+'" alt="" loading="lazy">' : '<span class="cat-emoji" aria-hidden="true">'+(cat.emoji || '🏷️')+'</span>';
+              chip.innerHTML = iconHtml + '<span class="cat-label">'+(cat.label || cat.key)+'</span>';
               chip.addEventListener('mouseenter', function(){ toggleLabel(chip, true); });
               chip.addEventListener('mouseleave', function(){ toggleLabel(chip, false); });
               chip.addEventListener('focus', function(){ toggleLabel(chip, true); });
@@ -639,7 +644,7 @@
             var preferred = wrap.dataset[datasetKey];
             var initial = preferred && cats.some(function(cat){ return cat.key === preferred; })
               ? wrap.querySelector('[data-cat="'+preferred+'"]')
-              : wrap.querySelector('.chip');
+              : wrap.querySelector('.cat-chip');
             if (initial) handleSelect(initial, true);
           }
 
@@ -977,19 +982,19 @@
       if(!wrap) return;
       cats.forEach(function(cat){
         var chip = document.createElement("button");
-        chip.className = "chip cat";
+        chip.className = "cat-chip cat";
         chip.type = "button";
         chip.setAttribute("data-cat", cat.key);
-        chip.innerHTML = '<span class="cat-icon">'+(cat.emoji || '🏷️')+'</span>' + '<span class="cat-label" style="display:none;">'+(cat.label || cat.key)+'</span>';
-        chip.addEventListener("mouseenter", function(){ chip.querySelector(".cat-label").style.display = "block"; });
-        chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
-        chip.addEventListener("touchstart", function(){ chip.querySelector(".cat-label").style.display = "block"; });
-        chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.querySelector(".cat-label").style.display = "none"; });
+        var iconHtml = cat.icon ? '<img src="'+cat.icon+'" alt="" loading="lazy">' : '<span class="cat-emoji" aria-hidden="true">'+(cat.emoji || '🏷️')+'</span>';
+        chip.innerHTML = iconHtml + '<span class="cat-label">'+(cat.label || cat.key)+'</span>';
+        chip.addEventListener("mouseenter", function(){ chip.classList.add("show-label"); });
+        chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.classList.remove("show-label"); });
+        chip.addEventListener("touchstart", function(){ chip.classList.add("show-label"); });
+        chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.classList.remove("show-label"); });
         chip.addEventListener("click", function(){
           var all = wrap.querySelectorAll(".cat");
-          all.forEach(function(b){ b.classList.remove("active"); b.querySelector(".cat-label").style.display = "none"; });
-          chip.classList.add("active");
-          chip.querySelector(".cat-label").style.display = "block";
+          all.forEach(function(b){ b.classList.remove("active", "show-label"); });
+          chip.classList.add("active", "show-label");
         });
         wrap.appendChild(chip);
       });
@@ -1556,7 +1561,7 @@ function doSearch(page, byGeo){
   var cityVal = CITY_ALIASES[rawCity.toLowerCase()] || rawCity;
   var radUser=Number((radius && radius.value)||30);
   var radCity=Number((radiusCity && radiusCity.value)||30);
-  var catNode=document.querySelector('#cats .chip.active');
+  var catNode=document.querySelector('#cats .cat-chip.active');
   var catVal=((catNode && catNode.dataset)?catNode.dataset.cat:"") || "";
   var subSelect=document.getElementById('searchSubcategory');
   var subVal=(subSelect && !subSelect.disabled && subSelect.value)?subSelect.value:"";

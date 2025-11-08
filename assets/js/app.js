@@ -1,4 +1,3 @@
-import { getCategoryList } from '../categories.js';
 import { getUserPoints } from '../../providers/supabase-points.js';
 import { CATEGORY_SOURCE } from '../data/categories/index.js';
 
@@ -40,16 +39,11 @@ const deepCloneList = (list = []) => list.map((cat) => ({
   sub: Array.isArray(cat.sub) ? cat.sub.map((sub) => ({ ...sub })) : []
 }));
 
-const SOURCE_FALLBACK = {
-  events: Array.isArray(CATEGORY_SOURCE?.events) ? CATEGORY_SOURCE.events.map(cloneSourceCategory) : [],
-  services: Array.isArray(CATEGORY_SOURCE?.services) ? CATEGORY_SOURCE.services.map(cloneSourceCategory) : []
-};
-
 const getCanonicalCategories = (type = 'events') => {
-  const list = getCategoryList(type);
+  const source = window.NearGoCategories || window.NearGoCategoryBootstrap;
+  const list = source && source[type];
   if (Array.isArray(list) && list.length) return deepCloneList(list);
-  const fallback = SOURCE_FALLBACK[type] || [];
-  return deepCloneList(fallback);
+  return [];
 };
 
 // ===== Early-notify renderer (populate premium.html) =====

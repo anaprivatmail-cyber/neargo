@@ -1,4 +1,4 @@
-import { EVENT_CATEGORY_SOURCE, SERVICE_CATEGORY_SOURCE } from './data/categories/index.js';
+import { CATEGORY_SOURCE, EVENT_CATEGORY_SOURCE, SERVICE_CATEGORY_SOURCE } from './data/categories/index.js';
 
 const ICON_BASE = '/assets/icons';
 
@@ -21,6 +21,8 @@ const deepCloneCategory = (cat) => ({
 
 const EVENT_CATEGORIES = canonicalEventCategories.map(deepCloneCategory);
 const SERVICE_CATEGORIES = canonicalServiceCategories.map(deepCloneCategory);
+
+const cloneList = (list = []) => list.map(deepCloneCategory);
 
 const toMap = (list) => list.reduce((acc, cat) => {
   acc[cat.key] = cat;
@@ -78,11 +80,7 @@ const resolveCategoryKey = (type = 'events', value = '') => {
 
 const getCategoryList = (type = 'events') => {
   const list = type === 'services' ? SERVICE_CATEGORIES : EVENT_CATEGORIES;
-  return list.map((cat) => ({
-    ...cat,
-    aliases: [...cat.aliases],
-    sub: cat.sub.map((sub) => ({ ...sub }))
-  }));
+  return cloneList(list);
 };
 
 const getCategoryKeys = (type = 'events') => getCategoryList(type).map((cat) => cat.key);
@@ -131,9 +129,15 @@ const createUtils = () => ({
 const publishToWindow = () => {
   if (typeof window === 'undefined') return;
   const utils = createUtils();
+  const eventsList = cloneList(EVENT_CATEGORIES);
+  const servicesList = cloneList(SERVICE_CATEGORIES);
   window.NearGoCategories = {
-    events: getCategoryList('events'),
-    services: getCategoryList('services')
+    events: cloneList(EVENT_CATEGORIES),
+    services: cloneList(SERVICE_CATEGORIES)
+  };
+  window.NearGoCategoryBootstrap = {
+    events: eventsList,
+    services: servicesList
   };
   window.NearGoCategoryMaps = {
     events: { ...EVENT_CATEGORY_MAP },
@@ -144,6 +148,7 @@ const publishToWindow = () => {
     services: { ...CATEGORY_ALIASES.services }
   };
   window.NearGoCategoryUtils = utils;
+  window.NearGoCategorySource = CATEGORY_SOURCE;
   if (typeof document !== 'undefined' && typeof document.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
     document.dispatchEvent(new CustomEvent('neargo:categories-ready', {
       detail: {

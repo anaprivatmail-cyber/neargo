@@ -34,6 +34,57 @@ const EARLY_NOTIFY_EVENT_CATEGORIES = (() => {
   ];
 })();
 
+// ===== Early-notify simple renderer (populate premium.html) =====
+const buildEarlyNotifyCategoryList = (selectedKeys = []) => {
+  const container = document.getElementById('earlyNotifyCategoryList');
+  if (!container) return;
+  const saved = Array.isArray(selectedKeys) ? selectedKeys : [];
+  const events = getCategoryList('events');
+  const services = getCategoryList('services');
+  container.innerHTML = '';
+
+  const renderSection = (title, list) => {
+    if (!Array.isArray(list) || !list.length) return;
+    const h = document.createElement('h3'); h.textContent = title; h.style.marginTop = '8px';
+    container.appendChild(h);
+    const ul = document.createElement('div'); ul.className = 'early-list';
+    list.forEach((cat) => {
+      if (!cat?.key) return;
+      const id = `early_cat_${cat.key}`;
+      const wrap = document.createElement('label');
+      wrap.style.display = 'flex'; wrap.style.alignItems = 'center'; wrap.style.gap = '8px'; wrap.style.margin = '6px 0';
+      const input = document.createElement('input'); input.type = 'checkbox'; input.id = id; input.value = cat.key;
+      if (saved.includes(cat.key)) input.checked = true;
+      const span = document.createElement('span'); span.textContent = cat.label || cat.key;
+      wrap.appendChild(input);
+      if (cat.icon) {
+        const img = document.createElement('img'); img.src = cat.icon; img.alt = ''; img.style.width = '22px'; img.style.height = '22px'; img.style.marginRight = '6px'; wrap.insertBefore(img, input);
+      }
+      wrap.appendChild(span);
+      ul.appendChild(wrap);
+    });
+    container.appendChild(ul);
+  };
+
+  renderSection('Dogodki', events);
+  renderSection('Storitve', services);
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  // auto-render if on premium page
+  const el = document.getElementById('earlyNotifyCategoryList');
+  if (!el) return;
+  const saved = (() => { try { return JSON.parse(localStorage.getItem('ng_early_notify_categories') || '{}')?.categories || []; } catch { return []; } })();
+  buildEarlyNotifyCategoryList(Array.isArray(saved) ? saved : []);
+});
+
+document.addEventListener('neargo:categories-ready', () => {
+  const el = document.getElementById('earlyNotifyCategoryList');
+  if (!el) return;
+  const saved = (() => { try { return JSON.parse(localStorage.getItem('ng_early_notify_categories') || '{}')?.categories || []; } catch { return []; } })();
+  buildEarlyNotifyCategoryList(Array.isArray(saved) ? saved : []);
+});
+
 const EARLY_NOTIFY_SERVICE_CATEGORIES = (() => {
   const list = getCategoryList('services');
   return Array.isArray(list) && list.length ? list : [

@@ -150,35 +150,40 @@ input[type=range]{accent-color:#7cdbe9; height:28px; width:100%}
   display:inline-flex;
   align-items:center;
   gap:8px;
-  padding:8px 14px;
+  padding:8px 16px;
   border-radius:999px;
   background:var(--chip);
   border:1px solid var(--chipborder);
   color:var(--muted);
   font-weight:800;
-  font-size:13px;
+  font-size:14px;
   line-height:1;
   transition:background .2s ease, color .2s ease, border .2s ease, transform .15s ease;
   cursor:pointer;
   position:relative;
   white-space:nowrap;
 }
-.cat-chip:hover{ transform:translateY(-1px); border-color:var(--primary); }
+.cat-chip:hover{
+  transform:translateY(-1px);
+  border-color:var(--primary);
+}
 .cat-chip img,
 .cat-chip .cat-emoji{
   width:20px;
   height:20px;
   display:block;
+  flex-shrink:0;
 }
-.cat-chip .cat-emoji{ line-height:1; font-size:18px; }
+.cat-chip .cat-emoji{
+  line-height:20px;
+  font-size:18px;
+}
 .cat-chip .cat-label{
-  display:none;
-  font-size:13px;
+  display:inline;
+  font-size:14px;
   font-weight:800;
   color:var(--muted);
 }
-.cat-chip.show-label .cat-label,
-.cat-chip.active .cat-label{ display:inline; }
 .cat-chip.active{
   background:var(--primary);
   border-color:transparent;

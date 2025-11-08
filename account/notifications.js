@@ -259,19 +259,62 @@ const savePreferences = async () => {
 };
 
 const bindTypeSwitch = () => {
-	const radios = document.querySelectorAll('input[name="type"]');
-	radios.forEach((radio) => {
-		radio.addEventListener('change', (ev) => {
-			if (!ev.target.checked) return;
-			state.type = ev.target.value === 'services' ? 'services' : 'events';
+	// Use nicer toggle buttons (replaces radio inputs)
+	const btns = document.querySelectorAll('.type-btn');
+	btns.forEach((b)=>{
+		b.addEventListener('click', ()=>{
+			btns.forEach(x=>x.classList.remove('active'));
+			b.classList.add('active');
+			state.type = b.dataset.value === 'services' ? 'services' : 'events';
 			state.mainSelected = '';
 			renderMainCategories();
+			populateMainSelect();
+			populateSubSelect();
 		});
 	});
-	const checked = document.querySelector('input[name="type"]:checked');
-	if (checked) state.type = checked.value === 'services' ? 'services' : 'events';
+	// initial
 	renderMainCategories();
 };
+
+// populate the quick main category <select>
+function populateMainSelect(){
+	const sel = document.getElementById('mainCategorySelect');
+	if (!sel) return;
+	sel.innerHTML = '';
+	const list = state.type === 'services' ? SERVICE_CATEGORIES : EVENT_CATEGORIES;
+	list.forEach((c)=>{
+		const opt = document.createElement('option');
+		opt.value = c.key; opt.textContent = c.label;
+		sel.appendChild(opt);
+	});
+	// set current
+	try{ sel.value = state.mainSelected || list[0]?.key || ''; }catch{}
+}
+
+// populate the subcategory multi-select
+function populateSubSelect(){
+	const sel = document.getElementById('subCategorySelect');
+	if (!sel) return;
+	sel.innerHTML = '';
+	const subs = getSubcategories(state.type, state.mainSelected) || [];
+	subs.forEach((s)=>{
+		const opt = document.createElement('option'); opt.value = s.key; opt.textContent = s.label; sel.appendChild(opt);
+	});
+	// mark selected ones
+	Array.from(sel.options).forEach(o=>{ o.selected = state.selected.has(o.value); });
+}
+
+// bind select change handlers
+function bindSelectHandlers(){
+	const mainSel = document.getElementById('mainCategorySelect');
+	const subSel = document.getElementById('subCategorySelect');
+	if (mainSel){ mainSel.addEventListener('change',(e)=>{ state.mainSelected = e.target.value; renderSubcategories(); populateSubSelect(); }); }
+	if (subSel){ subSel.addEventListener('change',(e)=>{
+		const chosen = Array.from(e.target.selectedOptions).map(o=>o.value).slice(0,2);
+		state.selected = new Set(chosen);
+		renderSubcategories();
+	}); }
+}
 
 // ===== Premium gating + monthly quota handling =====
 const getMonthlyKey = () => {
@@ -395,6 +438,9 @@ document.addEventListener('DOMContentLoaded', () => {
 	updateMonthlyCounter();
 	initMap();
 	bindMapControls();
+	populateMainSelect();
+	populateSubSelect();
+	bindSelectHandlers();
 });
 
 // ===== Monthly notifications counter (X/25) =====

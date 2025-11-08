@@ -255,11 +255,10 @@ function renderCategoryChips() {
       btn.setAttribute('aria-pressed', 'false');
 
       // icon (prefer image) + label
-      const imgHtml = cat.icon ? `<img src="${cat.icon}" alt="" loading="lazy">` : `<span class="cat-emoji" aria-hidden="true" style="font-size:1.6em;line-height:1;">${cat.emoji || '🏷️'}</span>`;
-      btn.innerHTML = `
-        ${imgHtml}
-        <span class="cat-label">${cat.label || cat.key}</span>
-      `;
+      const imgHtml = cat.icon
+        ? `<img src="${cat.icon}" alt="" loading="lazy">`
+        : `<span class="cat-emoji" aria-hidden="true">${cat.emoji || '🏷️'}</span>`;
+      btn.innerHTML = `${imgHtml}<span class="cat-label">${cat.label || cat.key}</span>`;
       btn.addEventListener('mouseenter', () => toggleChipLabel(btn, true));
       btn.addEventListener('mouseleave', () => toggleChipLabel(btn, false));
       btn.addEventListener('focus', () => toggleChipLabel(btn, true));
@@ -806,8 +805,6 @@ async function doSearch(page=0, byGeo=false){
           const emoji = document.createElement('span');
           emoji.className = 'cat-emoji';
           emoji.textContent = cat.emoji || '🏷️';
-          emoji.style.fontSize = '1.6em';
-          emoji.style.lineHeight = '1';
           btn.appendChild(emoji);
         }
 

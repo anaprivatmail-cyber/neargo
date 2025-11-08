@@ -147,27 +147,38 @@ input[type=range]{accent-color:#7cdbe9; height:28px; width:100%}
 
 /* Category chips */
 .cat-chip{
-  min-width:56px;
-  min-height:56px;
-  padding:10px 14px;
-  display:flex;
-  flex-direction:column;
+  display:inline-flex;
   align-items:center;
-  justify-content:center;
-  gap:4px;
-  border-radius:18px;
+  gap:8px;
+  padding:8px 14px;
+  border-radius:999px;
   background:var(--chip);
   border:1px solid var(--chipborder);
   color:var(--muted);
   font-weight:800;
+  font-size:13px;
+  line-height:1;
   transition:background .2s ease, color .2s ease, border .2s ease, transform .15s ease;
   cursor:pointer;
   position:relative;
+  white-space:nowrap;
 }
 .cat-chip:hover{ transform:translateY(-1px); border-color:var(--primary); }
-.cat-chip img{ width:28px; height:28px; display:block; }
-.cat-chip .cat-label{ font-size:12px; font-weight:800; color:var(--muted); display:none; text-align:center; line-height:1.25; }
-.cat-chip.show-label .cat-label{ display:block; }
+.cat-chip img,
+.cat-chip .cat-emoji{
+  width:20px;
+  height:20px;
+  display:block;
+}
+.cat-chip .cat-emoji{ line-height:1; font-size:18px; }
+.cat-chip .cat-label{
+  display:none;
+  font-size:13px;
+  font-weight:800;
+  color:var(--muted);
+}
+.cat-chip.show-label .cat-label,
+.cat-chip.active .cat-label{ display:inline; }
 .cat-chip.active{
   background:var(--primary);
   border-color:transparent;

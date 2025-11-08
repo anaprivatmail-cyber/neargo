@@ -337,7 +337,8 @@ const updateQuotaInfo = () => {
 	const disabled = document.getElementById('changesDisabled');
 	const q = loadMonthlyQuota();
 	const left = Math.max(0, 5 - Number(q.changes||0));
-	if (info) info.textContent = `Preostale menjave kategorij/lokacije ta mesec: ${left} (max 5)`;
+	if (info) info.textContent = `Preostale menjave: ${left}`;
+	const numSpan = document.getElementById('quotaNumber'); if(numSpan) numSpan.textContent = left;
 	if (disabled) disabled.style.display = left<=0 ? 'block' : 'none';
 };
 const canChangeCategories = () => {
@@ -350,6 +351,7 @@ const markCategoryChange = () => {
 	saveMonthlyQuota(cur);
 	updateQuotaInfo();
 };
+// Override to decrement remaining directly used in UI (already shows remaining via updateQuotaInfo)
 
 // ===== Map (Leaflet) limited to 50km radius =====
 function initMap(){
@@ -367,7 +369,7 @@ function initMap(){
 }
 function getRadius(){
 	const r = Number(document.getElementById('notifRadius')?.value||25);
-	return Math.max(1, Math.min(100, r));
+	return Math.max(1, Math.min(50, r));
 }
 function bindMapControls(){
 	const radius = document.getElementById('notifRadius');
@@ -378,17 +380,20 @@ function bindMapControls(){
 	['input','change','pointerup','touchend'].forEach((ev)=> radius?.addEventListener(ev, upd));
 	upd();
 	gps?.addEventListener('click', ()=>{
+		const was = gps.classList.contains('active');
+		gps.classList.toggle('active');
+		if(was) return; // toggle off does nothing
 		if(!navigator.geolocation) return;
 		navigator.geolocation.getCurrentPosition((p)=>{
 			const lat=p.coords.latitude, lon=p.coords.longitude;
-				try{ state.map.setView([lat,lon],11); state.marker.setLatLng([lat,lon]); state.circle.setLatLng([lat,lon]); }catch{}
-				const loc = document.getElementById('notifLocation'); if (loc) loc.value = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+			try{ state.map.setView([lat,lon],11); state.marker.setLatLng([lat,lon]); state.circle.setLatLng([lat,lon]); handleRadiusHandle(); }catch{}
+			const loc = document.getElementById('notifLocation'); if (loc) loc.value = `${lat.toFixed(5)},${lon.toFixed(5)}`;
 		});
 	});
 	reset?.addEventListener('click', ()=>{
 		try{ state.map.setView([46.05,14.51],7); state.marker.setLatLng([46.05,14.51]); state.circle.setLatLng([46.05,14.51]); }catch{}
 		const loc = document.getElementById('notifLocation'); if(loc) loc.value='';
-		const r = document.getElementById('notifRadius'); if(r){ r.value=25; lbl.textContent='25 km'; try{ state.circle?.setRadius(25*1000); handleRadiusHandle(); }catch{} }
+		const r = document.getElementById('notifRadius'); if(r){ r.value=25; lbl.textContent='25 km (premer 50 km)'; try{ state.circle?.setRadius(25*1000); handleRadiusHandle(); }catch{} }
 	});
 }
 
@@ -448,11 +453,11 @@ function handleRadiusHandle(){
 
 function gatePremium(){
 	const isPremium = !!(window.IS_PREMIUM);
-	const nonBox = document.getElementById('nonPremiumBox');
+	const nonBox = document.getElementById('nonPremiumInline');
 	const form = document.getElementById('notifyForm');
 	if (!form) return;
 	if (!isPremium){
-		form.querySelectorAll('input,button,select,textarea').forEach(el=>{ el.disabled=true; });
+		// Keep interactive look but block on action
 		if (nonBox) nonBox.style.display='block';
 	}else{
 		if (nonBox) nonBox.style.display='none';

@@ -45,7 +45,8 @@
     .btn.secondary:hover{background:#0aa5c1}
   .btn.small{padding:8px 12px;border-radius:10px;font-size:14px}
   .type-btn{background:linear-gradient(180deg,#f7fdff,#e6fbff);color:#064c56;border:1px solid rgba(11,187,214,0.15);box-shadow:0 6px 20px rgba(11,187,214,0.06);font-weight:900}
-  .type-btn.active{background:linear-gradient(180deg,#0bbbd6,#07aab8);color:#fff;border-color:transparent;box-shadow:0 8px 26px rgba(11,187,214,0.18)}
+  .type-btn.active.type-events{background:linear-gradient(180deg,#0bbbd6,#07aab8);color:#fff;border-color:transparent;box-shadow:0 8px 26px rgba(11,187,214,0.18)}
+  .type-btn.active.type-services{background:linear-gradient(180deg,#ff7b7b,#ff5b5b);color:#fff;border-color:transparent;box-shadow:0 8px 26px rgba(255,107,107,0.18)}
     .quota{font-size:.8em;font-weight:800;margin-top:6px;color:#0bbbd6}
     .disabled-note{color:#d64c4c;font-weight:800;font-size:.8em;margin-top:6px}
   select{font-size:15px}
@@ -64,85 +65,79 @@
       </svg>
       <span>NearGo</span>
     </a>
-    <div style="flex:1"></div>
-    <a href="/premium.html" id="premiumLink" class="btn secondary" style="padding:8px 14px;font-size:13px;border-radius:10px;">Premium</a>
+  <div style="flex:1"></div>
   </header>
   <main>
-    <div class="card" id="introCard">
+    <div class="card" id="introCard" style="margin-top:6px">
       <h1>Predhodna obvestila</h1>
-      <ul class="muted" style="margin:8px 0 0 18px; padding:0; line-height:1.4; font-size:.96em">
-        <li><b>15 minut prej</b> kot ostali</li>
-        <li><b>Prvi do novih ponudb</b>, tudi brezplačnih promo akcij</li>
-        <li><b>Po tvoji lokaciji</b> in <b>interesih</b></li>
+      <ul class="benefits" style="list-style:none;margin:6px 0 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:.9em;font-weight:600">
+        <li style="display:flex;align-items:center;gap:8px"><span style="background:#0bbbd6;color:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:700">15′</span><span>Informacija <b>15 minut prej</b> kot ostali</span></li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="background:#ff6b6b;color:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:700">★</span><span><b>Prvi</b> do novih ponudb & promocij</span></li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="background:#23c98b;color:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:700">📍</span><span>Po tvoji <b>lokaciji</b> in <b>interesih</b></span></li>
       </ul>
-      <div class="benefit" style="margin-top:10px">⚡ Hitreje • 🎯 Relevantno • 🗺️ Lokalno</div>
-      <div class="muted" style="font-size:.86em;margin-top:8px">Pridržujemo si pravico, da obvestila ne pošljemo, če v izbrani kategoriji v tem mesecu ni ustreznih ponudb.</div>
-      <div id="nonPremiumBox" class="upgrade-box" style="display:none">Za aktivacijo predhodnih obvestil nadgradi račun v <a href="/premium.html" style="color:#d64c4c;text-decoration:underline;font-weight:900">Premium</a>.</div>
-      <div id="quotaInfo" class="quota">Preostale menjave ta mesec: …</div>
-  <div id="monthlyNotifCount" class="quota" style="display:none">Obvestila ta mesec: …</div>
-      <div id="changesDisabled" class="disabled-note" style="display:none">Dosežena omejitev 5 menjav kategorij v tem mesecu.</div>
+      <div class="muted" style="font-size:.78em;margin-top:6px;font-weight:600">Pridržujemo si pravico, da obvestila ne pošljemo, če v izbrani kategoriji v tem mesecu ni ponudb.</div>
     </div>
 
-  <form id="notifyForm" class="card" aria-labelledby="introCard">
+  <form id="notifyForm" class="card" aria-labelledby="introCard" style="margin-top:10px">
+      <div id="quotaLine" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:-4px 0 10px 0">
+        <div id="quotaInfo" class="quota" style="margin-top:0">Preostale menjave: <span id="quotaNumber">5</span></div>
+        <div id="monthlyNotifCount" class="quota" style="display:none;margin-top:0">Obvestila ta mesec: …</div>
+        <div id="premiumCycle" class="muted" style="font-size:.7em;display:none">Premium začetek: <span id="premiumStartDate">—</span></div>
+      </div>
       <fieldset>
         <legend>1. Tip ponudb</legend>
         <div id="typeToggle" style="display:flex;gap:12px;flex-wrap:wrap">
-          <button type="button" data-value="events" class="btn small type-btn active">Dogodki</button>
-          <button type="button" data-value="services" class="btn small type-btn">Storitve</button>
+          <button type="button" data-value="events" class="btn small type-btn type-events active">Dogodki</button>
+          <button type="button" data-value="services" class="btn small type-btn type-services">Storitve</button>
         </div>
       </fieldset>
       <fieldset>
-        <legend>2. Glavna kategorija</legend>
+        <legend>2. Kategorija</legend>
         <div style="display:flex;gap:12px;flex-direction:column">
           <div id="mainCats" class="chips" role="list"></div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <label style="font-weight:700;font-size:13px">Seznam kategorij (hitri izbor):</label>
-            <select id="mainCategorySelect" style="min-width:220px;padding:8px;border-radius:8px;border:1px solid var(--chipborder,#cfe1ee)"></select>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label style="font-weight:700;font-size:13px">Kategorija:</label>
+            <select id="mainCategorySelect" style="min-width:180px;padding:8px;border-radius:8px;border:1px solid var(--chipborder,#cfe1ee)"></select>
+            <label style="font-weight:700;font-size:13px">Podkategorije:</label>
+            <select id="subCategorySelect" multiple size="4" style="min-width:180px;padding:8px;border-radius:8px;border:1px solid var(--chipborder,#cfe1ee)" aria-describedby="subHelp"></select>
+            <span id="subHelp" class="muted" style="font-size:.7em">(max 2)</span>
           </div>
+          <div id="subCats" class="chips" style="margin-top:8px"></div>
+          <div id="selectedWrap" class="sel-box" aria-live="polite"></div>
         </div>
       </fieldset>
-      <div class="subwrap" id="subWrap" style="display:none">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <strong style="font-size:.85em">Podkategorije</strong>
-          <span class="muted" style="font-size:.75em">(izberi do 2 skupaj – dogodki ali storitve)</span>
-        </div>
-        <div id="subCats" class="chips" style="margin-top:8px"></div>
-        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
-          <label style="font-weight:700;font-size:13px">Podkategorije (spustni seznam):</label>
-          <select id="subCategorySelect" multiple size="4" style="min-width:220px;padding:8px;border-radius:8px;border:1px solid var(--chipborder,#cfe1ee)"></select>
-          <div class="muted" style="font-size:.8em">(Izberi do 2)</div>
-        </div>
-      </div>
       <fieldset>
-        <legend>3. Izbrane podkategorije</legend>
-        <div id="selectedWrap" class="sel-box" aria-live="polite"></div>
-      </fieldset>
-      <fieldset>
-        <legend>4. Lokacija</legend>
-        <label class="input">Iskalni kraj (opcijsko)
+        <legend>3. Lokacija</legend>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <button type="button" class="btn secondary small" id="btnMapPick">Zemljevid</button>
+          <button type="button" class="btn secondary small" id="btnUseGPS">Moja lokacija</button>
+          <button type="button" class="btn secondary small" id="btnResetLoc">Počisti</button>
+        </div>
+        <label class="input" style="margin-top:0">Mesto / kraj
           <input id="notifLocation" type="text" placeholder="npr. Ljubljana" autocomplete="off">
-        </label>
-        <label class="input">Telefonska številka (za SMS obvestila – opcijsko)
-          <input id="notifPhone" type="text" inputmode="tel" pattern="[0-9 +()-]{6,}" placeholder="npr. +38640111222" autocomplete="tel">
         </label>
         <div class="map-tools">
           <div style="flex:1;min-width:120px">
             <label class="input" style="margin-top:0">Polmer (km)
-              <input id="notifRadius" type="range" min="1" max="100" step="1" value="25" aria-label="Polmer obveščanja v kilometrih">
+              <input id="notifRadius" type="range" min="1" max="50" step="1" value="25" aria-label="Polmer obveščanja v kilometrih">
             </label>
-            <div class="muted" id="radiusLbl" style="font-size:.75em;font-weight:800;margin-top:-4px">25 km</div>
+            <div class="muted" id="radiusLbl" style="font-size:.75em;font-weight:800;margin-top:-4px">25 km (premer 50 km)</div>
           </div>
-          <button type="button" class="btn secondary" id="btnUseGPS" style="padding:10px 14px;font-size:13px">Moja lokacija</button>
-          <button type="button" class="btn secondary" id="btnResetLoc" style="padding:10px 14px;font-size:13px">Počisti</button>
         </div>
         <div id="earlyMap"></div>
-        
+      </fieldset>
+      <fieldset>
+        <legend>4. Kontakt (opcijsko)</legend>
+        <label class="input" style="margin-top:0">Telefonska številka (SMS)
+          <input id="notifPhone" type="text" inputmode="tel" pattern="[0-9 +()-]{6,}" placeholder="npr. +38640111222" autocomplete="tel">
+        </label>
       </fieldset>
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
         <button id="saveNotify" class="btn" type="submit">Shrani nastavitve</button>
         <button id="btnClear" class="btn secondary" type="button">Ponastavi</button>
       </div>
       <div id="notifyMsg" class="muted" style="margin-top:8px"></div>
+      <div id="nonPremiumInline" class="upgrade-box" style="display:none">Za aktivacijo nadgradi v <a href="/premium.html" style="color:#d64c4c;text-decoration:underline;font-weight:900">Premium</a>.</div>
     </form>
   </main>
   <script type="module" src="/account/notifications.js"></script>

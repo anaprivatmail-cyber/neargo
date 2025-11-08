@@ -25,11 +25,15 @@ export const handler = async (event) => {
     if (!email) return bad("missing_email");
 
     // Premium flag (active if premium_users has future premium_until or 'premium' ticket exists)
-    let isPremium = false;
+  let isPremium = false;
+  let premiumUntil = null;
     try{
       const nowIso = new Date().toISOString();
       const { data: pu } = await supa.from('premium_users').select('email,premium_until').eq('email', email).maybeSingle();
-      if (pu && pu.premium_until && new Date(pu.premium_until).getTime() > Date.now()) isPremium = true;
+      if (pu && pu.premium_until){
+        premiumUntil = pu.premium_until;
+        if (new Date(pu.premium_until).getTime() > Date.now()) isPremium = true;
+      }
     }catch{}
     if (!isPremium){
       try{ const { count } = await supa.from('tickets').select('*',{head:true, count:'exact'}).eq('customer_email', email).eq('type','premium'); isPremium = (count||0) > 0; }catch{}
@@ -43,7 +47,7 @@ export const handler = async (event) => {
       .order("issued_at", { ascending:false });
 
     if (error) return bad("db_error: "+error.message, 500);
-  if (!tickets?.length) return ok({ ok:true, items: [], premium: isPremium });
+  if (!tickets?.length) return ok({ ok:true, items: [], premium: isPremium, premium_until: premiumUntil });
 
     // 2) Basic info o dogodkih (slika, naslov, kje/kdaj)
     const eids = [...new Set(tickets.map(t => t.event_id).filter(Boolean))];
@@ -74,7 +78,7 @@ export const handler = async (event) => {
       };
     });
 
-    return ok({ ok:true, items, premium: isPremium });
+  return ok({ ok:true, items, premium: isPremium, premium_until: premiumUntil });
   }catch(e){
     return bad(String(e?.message || e), 500);
   }

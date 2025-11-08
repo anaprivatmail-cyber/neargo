@@ -11,7 +11,6 @@
   <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#0bbbd6">
-  <link rel="stylesheet" href="/assets/app.css">
   <script>
     window.SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
@@ -433,10 +432,6 @@
         <span style="font-size:14px;">V živo: <span id="liveCount">0</span></span>
         <button class="btn mini link" id="btnShowLiveMap" style="background:#11a67a;color:#fff;padding:3px 8px;font-size:12px;border-radius:7px;box-shadow:none;">Zemljevid</button>
       </div>
-      <div id="earlyNotifyPromo" style="margin-top:8px;display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--accent-light);border-radius:10px;box-shadow:0 2px 8px rgba(255,107,107,.12);font-weight:700;color:var(--accent);font-size:1em;max-width:260px;border:1px solid rgba(255,107,107,0.2);">
-        <span style="font-size:16px;">🔔</span>
-        <span style="font-size:14px;">Premium obvestila: Bodite prvi obveščeni!</span>
-      </div>
     </section>
 
     <!-- Izpostavljeno -->
@@ -518,31 +513,326 @@
           if (!wrap) return;
 
           var fallbackEvents = [
-            { key: 'koncerti', label: 'Koncerti', emoji: '🎸' },
-            { key: 'kulinarika', label: 'Kulinarika', emoji: '🍽️' },
-            { key: 'kultura-umetnost', label: 'Kultura & umetnost', emoji: '🎨' },
-            { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧸' },
-            { key: 'sport-tekmovanja', label: 'Šport & tekmovanja', emoji: '⚽' },
-            { key: 'outdoor-narava', label: 'Outdoor & narava', emoji: '🏞️' },
-            { key: 'ucenje-skill', label: 'Učenje & skill', emoji: '💡' },
-            { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
-            { key: 'posel-networking', label: 'Posel & networking', emoji: '🧑‍💼' },
-            { key: 'ostalo', label: 'Ostalo', emoji: '✨' }
+            {
+              key: 'koncerti',
+              label: 'Koncerti',
+              emoji: '🎸',
+              icon: '/assets/icons/guitar.svg',
+              sub: [
+                { key: 'rock-alternativa', label: 'Rock & alternativa' },
+                { key: 'pop-mainstream', label: 'Pop & mainstream' },
+                { key: 'jazz-blues', label: 'Jazz & blues' },
+                { key: 'klasicna-opera', label: 'Klasična & opera' },
+                { key: 'klub-vecer', label: 'Klub večer' },
+                { key: 'koncert-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'kulinarika',
+              label: 'Kulinarika',
+              emoji: '🍽️',
+              icon: '/assets/icons/food.svg',
+              sub: [
+                { key: 'degustacije', label: 'Degustacije' },
+                { key: 'tematski-veceri', label: 'Tematski večeri' },
+                { key: 'chef-meni', label: 'Chef meni' },
+                { key: 'gostilna-tedni', label: 'Gostilna tedni' },
+                { key: 'ulicni-okusi', label: 'Ulični okusi' },
+                { key: 'kulinarika-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'kultura-umetnost',
+              label: 'Kultura & umetnost',
+              emoji: '🎨',
+              icon: '/assets/icons/culture.svg',
+              sub: [
+                { key: 'gledalisce', label: 'Gledališče' },
+                { key: 'razstave-muzeji', label: 'Razstave & muzeji' },
+                { key: 'film-kino', label: 'Film & kino' },
+                { key: 'literatura-pogovori', label: 'Literatura & pogovori' },
+                { key: 'stand-up', label: 'Stand-up' },
+                { key: 'kultura-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'druzina-otroci',
+              label: 'Družina & otroci',
+              emoji: '🧸',
+              icon: '/assets/icons/family.svg',
+              sub: [
+                { key: 'ustvarjalne-delavnice', label: 'Ustvarjalne delavnice' },
+                { key: 'otroske-predstave', label: 'Otroške predstave' },
+                { key: 'druzenski-izleti', label: 'Družinski izleti' },
+                { key: 'varstvo-na-dogodkih', label: 'Varstvo na dogodkih' },
+                { key: 'druzina-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'sport-tekmovanja',
+              label: 'Šport & tekmovanja',
+              emoji: '⚽',
+              icon: '/assets/icons/sport.svg',
+              sub: [
+                { key: 'rekreativni-teki', label: 'Rekreativni teki' },
+                { key: 'ekipni-turnirji', label: 'Ekipni turnirji' },
+                { key: 'fit-izzivi', label: 'Fit izzivi' },
+                { key: 'joga-mindfulness', label: 'Joga & mindfulness' },
+                { key: 'solski-sport', label: 'Šolski šport' },
+                { key: 'sport-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'outdoor-narava',
+              label: 'Outdoor & narava',
+              emoji: '🏞️',
+              icon: '/assets/icons/nature.svg',
+              sub: [
+                { key: 'pohodi-treking', label: 'Pohodi & treking' },
+                { key: 'kampiranje-glamping', label: 'Kampiranje & glamping' },
+                { key: 'vodni-sporti', label: 'Vodni športi' },
+                { key: 'naravoslovni-ogledi', label: 'Naravoslovni ogledi' },
+                { key: 'kmetije-dozivetja', label: 'Kmetije doživetja' },
+                { key: 'outdoor-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'ucenje-skill',
+              label: 'Učenje & skill',
+              emoji: '💡',
+              icon: '/assets/icons/learn.svg',
+              sub: [
+                { key: 'karierni-pospesek', label: 'Karierni pospešek' },
+                { key: 'tech-digital', label: 'Tech & digital' },
+                { key: 'kreativne-delavnice', label: 'Kreativne delavnice' },
+                { key: 'jezikovni-tecaji', label: 'Jezikovni tečaji' },
+                { key: 'starsevski-coaching', label: 'Starševski coaching' },
+                { key: 'ucenje-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'dom-vrt',
+              label: 'Dom & vrt',
+              emoji: '🏡',
+              icon: '/assets/icons/home-garden.svg',
+              sub: [
+                { key: 'diy-delavnice', label: 'DIY delavnice' },
+                { key: 'vrtnarski-dnevi', label: 'Vrtnarski dnevi' },
+                { key: 'pametni-dom', label: 'Pametni dom' },
+                { key: 'notranje-oblikovanje', label: 'Notranje oblikovanje' },
+                { key: 'trajnostni-projekti', label: 'Trajnostni projekti' },
+                { key: 'dom-vrt-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'posel-networking',
+              label: 'Posel & networking',
+              emoji: '🧑‍💼',
+              icon: '/assets/icons/service.svg',
+              sub: [
+                { key: 'konference', label: 'Konference' },
+                { key: 'startup-pitch', label: 'Startup pitch' },
+                { key: 'b2b-meetupi', label: 'B2B meetupi' },
+                { key: 'korporativni-forumi', label: 'Korporativni forumi' },
+                { key: 'produktni-launch', label: 'Produktni launch' },
+                { key: 'posel-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'ostalo',
+              label: 'Ostalo',
+              emoji: '✨',
+              icon: '/assets/icons/other.svg',
+              sub: [
+                { key: 'afterwork-druzenja', label: 'Afterwork druženja' },
+                { key: 'pub-kvizi', label: 'Pub kvizi' },
+                { key: 'dobrodelne-akcije', label: 'Dobrodelne akcije' },
+                { key: 'lokalna-skupnost', label: 'Lokalna skupnost' },
+                { key: 'sezonski-dogodki', label: 'Sezonski dogodki' },
+                { key: 'ostalo-ostalo', label: 'Ostalo' }
+              ]
+            }
           ];
           var fallbackServices = [
-            { key: 'lepota', label: 'Lepota', emoji: '✂️' },
-            { key: 'nega-kozmetika', label: 'Nega & kozmetika', emoji: '💆' },
-            { key: 'wellness', label: 'Wellness', emoji: '🧖' },
-            { key: 'zdravje', label: 'Zdravje', emoji: '🩺' },
-            { key: 'trening', label: 'Trening', emoji: '🏋️' },
-            { key: 'kulinarika-catering', label: 'Kulinarika & catering', emoji: '🍲' },
-            { key: 'dom-vrt', label: 'Dom & vrt', emoji: '🏡' },
-            { key: 'avto', label: 'Avto', emoji: '🚗' },
-            { key: 'druzina-otroci', label: 'Družina & otroci', emoji: '🧑‍👧' },
-            { key: 'poslovne', label: 'Poslovne storitve', emoji: '📈' },
-            { key: 'izobrazevanje', label: 'Izobraževanje & mentoring', emoji: '📚' },
-            { key: 'ljubljencki', label: 'Ljubljenčki', emoji: '🐾' },
-            { key: 'ostalo', label: 'Ostalo', emoji: '🌈' }
+            {
+              key: 'lepota',
+              label: 'Lepota',
+              emoji: '✂️',
+              icon: '/assets/icons/beauty.svg',
+              sub: [
+                { key: 'frizerji-barber', label: 'Frizerji & barber' },
+                { key: 'licenje-videzi', label: 'Ličenje & posebni videzi' },
+                { key: 'stilsko-svetovanje', label: 'Stilsko svetovanje' },
+                { key: 'lepota-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'nega-kozmetika',
+              label: 'Nega & kozmetika',
+              emoji: '💆',
+              icon: '/assets/icons/beauty.svg',
+              sub: [
+                { key: 'nega-obraza', label: 'Nega obraza & lash/brow' },
+                { key: 'manikura-pedikura', label: 'Manikura & pedikura' },
+                { key: 'tretmaji-telesa', label: 'Tretmaji telesa' },
+                { key: 'estetski-posegi', label: 'Estetski posegi' },
+                { key: 'aparaturne-terapije', label: 'Aparaturne terapije' },
+                { key: 'nega-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'wellness',
+              label: 'Wellness',
+              emoji: '🧖',
+              icon: '/assets/icons/wellness.svg',
+              sub: [
+                { key: 'masaze', label: 'Masaže' },
+                { key: 'savne-rituali', label: 'Savne & rituali' },
+                { key: 'spa-razvajanja', label: 'Spa razvajanja' },
+                { key: 'mindfulness-programi', label: 'Mindfulness programi' },
+                { key: 'wellness-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'zdravje',
+              label: 'Zdravje',
+              emoji: '🩺',
+              icon: '/assets/icons/health.svg',
+              sub: [
+                { key: 'fizioterapija', label: 'Fizioterapija' },
+                { key: 'psihoterapija-coaching', label: 'Psihoterapija & coaching' },
+                { key: 'nutricionistika', label: 'Nutricionistika' },
+                { key: 'zobozdravstvo', label: 'Zobozdravstvo' },
+                { key: 'alternativne-terapije', label: 'Alternativne terapije' },
+                { key: 'zdravje-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'trening',
+              label: 'Trening',
+              emoji: '🏋️',
+              icon: '/assets/icons/fit.svg',
+              sub: [
+                { key: 'osebni-trenerji', label: 'Osebni trenerji' },
+                { key: 'skupinske-vadbe', label: 'Skupinske vadbe' },
+                { key: 'joga-pilates', label: 'Joga & pilates' },
+                { key: 'outdoor-kondicija', label: 'Outdoor kondicija' },
+                { key: 'fitnes-centri', label: 'Fitnes centri' },
+                { key: 'trening-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'kulinarika-catering',
+              label: 'Kulinarika & catering',
+              emoji: '🍲',
+              icon: '/assets/icons/food.svg',
+              sub: [
+                { key: 'catering', label: 'Catering' },
+                { key: 'privatni-kuhar', label: 'Privatni kuhar' },
+                { key: 'tematski-meni', label: 'Tematski meni' },
+                { key: 'degustacije-storitve', label: 'Degustacije' },
+                { key: 'slascicarne', label: 'Slaščičarne' },
+                { key: 'specialne-ponudbe', label: 'Specialne ponudbe' },
+                { key: 'kulinarika-catering-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'dom-vrt',
+              label: 'Dom & vrt',
+              emoji: '🏡',
+              icon: '/assets/icons/home-garden.svg',
+              sub: [
+                { key: 'ciscenje', label: 'Čiščenje' },
+                { key: 'gradbena-instalacijska', label: 'Gradbena & instalacijska dela' },
+                { key: 'vzdrzevanje-doma', label: 'Vzdrževanje doma' },
+                { key: 'selitve-prevozi', label: 'Selitve & prevozi' },
+                { key: 'vrtnarjenje', label: 'Vrtnarjenje' },
+                { key: 'dom-vrt-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'avto',
+              label: 'Avto',
+              emoji: '🚗',
+              icon: '/assets/icons/car.svg',
+              sub: [
+                { key: 'servis-vozil', label: 'Servis vozil' },
+                { key: 'gume-vulkanizer', label: 'Gume & vulkanizer' },
+                { key: 'pranje-detailing', label: 'Pranje & detailing' },
+                { key: 'izposoja', label: 'Izposoja' },
+                { key: 'prevozi-po-meri', label: 'Prevozi po meri' },
+                { key: 'avto-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'druzina-otroci',
+              label: 'Družina & otroci',
+              emoji: '🧑‍👧',
+              icon: '/assets/icons/family.svg',
+              sub: [
+                { key: 'varstvo', label: 'Varstvo' },
+                { key: 'dopoldanske-aktivnosti', label: 'Dopoldanske aktivnosti' },
+                { key: 'animatorji', label: 'Animatorji' },
+                { key: 'ucna-pomoc', label: 'Učna pomoč' },
+                { key: 'druzinski-coaching', label: 'Družinski coaching' },
+                { key: 'druzina-storitve-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'poslovne',
+              label: 'Poslovne storitve',
+              emoji: '📈',
+              icon: '/assets/icons/service.svg',
+              sub: [
+                { key: 'racunovodstvo-finance', label: 'Računovodstvo & finance' },
+                { key: 'pravne-storitve', label: 'Pravne storitve' },
+                { key: 'marketing-branding', label: 'Marketing & branding' },
+                { key: 'it-razvoj', label: 'IT podpora & razvoj' },
+                { key: 'hr-recruitment', label: 'HR & recruitment' },
+                { key: 'poslovne-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'izobrazevanje',
+              label: 'Izobraževanje & mentoring',
+              emoji: '📚',
+              icon: '/assets/icons/learn.svg',
+              sub: [
+                { key: 'jezikovni-tecaji-storitve', label: 'Jezikovni tečaji' },
+                { key: 'digitalne-vescine', label: 'Digitalne veščine' },
+                { key: 'umetniski-coaching', label: 'Umetniški coaching' },
+                { key: 'karierni-mentorji', label: 'Karierni mentorji' },
+                { key: 'delavnice-za-podjetja', label: 'Delavnice za podjetja' },
+                { key: 'izobrazevanje-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'ljubljencki',
+              label: 'Ljubljenčki',
+              emoji: '🐾',
+              icon: '/assets/icons/nature.svg',
+              sub: [
+                { key: 'veterinar', label: 'Veterinar' },
+                { key: 'pasji-salon', label: 'Pasji salon' },
+                { key: 'hotel-za-zivali', label: 'Hotel za živali' },
+                { key: 'varstvo-sprehodi', label: 'Varstvo & sprehodi' },
+                { key: 'solanje-ljubljenckov', label: 'Šolanje hišnih ljubljenčkov' },
+                { key: 'ljubljencki-ostalo', label: 'Ostalo' }
+              ]
+            },
+            {
+              key: 'ostalo',
+              label: 'Ostalo',
+              emoji: '🌈',
+              icon: '/assets/icons/other.svg',
+              sub: [
+                { key: 'kreativni-projekti', label: 'Kreativni projekti' },
+                { key: 'digitalne-storitve', label: 'Digitalne storitve' },
+                { key: 'lokalna-podpora', label: 'Lokalna podpora' },
+                { key: 'sezonske-ponudbe', label: 'Sezonske ponudbe' },
+                { key: 'ostalo-ostalo', label: 'Ostalo' }
+              ]
+            }
           ];
 
           function getMode(){
@@ -948,78 +1238,7 @@
       </ul>
     </section>
 
-    <!-- OBRAZEC: Predhodno obveščanje (earlyNotifyForm) -->
-    <section class="card" id="earlyNotifyPanel" style="margin-top:18px;">
-      <div class="title">Premium obvestila – bodite prvi obveščeni!</div>
-      <form id="earlyNotifyForm" style="margin-top:10px;">
-        <label>E-pošta
-          <input type="email" id="earlyNotifyEmail" placeholder="Vaš e-poštni naslov" required>
-        </label>
-        <label style="margin-top:12px;">Kategorije obvestil
-          <div id="earlyNotifyCategories" class="chips" style="margin-top:8px;flex-wrap:wrap;"></div>
-        </label>
-        <button class="btn" type="submit" style="margin-top:14px;">Prijavi se na obvestila</button>
-        <span id="earlyNotifyMsg" class="muted" style="margin-left:10px;"></span>
-      </form>
-    </section>
-
-    <script>
-    // Emoji chips for notification form
-    (function(){
-      var fallback = [
-        { key: 'koncerti', emoji: '🎸', label: 'Koncerti' },
-        { key: 'kulinarika', emoji: '🍽️', label: 'Kulinarika' },
-        { key: 'kultura-umetnost', emoji: '🎨', label: 'Kultura & umetnost' },
-        { key: 'druzina-otroci', emoji: '🧸', label: 'Družina & otroci' },
-        { key: 'sport-tekmovanja', emoji: '⚽', label: 'Šport & tekmovanja' },
-        { key: 'outdoor-narava', emoji: '🏞️', label: 'Outdoor & narava' },
-        { key: 'ucenje-skill', emoji: '💡', label: 'Učenje & skill' },
-        { key: 'posel-networking', emoji: '🧑‍💼', label: 'Posel & networking' }
-      ];
-      var globals = window.NearGoCategories;
-      var cats = (globals && Array.isArray(globals.events) && globals.events.length) ? globals.events : fallback;
-      var wrap = document.getElementById("earlyNotifyCategories");
-      if(!wrap) return;
-      cats.forEach(function(cat){
-        var chip = document.createElement("button");
-        chip.className = "cat-chip cat";
-        chip.type = "button";
-        chip.setAttribute("data-cat", cat.key);
-        var iconHtml = cat.icon ? '<img src="'+cat.icon+'" alt="" loading="lazy">' : '<span class="cat-emoji" aria-hidden="true">'+(cat.emoji || '🏷️')+'</span>';
-        chip.innerHTML = iconHtml + '<span class="cat-label">'+(cat.label || cat.key)+'</span>';
-        chip.addEventListener("mouseenter", function(){ chip.classList.add("show-label"); });
-        chip.addEventListener("mouseleave", function(){ if(!chip.classList.contains("active")) chip.classList.remove("show-label"); });
-        chip.addEventListener("touchstart", function(){ chip.classList.add("show-label"); });
-        chip.addEventListener("touchend", function(){ if(!chip.classList.contains("active")) chip.classList.remove("show-label"); });
-        chip.addEventListener("click", function(){
-          var all = wrap.querySelectorAll(".cat");
-          all.forEach(function(b){ b.classList.remove("active", "show-label"); });
-          chip.classList.add("active", "show-label");
-        });
-        wrap.appendChild(chip);
-      });
-    })();
-    // Notification form submit logic
-    (function(){
-      var form = document.getElementById("earlyNotifyForm");
-      if(!form) return;
-      form.addEventListener("submit", function(ev){
-        ev.preventDefault();
-        var email = document.getElementById("earlyNotifyEmail").value.trim();
-        var catBtn = document.querySelector("#earlyNotifyCategories .cat.active");
-        var cat = catBtn ? catBtn.getAttribute("data-cat") : "";
-        var msg = document.getElementById("earlyNotifyMsg");
-        msg.textContent = "";
-        if(!email){ msg.textContent = "Vnesite e-poštni naslov."; msg.style.color = "var(--bad)"; return; }
-        if(!cat){ msg.textContent = "Izberite kategorijo."; msg.style.color = "var(--bad)"; return; }
-        // Simulate API call
-        setTimeout(function(){
-          msg.textContent = "✅ Prijava uspešna!";
-          msg.style.color = "var(--ok)";
-        }, 800);
-      });
-    })();
-    </script>
+    <!-- OBRAZEC: Predhodno obveščanje premaknjen v profil uporabnika -->
 
     <!-- Zakaj NearGo (organizatorji) -->
     <section class="card panel" id="benefitsOrg" style="display:none">

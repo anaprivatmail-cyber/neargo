@@ -61,10 +61,10 @@ export const CATEGORY_SOURCE = {
     },
     {
       key: 'sport-tekmovanja',
-      label: 'Šport & tekmovanja',
+  label: 'Šport',
       emoji: '⚽',
       icon: 'sport.svg',
-      aliases: ['sport', 'šport', 'rekreacija', 'fit'],
+  aliases: ['sport', 'šport', 'rekreacija', 'fit', 'tekma', 'tekmovanje', 'liga'],
       sub: [
         { key: 'rekreativni-teki', label: 'Rekreativni teki' },
         { key: 'ekipni-turnirji', label: 'Ekipni turnirji' },

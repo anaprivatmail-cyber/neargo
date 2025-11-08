@@ -31,7 +31,7 @@ This file mirrors the canonical category and subcategory definitions used across
   - Družinski izleti
   - Varstvo na dogodkih
   - Ostalo
-- ⚽ **Šport & tekmovanja** (`sport-tekmovanja`)
+- ⚽ **Šport** (`sport-tekmovanja`)
   - Rekreativni teki
   - Ekipni turnirji
   - Fit izzivi

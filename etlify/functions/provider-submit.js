@@ -30,6 +30,44 @@ exports.handler=async(event)=>{
     }else{
       console.log('Provider submission (no GitHub token):', item);
     }
+
+    // === Supabase upsert v offers (minimalno, da geokodiranje in iskanje delujeta) ===
+    try {
+      const { createClient } = require('@supabase/supabase-js');
+      const SUPABASE_URL = process.env.SUPABASE_URL;
+      const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if(SUPABASE_URL && SERVICE_KEY){
+        const supa = createClient(SUPABASE_URL, SERVICE_KEY, { auth:{persistSession:false} });
+        const offerRow = {
+          id: item.id,
+          name: item.name,
+          description: item.description||null,
+          url: item.url||null,
+          start: item.start||null,
+          end: item.end||null,
+            timezone: item.timezone||null,
+          venue_address: item.venue.address||null,
+          venue_city: item.venue.city||null,
+          venue_country: item.venue.country||null,
+          venue_lat: item.venue.lat||null,
+          venue_lon: item.venue.lon||null,
+          categories: item.categories||null,
+          subcategory: (item.categories&&item.categories[0])?String(item.categories[0]).toLowerCase():null,
+          images: item.images||null,
+          price: item.price||null,
+          contact: item.contact||null,
+          source: item.source||null,
+          source_id: item.sourceId||null,
+          publish_at: item.start||null
+        };
+        const { error: upErr } = await supa.from('offers').upsert(offerRow, { onConflict: 'id' });
+        if(upErr){ console.error('[provider-submit] offers upsert error', upErr.message); }
+      } else {
+        console.warn('[provider-submit] Supabase env vars missing, skip offers upsert');
+      }
+    } catch(e){
+      console.error('[provider-submit] Supabase upsert failed', e.message||e);
+    }
     return json({ok:true,result:item});
   }catch(err){ return json({ok:false,error:String(err?.message||err)},500); }
   function json(body,status=200){ return {statusCode:status,headers:CORS,body:JSON.stringify(body)}; }

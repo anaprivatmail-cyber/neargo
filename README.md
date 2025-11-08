@@ -42,4 +42,98 @@ Frontend behavior
 - After successful login/registration, it closes the modal and continues the intended action (e.g. publish panel), avoiding page reloads.
 
 Production reminder: turn `ALLOW_TEST_CODES` off (`false`) in production once providers are fully configured.
+
+## Predhodna obvestila (Premium) – nastavitve
+
+Stran `account/notifications.html` omogoča Premium uporabnikom nastavitev predhodnih obvestil (prejeti ~5 minut pred ostalimi):
+
+- Hierarhija: tip (Dogodki / Storitve) → glavna kategorija → podkategorije.
+- Uporabnik lahko aktivno izbere do 2 podkategoriji skupaj (kombinacija obeh tipov je dovoljena).
+- Omejitev menjav: največ 5 menjav izbranih podkategorij na mesec (shrani se v `localStorage` ključ `ng_notify_quota`).
+- Lokacijski filter: interaktivni Leaflet zemljevid z markerjem in krogom (polmer 3–50 km) + ročni vnos kraja.
+- Shranjevanje: `/.netlify/functions/notifications-prefs-upsert` (polja: `email`, `categories[]`, `location`, `radius`).
+- Branje: `/.netlify/functions/notifications-prefs-get`.
+- Premium gating: če `window.IS_PREMIUM` ni resničen (ali `/api/my` vrne `premium: false`), je obrazec onemogočen in prikaže se CTA za nadgradnjo.
+
+Frontend ključni `localStorage` ključi:
+```
+ng_notify_quota { month:"YYYY-MM", changes:<številka> }
+ng_early_notify_categories { categories:[], location:"", radius: <km> }
+```
+
+Če bo backend podpiral granularno validacijo sprememb, lahko mesečno omejitev premaknemo na strežnik in ob upsertu zavrnemo 6.+ spremembo.
+
+ Cron funkcija `early-notify.js` vsako minuto preveri okno točno 15 minut pred objavo (`publish_at`) in pošlje obvestila glede na `notification_prefs` (podkategorije + geo radij). Mesečna omejitev obvestil na uporabnika je zdaj 25 (env `EARLY_NOTIFY_CAP`, privzeto 25). Omejitev 5 se nanaša le na število sprememb kategorij/lokacije (UI quota v `localStorage`). Backend preveri tudi Premium status (tabela `premium_users` ali kupljena `premium` vstopnica) – če `EARLY_NOTIFY_REQUIRE_PREMIUM` ni `0`, prejmejo predčasna obvestila samo Premium uporabniki.
+
+### SMS in natančno 15-min okno
+
+- Nova kolona v `notification_prefs`: `phone` (text) za SMS. V UI (`account/notifications.html`) je dodano polje za telefonsko številko.
+- `/.netlify/functions/early-notify` teče vsako minuto (cron v `netlify.toml`) in najde ponudbe, katerih `publish_at` je v oknu `[now+15min, now+16min)`.
+- Ob oddaji ponudbe (`/.netlify/functions/provider-submit`) se zapiše minimalni `offers` zapis (če manjka) z `publish_at ≥ now+15min` in takoj se sproži `/.netlify/functions/early-notify-offer?id=<offerId>` za pošiljanje v oknu.
+- Če SMS podatki okolja (Twilio) niso nastavljeni, sistem obvestilo zabeleži (log), da ne pade.
+
+Env spremenljivke:
+
+- `EARLY_NOTIFY_MINUTES` – minute pred objavo (privzeto `15`).
+- `EARLY_NOTIFY_CAP` – max pošiljanj na uporabnika/mesec (privzeto `25`).
+- `EARLY_NOTIFY_REQUIRE_PREMIUM` – če ni `0`, pošilja samo Premium uporabnikom (privzeto vklopljeno).
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` – (opcijsko) SMS pošiljanje.
+
+API bližnjice (redirecti):
+
+- `/api/early-notify` → cron funkcija (1×/min).
+- `/api/early-notify-offer?id=<offerId>` → poslanje za eno ponudbo.
+
+## Geokodiranje ponudb (Offers geo)
+
+Za iskanje po radiju in predhodna obvestila je dodana migracija `sql/migrate_offers_geo.sql`:
+
+Vključeno:
+- Stolpci: `publish_at`, `venue_address`, `venue_city`, `venue_country`, `venue_lat`, `venue_lon`, `venue_point` (PostGIS), `subcategory`.
+- Indeksi: čas (publish_at), kategorija (subcategory), GIST za `venue_point`, opcijski GIN full‑text (name+description).
+- Funkcije/triggerji: `offers_point_sync()` za sinhronizacijo lat/lon ↔ point, `offers_enqueue_geocode()` za dodaj v vrsto, `offers_subcategory_autofill()`.
+- Tabele: `geocode_cache` (addr_norm → lat/lon/point), `geo_queue` (pending naslovi).
+- Haversine funkcija `near_km(...)` za fallback brez PostGIS geometrije.
+
+Delovni tok:
+1. Uporabnik vnese naslov ali samo kraj (city). Če lat/lon manjkata → trigger doda vrstico v `geo_queue`.
+2. Funkcija `geo-worker.js` (Netlify) periodično obdeluje `pending` vrstice:
+	 - Najprej preveri cache → če zadetek, preskoči klic zunanje storitve.
+	 - Kliče Nominatim (OSM) z User-Agent e‑pošto (nastavi `GEOCODE_EMAIL` env).
+	 - Posodobi `offers.venue_lat/lon` → trigger napolni `venue_point`.
+	 - Vstavi/posodobi `geocode_cache` in označi vrsto `done` ali `failed`.
+
+Klic geo workerja ročno (primer):
+```
+curl -s https://<tvoja-domena>/.netlify/functions/geo-worker?limit=5
+```
+Suhi tek (dry‑run, ne piše v bazo):
+```
+curl -s https://<tvoja-domena>/.netlify/functions/geo-worker?limit=3&dry=1
+```
+
+Iskanje po radiju (PostGIS):
+```
+SELECT id, name
+FROM public.offers
+WHERE venue_point IS NOT NULL
+	AND ST_DWithin(venue_point, ST_SetSRID(ST_MakePoint(:lon,:lat),4326)::geography, :km * 1000);
+```
+Fallback brez PostGIS geometrije (Haversine):
+```
+SELECT id, name
+FROM public.offers
+WHERE venue_lat IS NOT NULL AND venue_lon IS NOT NULL
+	AND public.near_km(:lat,:lon, venue_lat, venue_lon) <= :km;
+```
+
+Okoljski ključi (Netlify):
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (že uporabljeno).
+- `GEOCODE_EMAIL` (priporočeno – kontakt e‑pošta za Nominatim).
+
+Omejitve in etika:
+- Ne kliči Nominatim prehitro (worker počaka ~900ms med zahtevki).
+- Cache zmanjša število zunanjih klicev, normalizira naslov.
+- Če kakovost geokodiranja ni dovolj, kasneje lahko zamenjaš API (npr. Google Geocoding) in samo zamenjaš funkcijo `resolveLatLon`.
+
 ````

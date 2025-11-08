@@ -16,9 +16,20 @@ export const handler = async (event) => {
     try{ body = JSON.parse(event.body||'{}'); }catch(e){ return bad('invalid_json'); }
     const email = (body.email||'').trim();
     if (!email) return bad('missing_email');
-    const prefs = { email, categories: body.categories||[], location: body.location||null, radius: body.radius||30, updated_at: new Date().toISOString() };
+    // Derive lat/lon: either explicit fields or parsed from location "lat,lon"
+    let lat = null, lon = null;
+    if (typeof body.lat === 'number' && typeof body.lon === 'number') {
+      lat = body.lat; lon = body.lon;
+    } else if (typeof body.location === 'string') {
+      const m = body.location.trim().match(/^(-?\d+(?:\.\d+)?)[, ]\s*(-?\d+(?:\.\d+)?)/);
+      if (m){ lat = parseFloat(m[1]); lon = parseFloat(m[2]); }
+    }
+    // Clamp radius to max 50 km (frontend constraint) but allow smaller floor 3
+    let radius = Number(body.radius)||30; radius = Math.max(3, Math.min(50, radius));
+  const phone = (body.phone||'').trim() || null;
+  const prefs = { email, categories: body.categories||[], location: body.location||null, radius, lat, lon, phone, updated_at: new Date().toISOString() };
 
-    const { data, error } = await supa.from('notification_prefs').upsert(prefs, { onConflict: ['email'] }).select();
+  const { data, error } = await supa.from('notification_prefs').upsert(prefs, { onConflict: ['email'] }).select();
     if (error) return bad('db_error: '+error.message,500);
     return ok({ ok:true, prefs: data && data[0] ? data[0] : prefs });
   }catch(e){ return bad(String(e?.message||e),500); }

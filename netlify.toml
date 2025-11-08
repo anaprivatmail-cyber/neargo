@@ -103,6 +103,45 @@
   status = 200
   force = true
 
+# === GEO WORKER: ročni klic prek /api ===
+[[redirects]]
+  from = "/api/geo-worker"
+  to   = "/.netlify/functions/geo-worker"
+  status = 200
+  force = true
+
+# Early notify API (single-offer trigger) and cron runner
+[[redirects]]
+  from = "/api/early-notify-offer"
+  to   = "/.netlify/functions/early-notify-offer"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/early-notify"
+  to   = "/.netlify/functions/early-notify"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/early-inbox"
+  to   = "/.netlify/functions/early-inbox"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/early-notify-count"
+  to   = "/.netlify/functions/early-notify-count"
+  status = 200
+  force = true
+
+# My API (profile info / premium flag)
+[[redirects]]
+  from = "/api/my"
+  to   = "/.netlify/functions/my"
+  status = 200
+  force = true
+
 # ===== Static asset caching =====
 [[headers]]
   for = "/*.html"
@@ -149,3 +188,11 @@
 
 [functions."ticket-redeem"]
   node_bundler = "none"
+
+# === GEO WORKER: urnik (na vsakih 10 minut)
+[functions."geo-worker"]
+  schedule = "*/10 * * * *"
+
+# Run early-notify every minute to hit the precise 15-minute window
+[functions."early-notify"]
+  schedule = "*/1 * * * *"

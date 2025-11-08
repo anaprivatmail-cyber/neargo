@@ -1,6 +1,8 @@
 import { getUserPoints } from '../../providers/supabase-points.js';
 import { CATEGORY_SOURCE } from '../data/categories/index.js';
 
+console.log('[app] app.js loaded');
+
 // ===== PREMIUM / PROVIDER PLAN CHECKS =====
 function checkPremiumAccess() {
   if (typeof IS_PREMIUM !== 'undefined' && !IS_PREMIUM) {
@@ -197,6 +199,7 @@ const readEarlyNotifyState = () => {
 };
 
 const hydrateEarlyNotifyUI = () => {
+  console.log('[app] hydrateEarlyNotifyUI called');
   const container = document.getElementById('earlyNotifyCategoryList');
   if (!container) return;
   const { categories, location, radius } = readEarlyNotifyState();
@@ -214,6 +217,11 @@ document.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('neargo:categories-ready', () => {
   hydrateEarlyNotifyUI();
 });
+
+// Call immediately if DOM is already loaded and categories are ready
+if (document.readyState !== 'loading' && window.NearGoCategories) {
+  hydrateEarlyNotifyUI();
+}
 
 // ===== Points badge (osveževanje) =====
 async function refreshPointsBadge() {

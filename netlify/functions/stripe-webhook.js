@@ -173,7 +173,8 @@ export const handler = async (event) => {
     const s  = stripeEvent.data.object;
     const md = s.metadata || {};
 
-    const type           = (md.type === "coupon") ? "coupon" : "ticket";
+  const purchaseType   = (md.type || "").toString();
+  const type           = (purchaseType === "coupon") ? "coupon" : (purchaseType === "premium" ? "premium" : "ticket");
     const eventId        = md.event_id || null;
     const eventTitle     = md.event_title || "Dogodek";
     const displayBenefit = md.display_benefit || null;
@@ -193,8 +194,8 @@ export const handler = async (event) => {
 
     const mailIntro = type === 'coupon'
       ? `Kupili ste kupon za: ${eventTitle}`
-      : `Kupili ste vstopnico za: ${eventTitle}`;
-    const subject = type === 'coupon' ? 'Kupon – potrdilo' : 'Vstopnica – potrdilo';
+      : (type === 'premium' ? `Kupili ste NearGo Premium` : `Kupili ste vstopnico za: ${eventTitle}`);
+    const subject = type === 'coupon' ? 'Kupon – potrdilo' : (type === 'premium' ? 'Premium – potrdilo' : 'Vstopnica – potrdilo');
 
     // vnos v tickets (z created_at za analitiko)
     const nowIso = new Date().toISOString();
@@ -218,7 +219,7 @@ export const handler = async (event) => {
       return { statusCode:200, headers:cors(), body: JSON.stringify({ received:true, db:"error" }) };
     }
 
-    const totalGross = Number(type === "coupon" ? 200 : (s.amount_total || 0));
+  const totalGross = Number(type === "coupon" ? 200 : (s.amount_total || 0));
     const base = Math.round(totalGross / (1 + TAX_RATE/100));
     const tax  = totalGross - base;
 
@@ -259,7 +260,7 @@ export const handler = async (event) => {
     await supa.from("invoices").insert({
       seq_no: seq, year,
       customer_email: customerEmail,
-      items: [{ name: type==="coupon" ? `Kupon: ${eventTitle}` : `Vstopnica: ${eventTitle}`, qty:1, unit_price: totalGross }],
+      items: [{ name: type==="coupon" ? `Kupon: ${eventTitle}` : (type==="premium" ? `Premium NearGo` : `Vstopnica: ${eventTitle}`), qty:1, unit_price: totalGross }],
       currency: CURRENCY,
       subtotal: base, tax_rate: TAX_RATE, tax_amount: tax, total: totalGross,
       paid_at: paidAt,
@@ -269,6 +270,21 @@ export const handler = async (event) => {
       type,
       pdf_url: pdfUrl
     });
+
+    // Premium purchase: grant premium access (default 1 year)
+    if (type === 'premium' && customerEmail) {
+      try {
+        const until = new Date();
+        // assume yearly premium for now
+        until.setUTCFullYear(until.getUTCFullYear() + 1);
+        await supa.from('premium_users').upsert(
+          { email: customerEmail, premium_until: until.toISOString(), updated_at: new Date().toISOString() },
+          { onConflict: 'email' }
+        );
+      } catch (e) {
+        console.error('[webhook] premium upsert failed:', e?.message || e);
+      }
+    }
 
     // ——— EMAIL (profil: bel header + črn napis + tarča) ———
     if (process.env.BREVO_API_KEY && customerEmail) {
@@ -283,7 +299,7 @@ export const handler = async (event) => {
       const imgInMail = imageUrl || null;
 
       // LABEL za znesek: za kupon -> "Cena kupona", sicer "Skupaj"
-      const priceLabel = (type === 'coupon') ? 'Cena kupona' : 'Skupaj';
+  const priceLabel = (type === 'coupon') ? 'Cena kupona' : (type === 'premium' ? 'Cena naročnine' : 'Skupaj');
       // LABEL za prikaz ugodnosti kupona
       const benefitLabel = (type === 'coupon') ? 'Vrednost kupona' : 'Vstopnica';
 
@@ -309,12 +325,9 @@ export const handler = async (event) => {
               ${ imgInMail ? `<img src="${imgInMail}" alt="" width="100%" style="max-height:240px;object-fit:cover;border-radius:12px;border:1px solid #e3eef7;margin:8px 0 14px">` : "" }
 
               <div style="border:1px solid #cfe1ee;border-radius:12px;padding:14px 16px;margin:12px 0;background:#fff">
-                <div style="font-weight:900;margin-bottom:6px">${escapeHtml(eventTitle)}</div>
-                <div style="margin:2px 0">
-                  ${ type==="coupon"
-                      ? `${benefitLabel}: <b>${escapeHtml(benefitPretty || "ugodnost")}</b>`
-                      : `Vstopnica: <b>1×</b>` }
-                </div>
+                ${ type==="premium"
+                  ? `<div style="font-weight:900;margin-bottom:6px">NearGo Premium</div><div style="margin:2px 0">Naročnina: <b>1×</b></div>`
+                  : `<div style="font-weight:900;margin-bottom:6px">${escapeHtml(eventTitle)}</div><div style="margin:2px 0">${ type==="coupon" ? `${benefitLabel}: <b>${escapeHtml(benefitPretty || 'ugodnost')}</b>` : 'Vstopnica: <b>1×</b>' }</div>` }
                 <div style="margin:6px 0 0"><span style="opacity:.75">${priceLabel}:</span>
                   <b style="font-size:18px">${(totalGross/100).toFixed(2)} ${CURRENCY.toUpperCase()}</b>
                 </div>

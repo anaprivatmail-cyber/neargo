@@ -17,6 +17,8 @@
   </script>
   <script src="assets/boot-utils.js"></script>
   <script type="module" src="assets/categories.js"></script>
+  <!-- Ensure newest deployed version is always used -->
+  <script type="module" src="/assets/sw-reload.js"></script>
   <script type="module">import { initEarlyCard } from '/assets/early-card.js'; window.addEventListener('DOMContentLoaded', initEarlyCard);</script>
 
   <!-- Leaflet -->
@@ -1893,9 +1895,7 @@ function pickerEnsureHandle(){
 })();
 
 /* ====== Service Worker ====== */
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){ navigator.serviceWorker.register('/sw.js').catch(function(){}); });
-}
+// Registration and auto-reload handled by /assets/sw-reload.js
 
 /* ====== MAP (zgornji – po potrebi) ====== */
 function initTopMap(){

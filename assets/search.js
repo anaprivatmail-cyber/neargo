@@ -259,6 +259,6 @@ function detectCategory(e){
 
 // Cookie banner + SW
 (function(){ const b=document.getElementById("cookieBanner"); if(!localStorage.getItem("cookieAccepted")) b.style.display="block"; document.getElementById("cookieAccept")?.addEventListener("click",()=>{ localStorage.setItem("cookieAccepted","1"); b.style.display="none"; });})();
-if('serviceWorker' in navigator){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }); }
+// Service worker registration & auto-reload handled centrally by /assets/sw-reload.js
 
 export function initSearch(){}

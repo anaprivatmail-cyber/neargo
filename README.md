@@ -1,3 +1,45 @@
+## Deploy & vedno zadnja verzija (autoupdate)
+
+Ta projekt zagotavlja, da uporabniki (mobilni / desktop) vedno dobijo zadnjo verzijo brez ročnega "hard reload".
+
+Mehanizmi:
+1. Service Worker (`sw.js`)
+	- `skipWaiting()` + `clients.claim()` → nova verzija prevzame kontrolo takoj.
+	- Broadcast `{ type: 'SW_VERSION', version }` vsem odprtim zavihkom ob aktivaciji.
+2. Klient helper (`/assets/sw-reload.js`)
+	- Registrira SW na vseh straneh (kjer je uvožen) in posluša `controllerchange` + SW_VERSION.
+	- Enkrat samodejno osveži stran, ko nova verzija prevzame nadzor (prepreči race conditions).
+3. Asset verzioniranje
+	- Skripta `scripts/version-assets.mjs` pregleda vse `.html` in referencam na `/assets/*.js|css` doda `?v=<sha1>` hash vsebine.
+	- Sprememba datoteke → drugačen hash → brskalnik naloži svež resource.
+4. Cache politika (Netlify)
+	- `/assets/*` → `Cache-Control: public, max-age=31536000, immutable` (varna zaradi hash parametra).
+	- `/*.html` → kratko cache (no-cache/_must-revalidate_) – HTML se hitro revalidira in potegne nove hash-e.
+
+Workflow deploya (Netlify CI):
+```
+git add .
+git commit -m "feat: ..."
+git push origin main  # Netlify auto build
+```
+Build skripta (`npm run build`) zamenja hash parametre. Ko je `sw.js` posodobljen (VERSION), se po aktivaciji vsi odprti klienti osvežijo.
+
+Ročni test po deployu:
+1. Odpri stran na telefonu.
+2. Opazuj enkratni samodejni reload (če je bila nova verzija) ali ročno zapri/odpri tab.
+3. Preveri v DevTools (Application → Service Workers), da `sw.js` kaže zadnji `version:` komentar.
+
+Če želiš potrditi prisilni update:
+```
+// Konzola
+navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.update()))
+```
+Stran se bo (če je nova verzija) v nekaj sekundah osvežila.
+
+Naslednji možni upgrade (ni nujno): prehod iz query param hash-a (`?v=`) na fingerprintirana imena datotek (npr. `app.abc123.js`) + HTML replace. Trenutna rešitev je dovolj stabilna.
+
+---
+
 ## Zgodnji dostop (Early access) – robusten tok
 
 Za zanesljiv in skalabilen prikaz predčasnih ponudb (15 min pred `publish_at`) smo uvedli kombinacijo front-end oznake in strežniškega filtriranja:

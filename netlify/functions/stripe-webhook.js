@@ -20,24 +20,32 @@ const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || process.env.SITE_URL || 
 const SUPPORT_EMAIL   = process.env.SUPPORT_EMAIL || "info@getneargo.com";
 const EMAIL_FROM      = process.env.EMAIL_FROM || "NearGo <info@getneargo.com>";
 
+// Company metadata refactored to prefer file (reduces need for many env vars -> helps stay under 4KB Lambda env limit)
+let COMPANY_FILE = null;
+try {
+  const filePath = path.join(process.cwd(), 'providers', 'company.json');
+  if (fs.existsSync(filePath)) {
+    COMPANY_FILE = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  }
+} catch {}
 const COMPANY = {
-  name:  process.env.INVOICE_COMPANY_NAME  || "NearGo d.o.o.",
-  addr:  process.env.INVOICE_COMPANY_ADDR  || "",
-  taxId: process.env.INVOICE_COMPANY_TAX_ID|| "",
-  reg:   process.env.INVOICE_COMPANY_REG   || "",
-  iban:  process.env.INVOICE_COMPANY_IBAN  || "",
-  swift: process.env.INVOICE_COMPANY_SWIFT || ""
+  name:  (COMPANY_FILE?.name)  || process.env.INVOICE_COMPANY_NAME  || "NearGo d.o.o.",
+  addr:  (COMPANY_FILE?.addr)  || process.env.INVOICE_COMPANY_ADDR  || "",
+  taxId: (COMPANY_FILE?.taxId) || process.env.INVOICE_COMPANY_TAX_ID|| "",
+  reg:   (COMPANY_FILE?.reg)   || process.env.INVOICE_COMPANY_REG   || "",
+  iban:  (COMPANY_FILE?.iban)  || process.env.INVOICE_COMPANY_IBAN  || "",
+  swift: (COMPANY_FILE?.swift) || process.env.INVOICE_COMPANY_SWIFT || ""
 };
-const COMPANY_REGISTER_INFO = process.env.COMPANY_REGISTER_INFO || "";
-const COMPANY_SHARE_CAPITAL = process.env.COMPANY_SHARE_CAPITAL || "";
+const COMPANY_REGISTER_INFO = (COMPANY_FILE?.registerInfo) || process.env.COMPANY_REGISTER_INFO || "";
+const COMPANY_SHARE_CAPITAL = (COMPANY_FILE?.shareCapital) || process.env.COMPANY_SHARE_CAPITAL || "";
 
 // robustno branje DDV
 const TAX_RATE = (() => {
-  const raw = (process.env.INVOICE_TAX_RATE ?? "22").toString().replace(",", ".");
+  const raw = (COMPANY_FILE?.taxRate ?? process.env.INVOICE_TAX_RATE ?? "22").toString().replace(",", ".");
   const n = parseFloat(raw.replace(/[^0-9.]+/g, ""));
   return Number.isFinite(n) ? n : 22;
 })();
-const CURRENCY = (process.env.INVOICE_CURRENCY || "eur").toLowerCase();
+const CURRENCY = ((COMPANY_FILE?.currency) || process.env.INVOICE_CURRENCY || "eur").toLowerCase();
 
 const FONTS_DIR     = path.join(process.cwd(), "netlify", "functions", "fonts");
 const FONT_REG_TTF  = path.join(FONTS_DIR, "NotoSans-Regular.ttf");

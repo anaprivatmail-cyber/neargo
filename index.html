@@ -1289,12 +1289,19 @@ function renderSpotCard(e){
   var id=hashId(e);
   var hasMore=!!e.description;
   var earlyBadge = e._earlyPreview ? '<span class="badge" style="background:#ff9800;display:inline-flex;align-items:center;gap:4px;">🔔 Zgodnji dostop</span>' : '';
+  // FREEBIE badge: if all prices are 0 or offerType indicates no ticket cost
+  var isTicket = e.offerType==="ticket";
+  var hasTiers = Array.isArray(e.ticketPrices) && e.ticketPrices.length>0;
+  var tiersFree = hasTiers ? e.ticketPrices.every(function(tp){ return Number(tp.price||0)===0; }) : true;
+  var baseFree = (e.offerType==="none") || Number(e.price||0)===0 || (isTicket && !hasTiers && Number(e.price||0)===0);
+  var isFree = baseFree && tiersFree;
+  var freeBadge = isFree ? '<span class="badge" style="background:#e8f9ef;border:1px solid #a6ddc0;color:#0b6b4b;display:inline-flex;align-items:center;gap:6px;font-weight:800">🆓 Brezplačno</span>' : '';
 
   var card=el("div","spot"); card.id=id;
   card.innerHTML = ''
     + '<img src="'+img+'" alt="" loading="lazy">'
     + '<div class="meta">'
-  +   '<b>'+(e.name||e.title||"Ponudba")+'</b> '+ earlyBadge
+  +   '<b>'+(e.name||e.title||"Ponudba")+'</b> '+ earlyBadge + (freeBadge?(' '+freeBadge):'')
     +   '<div style="color:var(--muted);font-size:13px">'
     +     ( gmHref ? '<a href="'+gmHref+'" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">📍 '+(addr||'Google Maps')+'</a>' : addr )
     +   '</div>'

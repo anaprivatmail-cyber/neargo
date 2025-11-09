@@ -158,6 +158,7 @@ const renderSelected = () => {
 };
 
 const toggleSubcategory = (key) => {
+	if (!ensurePremiumOrPrompt()) return;
 	if (state.selected.has(key)) { state.selected.delete(key); renderSubcategories(); return; }
 	if (state.selected.size >= 2) { setMessage('Izberite največ 2 podkategoriji.', 'error'); return; }
 	// enforce monthly change quota (max 5 per month)
@@ -263,6 +264,7 @@ const bindTypeSwitch = () => {
 	const btns = document.querySelectorAll('.type-btn');
 	btns.forEach((b)=>{
 		b.addEventListener('click', ()=>{
+			if (!ensurePremiumOrPrompt()) return;
 			btns.forEach(x=>x.classList.remove('active'));
 			b.classList.add('active');
 			state.type = b.dataset.value === 'services' ? 'services' : 'events';
@@ -308,8 +310,8 @@ function populateSubSelect(){
 function bindSelectHandlers(){
 	const mainSel = document.getElementById('mainCategorySelect');
 	const subSel = document.getElementById('subCategorySelect');
-	if (mainSel){ mainSel.addEventListener('change',(e)=>{ state.mainSelected = e.target.value; renderSubcategories(); populateSubSelect(); }); }
-	if (subSel){ subSel.addEventListener('change',(e)=>{
+	if (mainSel){ mainSel.addEventListener('change',(e)=>{ if (!ensurePremiumOrPrompt()) { e.preventDefault(); return; } state.mainSelected = e.target.value; renderSubcategories(); populateSubSelect(); }); }
+	if (subSel){ subSel.addEventListener('change',(e)=>{ if (!ensurePremiumOrPrompt()) { e.preventDefault(); return; }
 		const chosen = Array.from(e.target.selectedOptions).map(o=>o.value).slice(0,2);
 		state.selected = new Set(chosen);
 		renderSubcategories();
@@ -325,9 +327,12 @@ const loadMonthlyQuota = () => {
 	try{
 		const raw = JSON.parse(localStorage.getItem('ng_notify_quota')||'{}');
 		const k = getMonthlyKey();
-		if (raw.month !== k) return { month:k, changes:0 };
-		return { month:k, changes:Number(raw.changes||0) };
-	}catch{ return { month:getMonthlyKey(), changes:0 }; }
+		const currentUntil = window.PREMIUM_UNTIL || null;
+		// Reset if cycle changed or month rolled
+		if (raw.cycleUntil !== currentUntil) return { month:k, changes:0, cycleUntil: currentUntil };
+		if (raw.month !== k) return { month:k, changes:0, cycleUntil: currentUntil };
+		return { month:k, changes:Number(raw.changes||0), cycleUntil: currentUntil };
+	}catch{ return { month:getMonthlyKey(), changes:0, cycleUntil: window.PREMIUM_UNTIL||null }; }
 };
 const saveMonthlyQuota = (obj) => {
 	try{ localStorage.setItem('ng_notify_quota', JSON.stringify(obj)); }catch{}
@@ -347,7 +352,7 @@ const canChangeCategories = () => {
 };
 const markCategoryChange = () => {
 	const q = loadMonthlyQuota();
-	const cur = { month:getMonthlyKey(), changes: Math.min(5, Number(q.changes||0)+1) };
+	const cur = { month:getMonthlyKey(), changes: Math.min(5, Number(q.changes||0)+1), cycleUntil: window.PREMIUM_UNTIL || q.cycleUntil || null };
 	saveMonthlyQuota(cur);
 	updateQuotaInfo();
 };
@@ -377,9 +382,10 @@ function bindMapControls(){
 	const gps = document.getElementById('btnUseGPS');
 	const reset = document.getElementById('btnResetLoc');
 	const upd = () => { if(lbl) lbl.textContent = `${getRadius()} km`; try{ state.circle?.setRadius(getRadius()*1000); handleRadiusHandle(); }catch{} };
-	['input','change','pointerup','touchend'].forEach((ev)=> radius?.addEventListener(ev, upd));
+	['input','change','pointerup','touchend'].forEach((ev)=> radius?.addEventListener(ev, (e)=>{ if(!ensurePremiumOrPrompt()) { e.preventDefault(); return; } upd(); }));
 	upd();
 	gps?.addEventListener('click', ()=>{
+		if (!ensurePremiumOrPrompt()) return;
 		const was = gps.classList.contains('active');
 		gps.classList.toggle('active');
 		if(was) return; // toggle off does nothing
@@ -408,7 +414,7 @@ function handleRadiusHandle(){
 			state._radiusHandle.on('move', (e)=>{
 				const center = state.circle.getLatLng();
 				const pt = e.latlng;
-				const distKm = Math.min(100, Math.max(1, center.distanceTo(pt)/1000));
+				const distKm = Math.min(50, Math.max(1, center.distanceTo(pt)/1000));
 				const rInput = document.getElementById('notifRadius');
 				if (rInput){ rInput.value = Math.round(distKm); }
 				state.circle.setRadius(distKm*1000);
@@ -471,11 +477,47 @@ async function refreshPremiumFlag(){
 		const r = await fetch(`/api/my?email=${encodeURIComponent(email)}`).then(x=>x.json()).catch(()=>null);
 		if (r && typeof r.premium !== 'undefined'){
 			window.IS_PREMIUM = !!r.premium;
+			if (r.premium_until) { window.PREMIUM_UNTIL = r.premium_until; }
 			gatePremium();
 			// update counter visibility/value once premium known
 			try{ updateMonthlyCounter(); }catch{}
+				if (r.premium_until) { updatePremiumCycle(r.premium_until); }
 		}
 	}catch{}
+}
+// ===== Premium helpers and map picker binding =====
+function updatePremiumCycle(untilIso){
+	try{
+		if (!untilIso) return;
+		const d = new Date(untilIso);
+		if(Number.isNaN(d.getTime())) return;
+		const startSpan = document.getElementById('premiumStartDate');
+		const cycleBox = document.getElementById('premiumCycle');
+		if(startSpan) startSpan.textContent = d.toLocaleDateString('sl-SI');
+		if(cycleBox) cycleBox.style.display = 'block';
+	}catch{}
+}
+
+function ensurePremiumOrPrompt(){
+	const isPremium = !!window.IS_PREMIUM;
+	if (isPremium) return true;
+	const box = document.getElementById('nonPremiumInline');
+	if (box){
+		box.style.display='block';
+		// vibracija (če podprta)
+		try{ if(navigator.vibrate) navigator.vibrate(45); }catch{}
+		// vizualni 'shake'
+		box.classList.add('shake');
+		setTimeout(()=>{ try{ box.classList.remove('shake'); }catch{} }, 600);
+		try{ box.scrollIntoView({behavior:'smooth', block:'center'}); }catch{}
+	}
+	return false;
+}
+
+function bindMapPickButton(){
+	const b = document.getElementById('btnMapPick');
+	if(!b) return;
+	b.addEventListener('click', ()=>{ if(!ensurePremiumOrPrompt()) return; document.dispatchEvent(new CustomEvent('picker:open')); });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -493,6 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	updateQuotaInfo();
 	gatePremium();
 		refreshPremiumFlag();
+		bindMapPickButton();
 	// Show monthly early notifications counter
 	updateMonthlyCounter();
 	initMap();

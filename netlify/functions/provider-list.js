@@ -116,6 +116,32 @@ out = out.filter(e => {
     // normaliziraj v format, ki ga frontend pričakuje (venue.lat/lon/address, images[])
     out = out.map(normalizeProvider);
 
+    // ——— STREŽNIŠKA UTRDITEV ———
+    // 1) Skrij razprodane ponudbe (kuponi/vstopnice)
+    out = out.filter(e => {
+      try{
+        const kind = String(e.offerType || '').toLowerCase();
+        if ((kind === 'coupon' || kind === 'ticket') && Number(e.stock || 0) <= 0) return false;
+        return true;
+      }catch{ return true; }
+    });
+
+    // 2) (opcijsko) Skrij še neobjavljene kupone – če je omogočeno z env var
+    //    PROVIDER_HIDE_PREPUB_COUPONS=1 => skrije kupon dokler now < publish_at (ali start, če publish_at manjka)
+    const HIDE_PREPUB = String(process.env.PROVIDER_HIDE_PREPUB_COUPONS || '0') !== '0';
+    if (HIDE_PREPUB) {
+      const nowMs = Date.now();
+      out = out.filter(e => {
+        try{
+          const kind = String(e.offerType || '').toLowerCase();
+          if (kind !== 'coupon') return true; // zaenkrat omejeno na kupon ponudbe
+          const pubTs = Date.parse(e.publish_at || e.start || '') || NaN;
+          if (!Number.isFinite(pubTs)) return true; // brez datuma ne omejuj
+          return nowMs >= pubTs; // pokaži šele po objavi
+        }catch{ return true; }
+      });
+    }
+
     // opcijsko: če je center podan, izračunaj razdaljo in (po želji) izloči preveč oddaljene
     if (center) {
       out.forEach(e=>{

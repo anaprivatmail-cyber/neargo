@@ -135,6 +135,13 @@
   status = 200
   force = true
 
+# Strict early-access gated offers (server-side filtering)
+[[redirects]]
+  from = "/api/offers-early"
+  to   = "/.netlify/functions/offers-early"
+  status = 200
+  force = true
+
 # My API (profile info / premium flag)
 [[redirects]]
   from = "/api/my"

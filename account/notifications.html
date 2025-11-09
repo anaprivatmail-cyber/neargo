@@ -21,6 +21,8 @@
     .muted{color:var(--muted,#5b6b7b)}
     .benefit{background:#e6fbf5;border:1px solid #baf0df;padding:10px 14px;border-radius:14px;font-weight:700;color:#05614d;font-size:.95em;margin-top:10px}
     .upgrade-box{background:#fff6f6;border:1px solid #ffd1d1;color:#7a1b1b;padding:12px 16px;border-radius:14px;font-weight:700;font-size:.95em;margin-top:12px}
+  @keyframes shakeBox{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+  .upgrade-box.shake{animation:shakeBox .45s ease}
     fieldset{border:none;margin:0;padding:0 0 10px 0}
     legend{font-weight:800;font-size:.85em;text-transform:uppercase;letter-spacing:.5px;color:#0bbbd6;margin:0 0 6px 0}
     .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -47,9 +49,14 @@
   .type-btn{background:linear-gradient(180deg,#f7fdff,#e6fbff);color:#064c56;border:1px solid rgba(11,187,214,0.15);box-shadow:0 6px 20px rgba(11,187,214,0.06);font-weight:900}
   .type-btn.active.type-events{background:linear-gradient(180deg,#0bbbd6,#07aab8);color:#fff;border-color:transparent;box-shadow:0 8px 26px rgba(11,187,214,0.18)}
   .type-btn.active.type-services{background:linear-gradient(180deg,#ff7b7b,#ff5b5b);color:#fff;border-color:transparent;box-shadow:0 8px 26px rgba(255,107,107,0.18)}
+  .btn.secondary.active{background:#0aa5c1}
     .quota{font-size:.8em;font-weight:800;margin-top:6px;color:#0bbbd6}
     .disabled-note{color:#d64c4c;font-weight:800;font-size:.8em;margin-top:6px}
   select{font-size:15px}
+  @media (max-width: 420px){
+    #typeToggle{gap:8px}
+    #mainCategorySelect,#subCategorySelect{min-width:unset;width:100%}
+  }
     @media(min-width:768px){#earlyMap{height:340px}}
     @media (min-width: 768px){ body{max-width:390px;margin:0 auto;box-shadow:0 0 20px rgba(0,0,0,.1);} }
   </style>
@@ -71,9 +78,9 @@
     <div class="card" id="introCard" style="margin-top:6px">
       <h1>Predhodna obvestila</h1>
       <ul class="benefits" style="list-style:none;margin:6px 0 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:.9em;font-weight:600">
-        <li style="display:flex;align-items:center;gap:8px"><span style="background:#0bbbd6;color:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:700">15′</span><span>Informacija <b>15 minut prej</b> kot ostali</span></li>
-        <li style="display:flex;align-items:center;gap:8px"><span style="background:#ff6b6b;color:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:700">★</span><span><b>Prvi</b> do novih ponudb & promocij</span></li>
-        <li style="display:flex;align-items:center;gap:8px"><span style="background:#23c98b;color:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:700">📍</span><span>Po tvoji <b>lokaciji</b> in <b>interesih</b></span></li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="background:#0bbbd6;color:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:700">15′</span><span><b>15 minut prej</b> kot ostali</span></li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="background:#ff6b6b;color:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:700">★</span><span><b>Prvi do novih ponudb</b>, tudi brezplačnih promo akcij</span></li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="background:#23c98b;color:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:700">📍</span><span><b>Po tvoji lokaciji</b> in <b>interesih</b></span></li>
       </ul>
       <div class="muted" style="font-size:.78em;margin-top:6px;font-weight:600">Pridržujemo si pravico, da obvestila ne pošljemo, če v izbrani kategoriji v tem mesecu ni ponudb.</div>
     </div>

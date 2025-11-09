@@ -1095,6 +1095,9 @@ var mapSearch=null, markersSearch=[];
 var topMap=null, topMarkers=[];
 var ACTIVE_MODE='events'; // 'events' | 'services'
 var IS_PREMIUM=false; var MY_POINTS=0;
+// ZGODNJI DOSTOP (premium): 15 minut prej za izbrane podkategorije
+var EARLY_MINUTES=15;
+var EARLY_PREF_CATS=new Set(); // nizki ključi podkategorij
 
 /* ===== Datumi ===== */
 function parseDateAny(v){
@@ -1285,12 +1288,13 @@ function renderSpotCard(e){
   var gmHref=(e.venue && isFinite(+e.venue.lat) && isFinite(+e.venue.lon)) ? ("https://www.google.com/maps?q="+e.venue.lat+","+e.venue.lon) : (addr? ("https://www.google.com/maps?q="+encodeURIComponent(addr)) : "");
   var id=hashId(e);
   var hasMore=!!e.description;
+  var earlyBadge = e._earlyPreview ? '<span class="badge" style="background:#ff9800;display:inline-flex;align-items:center;gap:4px;">🔔 Zgodnji dostop</span>' : '';
 
   var card=el("div","spot"); card.id=id;
   card.innerHTML = ''
     + '<img src="'+img+'" alt="" loading="lazy">'
     + '<div class="meta">'
-    +   '<b>'+(e.name||e.title||"Ponudba")+'</b>'
+  +   '<b>'+(e.name||e.title||"Ponudba")+'</b> '+ earlyBadge
     +   '<div style="color:var(--muted);font-size:13px">'
     +     ( gmHref ? '<a href="'+gmHref+'" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">📍 '+(addr||'Google Maps')+'</a>' : addr )
     +   '</div>'
@@ -1416,6 +1420,34 @@ function sortByNear(items){
   return arr;
 }
 
+// Filtrira ponudbe glede na zalogo in zgodnji dostop (samo kuponi)
+function filterEarlyAndStock(items){
+  var now=Date.now();
+  var earlyMs=EARLY_MINUTES*60*1000;
+  return items.filter(function(e){
+    try{
+      // Skrij, če zaloga pošla (za kupon/vstopnice)
+      var kind=(e.offerType||'').toLowerCase();
+      if((kind==='coupon' || kind==='ticket') && Number(e.stock||0) <= 0) return false;
+
+      // Zgodnji dostop: uporabi za kupon ponudbe (flash/ugodnosti)
+      if(kind==='coupon'){
+        var t=parseDateAny(e.publish_at || e.start || e.starts_at || null);
+        if(!isFinite(t)) return true; // brez datuma ne omejuj
+        if(now < (t - earlyMs)) { e._earlyPreview=false; return false; } // prehitro – še ni vidno
+        if(now >= t) { e._earlyPreview=false; return true; }            // po publish_at – za vse
+        // v 15-min oknu pred objavo – samo Premium z ujemanjem podkategorije
+        if(!IS_PREMIUM) { e._earlyPreview=false; return false; }
+        var sub=((e.subcategory||e.subCategory||e.subcategoryKey||'')+"").toLowerCase();
+        var allow = EARLY_PREF_CATS.has(sub);
+        e._earlyPreview = !!allow;
+        return allow;
+      }
+      return true;
+    }catch(_){ return true; }
+  });
+}
+
 /* Featured loader */
 function loadFeatured(){
   var now=Date.now(); var internal=[], external=[];
@@ -1435,11 +1467,41 @@ function loadFeatured(){
             if(seen[k]) return false; seen[k]=1; return true;
           }).filter(function(e){ var t=getEndTs(e); return isFinite(t)?t>=now:true; });
           items = modeFilter(items);
-          items = sortByNear(items);
-          var box=$("#carousel"); if(!box) return; box.innerHTML='';
-          if(!items.length){ box.innerHTML='<div class="card" style="color:var(--muted)">Ni izpostavljenih ponudb.</div>'; return; }
-          items.slice(0,20).forEach(function(e){ var card=renderSpotCard(e); card.style.flex="0 0 85%"; box.appendChild(card); });
-          startAutoScroll();
+          // Zgodnji dostop (server-side strict) – po želji združi rezultate
+          (function(){
+            try{
+              var email = localStorage.getItem('user_email')||'';
+              if(IS_PREMIUM && EARLY_PREF_CATS && EARLY_PREF_CATS.size>0 && email){
+                fetch('/api/offers-early?'+qs({ email: email, limit: 100 }))
+                  .then(function(r){return r.json();})
+                  .then(function(d){
+                    var early = Array.isArray(d && d.results) ? d.results.map(function(e){ e._earlyPreview = !!e.earlyPreview; return normalizeItem(e); }) : [];
+                    // merge + deduplicate
+                    var key=function(e){ return ((e.name||e.title||'').toLowerCase())+'|'+(e.start||'')+'|'+((e.venue&&e.venue.address)||e.address||''); };
+                    var map=new Map(); items.forEach(function(it){ map.set(key(it), it); });
+                    early.forEach(function(it){ map.set(key(it), it); });
+                    items = Array.from(map.values());
+                  })
+                  .catch(function(){})
+                  .finally(function(){
+                    items = filterEarlyAndStock(items);
+                    items = sortByNear(items);
+                    var box=$('#carousel'); if(!box) return; box.innerHTML='';
+                    if(!items.length){ box.innerHTML='<div class="card" style="color:var(--muted)">Ni izpostavljenih ponudb.</div>'; return; }
+                    items.slice(0,20).forEach(function(e){ var card=renderSpotCard(e); card.style.flex='0 0 85%'; box.appendChild(card); });
+                    startAutoScroll();
+                  });
+                return; // defer render to finally
+              }
+            }catch(_){ }
+            // fallback (brez server early)
+            items = filterEarlyAndStock(items);
+            items = sortByNear(items);
+            var box=$('#carousel'); if(!box) return; box.innerHTML='';
+            if(!items.length){ box.innerHTML='<div class="card" style="color:var(--muted)">Ni izpostavljenih ponudb.</div>'; return; }
+            items.slice(0,20).forEach(function(e){ var card=renderSpotCard(e); card.style.flex='0 0 85%'; box.appendChild(card); });
+            startAutoScroll();
+          })();
         });
     });
 }
@@ -1603,6 +1665,9 @@ function doSearch(page, byGeo){
             });
           }
 
+          // Zgodnji dostop + zaloga filter (po osnovnih filtrih, pred straničenjem)
+          items = filterEarlyAndStock(items);
+
           /* kategorije UI */
           var selectedCat=(catVal||"").toLowerCase();
           if(selectedCat){
@@ -1623,7 +1688,10 @@ function doSearch(page, byGeo){
             });
           }
 
-          var PAGE_SIZE = 10;
+          var emailEarly=null; try{ emailEarly=localStorage.getItem('user_email')||''; }catch(_){ emailEarly=''; }
+          // Vključi server-side early preview (po filtrih) pred straničenjem
+          function finalize(){
+            var PAGE_SIZE = 10;
           var total = items.length;
           var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
           var safePage = Math.max(0, Math.min(page, pages-1));
@@ -1646,6 +1714,25 @@ function doSearch(page, byGeo){
           var prev=el("button","btn link"); prev.textContent="Nazaj"; prev.disabled=safePage<=0; prev.onclick=function(){ doSearch(safePage-1,false); };
           var next=el("button","btn link"); next.textContent="Naprej"; next.disabled=safePage>=pages-1; next.onclick=function(){ doSearch(safePage+1,false); };
           if(p){ p.appendChild(prev); p.appendChild(next); }
+          }
+
+          if(IS_PREMIUM && EARLY_PREF_CATS && EARLY_PREF_CATS.size>0 && emailEarly){
+            fetch('/api/offers-early?'+qs({ email: emailEarly, limit: 200 }))
+              .then(function(r){return r.json();})
+              .then(function(d){
+                var early = Array.isArray(d && d.results) ? d.results.map(function(e){ e._earlyPreview=!!e.earlyPreview; return normalizeItem(e); }) : [];
+                // merge + dedupe
+                var key=function(e){ return ((e.name||e.title||'').toLowerCase())+'|'+(e.start||'')+'|'+((e.venue&&e.venue.address)||e.address||''); };
+                var map=new Map(); items.forEach(function(it){ map.set(key(it), it); });
+                early.forEach(function(it){ map.set(key(it), it); });
+                items = Array.from(map.values());
+              })
+              .catch(function(){})
+              .finally(function(){ items = filterEarlyAndStock(items); finalize(); });
+          } else {
+            items = filterEarlyAndStock(items);
+            finalize();
+          }
         });
     });
 }
@@ -2266,11 +2353,24 @@ for(var i=0;i<modeBtns.length;i++){
 
 /* ====== MY (points/premium) ====== */
 (function(){
-  fetch('/api/my').then(function(r){return r.json();}).then(function(me){
-    IS_PREMIUM=!!(me && me.premium);
-    MY_POINTS=Number(me && me.points || 0);
-    if(MY_POINTS>0){ var pb=$("#pointsBadge"); if(pb){ pb.textContent=MY_POINTS; pb.style.display="inline-flex"; } }
-  }).catch(function(){});
+  var email=null; try{ email=localStorage.getItem('user_email')||''; }catch(_){ email=''; }
+  if(email){
+    // Profil + premium status
+    fetch('/api/my?'+qs({email:email}))
+      .then(function(r){return r.json();})
+      .then(function(me){
+        IS_PREMIUM=!!(me && me.premium);
+        if(me && me.premium_until){ try{ window.PREMIUM_UNTIL=me.premium_until; }catch(_){} }
+        MY_POINTS=Number(me && me.points || 0);
+        if(MY_POINTS>0){ var pb=$("#pointsBadge"); if(pb){ pb.textContent=MY_POINTS; pb.style.display="inline-flex"; } }
+      })
+      .catch(function(){});
+    // Nastavitve obvestil: preberi izbrane podkategorije (max 2)
+    fetch('/.netlify/functions/notifications-prefs-get?'+qs({email:email}))
+      .then(function(r){return r.json();})
+      .then(function(d){ var cats=(d&&d.prefs&&Array.isArray(d.prefs.categories))?d.prefs.categories:[]; EARLY_PREF_CATS=new Set(cats.map(function(x){return String(x||'').toLowerCase();})); })
+      .catch(function(){});
+  }
 })();
 
 /* ====== INIT ====== */

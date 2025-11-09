@@ -51,20 +51,6 @@ const state = {
 	circle: null
 };
 
-function findSubLabelByKey(key){
-	try{
-		for (const list of [EVENT_CATEGORIES, SERVICE_CATEGORIES]){
-			for (const cat of list){
-				if (Array.isArray(cat.sub)){
-					const hit = cat.sub.find(s=>s.key===key);
-					if (hit) return hit.label || key;
-				}
-			}
-		}
-	}catch{}
-	return key;
-}
-
 const getMessageElement = () => document.getElementById('notifyMsg');
 
 const setMessage = (text = '', tone = 'info') => {
@@ -165,8 +151,7 @@ const renderSelected = () => {
 	current.forEach((key) => {
 		const pill = document.createElement('span');
 		pill.className='selected-pill';
-		const label = findSubLabelByKey(key);
-		pill.innerHTML = `${label} <button type="button" aria-label="Odstrani">×</button>`;
+		pill.innerHTML = `${key} <button type="button" aria-label="Odstrani">×</button>`;
 		pill.querySelector('button').addEventListener('click', () => { state.selected.delete(key); renderSubcategories(); });
 		host.appendChild(pill);
 	});
@@ -417,11 +402,7 @@ function bindMapControls(){
 	const lbl = document.getElementById('radiusLbl');
 	const gps = document.getElementById('btnUseGPS');
 	const reset = document.getElementById('btnResetLoc');
-	const upd = () => {
-		const r = getRadius();
-		if(lbl) lbl.textContent = `${r} km (premer ${r*2} km)`;
-		try{ state.circle?.setRadius(r*1000); handleRadiusHandle(); }catch{}
-	};
+	const upd = () => { if(lbl) lbl.textContent = `${getRadius()} km`; try{ state.circle?.setRadius(getRadius()*1000); handleRadiusHandle(); }catch{} };
 	['input','change','pointerup','touchend'].forEach((ev)=> radius?.addEventListener(ev, (e)=>{ if(!ensurePremiumOrPrompt()) { e.preventDefault(); return; } upd(); }));
 	upd();
 	gps?.addEventListener('click', ()=>{
@@ -439,7 +420,7 @@ function bindMapControls(){
 	reset?.addEventListener('click', ()=>{
 		try{ state.map.setView([46.05,14.51],7); state.marker.setLatLng([46.05,14.51]); state.circle.setLatLng([46.05,14.51]); }catch{}
 		const loc = document.getElementById('notifLocation'); if(loc) loc.value='';
-		const r = document.getElementById('notifRadius'); if(r){ r.value=25; if(lbl) lbl.textContent='25 km (premer 50 km)'; try{ state.circle?.setRadius(25*1000); handleRadiusHandle(); }catch{} }
+		const r = document.getElementById('notifRadius'); if(r){ r.value=25; lbl.textContent='25 km (premer 50 km)'; try{ state.circle?.setRadius(25*1000); handleRadiusHandle(); }catch{} }
 	});
 }
 
@@ -458,7 +439,7 @@ function handleRadiusHandle(){
 				const rInput = document.getElementById('notifRadius');
 				if (rInput){ rInput.value = Math.round(distKm); }
 				state.circle.setRadius(distKm*1000);
-				const lbl = document.getElementById('radiusLbl'); if(lbl){ const rr=Math.round(distKm); lbl.textContent = `${rr} km (premer ${rr*2} km)`; }
+				const lbl = document.getElementById('radiusLbl'); if(lbl) lbl.textContent = `${Math.round(distKm)} km`;
 				// reposition handle exactly on circle edge toward drag point
 				const bearing = Math.atan2(pt.lat - center.lat, pt.lng - center.lng);
 				const factor = distKm / (center.distanceTo(pt)/1000 || 1);
@@ -555,42 +536,9 @@ function ensurePremiumOrPrompt(){
 }
 
 function bindMapPickButton(){
-	const openBtn = document.getElementById('btnMapPick');
-	const confirmBtn = document.getElementById('btnMapConfirm');
-	const closeBtn = document.getElementById('btnMapClose');
-	const mapHost = document.getElementById('earlyMap');
-	if(!openBtn || !mapHost) return;
-	const showMap = () => {
-		if(!ensurePremiumOrPrompt()) return;
-		mapHost.style.display='block';
-		confirmBtn.style.display='inline-block';
-		closeBtn.style.display='inline-block';
-		if(!state.map){ initMap(); bindMapControls(); }
-		setTimeout(()=>{ try{ state.map.invalidateSize(); }catch{} }, 50);
-	};
-	const hideMap = () => {
-		mapHost.style.display='none';
-		confirmBtn.style.display='none';
-		closeBtn.style.display='none';
-	};
-	openBtn.addEventListener('click', showMap);
-	closeBtn?.addEventListener('click', hideMap);
-	confirmBtn?.addEventListener('click', async ()=>{
-		const loc = document.getElementById('notifLocation');
-		let ll = null;
-		if(state.marker){ try{ ll = state.marker.getLatLng(); }catch{} }
-		if (ll){
-			const fallback = `${ll.lat.toFixed(5)},${ll.lng.toFixed(5)}`;
-			if (loc) loc.value = fallback;
-			try{
-				setMessage('Potrjujem lokacijo …', 'info');
-				const place = await reverseGeocode(ll.lat, ll.lng, 12, 1200);
-				if (place && loc){ loc.value = place; }
-			}catch{}
-		}
-		setMessage('Lokacija potrjena.', 'info');
-		hideMap();
-	});
+	const b = document.getElementById('btnMapPick');
+	if(!b) return;
+	b.addEventListener('click', ()=>{ if(!ensurePremiumOrPrompt()) return; document.dispatchEvent(new CustomEvent('picker:open')); });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -611,34 +559,12 @@ document.addEventListener('DOMContentLoaded', () => {
 		bindMapPickButton();
 	// Show monthly early notifications counter
 	updateMonthlyCounter();
-	// Map now deferred until user opens it.
+	initMap();
+	bindMapControls();
 	populateMainSelect();
 	populateSubSelect();
 	bindSelectHandlers();
 });
-
-// Reverse geocode helper (Nominatim) – best-effort
-async function reverseGeocode(lat, lon, zoom=12, timeoutMs=1200){
-	try{
-		const ctrl = new AbortController();
-		const t = setTimeout(()=>ctrl.abort(), timeoutMs);
-		const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=${encodeURIComponent(zoom)}&addressdetails=1`;
-		const r = await fetch(url, { signal: ctrl.signal, headers:{ 'Accept':'application/json','User-Agent':'NearGo/1.0 early-notify' } });
-		clearTimeout(t);
-		if (!r.ok) return null;
-		const j = await r.json().catch(()=>null);
-		if (!j) return null;
-		if (j.address){
-			const a = j.address;
-			const city = a.city || a.town || a.village || a.municipality || '';
-			const region = a.state || a.county || '';
-			const country = a.country || '';
-			const parts = [city, region || country].filter(Boolean);
-			return parts.length ? parts.join(', ') : (j.display_name || null);
-		}
-		return j.display_name || null;
-	}catch{ return null; }
-}
 
 // ===== Monthly notifications counter (X/25) =====
 async function updateMonthlyCounter(){

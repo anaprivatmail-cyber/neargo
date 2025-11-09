@@ -182,14 +182,7 @@ export const handler = async (event) => {
     const md = s.metadata || {};
 
   const purchaseType   = (md.type || "").toString();
-  // Podpora za provider-plan (Grow/Pro) – obravnava ločeno od vstopnic
-  const type           = purchaseType === "coupon"
-    ? "coupon"
-    : purchaseType === "premium"
-      ? "premium"
-      : purchaseType === "provider-plan"
-        ? "provider-plan"
-        : "ticket";
+  const type           = (purchaseType === "coupon") ? "coupon" : (purchaseType === "premium" ? "premium" : "ticket");
     const eventId        = md.event_id || null;
     const eventTitle     = md.event_title || "Dogodek";
     const displayBenefit = md.display_benefit || null;
@@ -207,25 +200,10 @@ export const handler = async (event) => {
 
     const display_benefit_final = displayBenefit || summarizeBenefit({benefitType,benefitValue,freebieText});
 
-    const plan = md.plan || null;
-    const interval = md.interval || null;
-    const planLabel = plan ? ((plan === 'grow' ? 'Grow' : plan === 'pro' ? 'Pro' : plan) + (interval ? (interval === 'monthly' ? ' (mesečno)' : interval === 'yearly' ? ' (letno)' : '') : '')) : '';
-
     const mailIntro = type === 'coupon'
       ? `Kupili ste kupon za: ${eventTitle}`
-      : (type === 'premium'
-          ? `Kupili ste NearGo Premium`
-          : (type === 'provider-plan'
-              ? `Kupili ste paket NearGo: ${planLabel}`
-              : `Kupili ste vstopnico za: ${eventTitle}`));
-
-    const subject = type === 'coupon'
-      ? 'Kupon – potrdilo'
-      : (type === 'premium'
-          ? 'Premium – potrdilo'
-          : (type === 'provider-plan'
-              ? 'Paket ponudnika – potrdilo'
-              : 'Vstopnica – potrdilo'));
+      : (type === 'premium' ? `Kupili ste NearGo Premium` : `Kupili ste vstopnico za: ${eventTitle}`);
+    const subject = type === 'coupon' ? 'Kupon – potrdilo' : (type === 'premium' ? 'Premium – potrdilo' : 'Vstopnica – potrdilo');
 
     // vnos v tickets (z created_at za analitiko)
     const nowIso = new Date().toISOString();
@@ -242,7 +220,7 @@ export const handler = async (event) => {
       status: "issued",
       issued_at: nowIso,
       created_at: nowIso,
-      email: customerEmail
+      customer_email: customerEmail
     });
     if (insErr) {
       console.error("[webhook] insert tickets error:", insErr);
@@ -284,20 +262,13 @@ export const handler = async (event) => {
       console.error("[webhook] upload QR error:", e?.message || e);
     }
 
-  const { data: signed } = await supa.storage.from("invoices").createSignedUrl(pdfPath, 60*60*24*30);
+    const { data: signed } = await supa.storage.from("invoices").createSignedUrl(pdfPath, 60*60*24*30);
     const pdfUrl = signed?.signedUrl || null;
 
-    const itemName = type === 'coupon'
-      ? `Kupon: ${eventTitle}`
-      : (type === 'premium'
-          ? 'Premium NearGo'
-          : (type === 'provider-plan'
-              ? `Paket ponudnika: ${planLabel}`
-              : `Vstopnica: ${eventTitle}`));
     await supa.from("invoices").insert({
       seq_no: seq, year,
-      email: customerEmail,
-      items: [{ name: itemName, qty:1, unit_price: totalGross }],
+      customer_email: customerEmail,
+      items: [{ name: type==="coupon" ? `Kupon: ${eventTitle}` : (type==="premium" ? `Premium NearGo` : `Vstopnica: ${eventTitle}`), qty:1, unit_price: totalGross }],
       currency: CURRENCY,
       subtotal: base, tax_rate: TAX_RATE, tax_amount: tax, total: totalGross,
       paid_at: paidAt,
@@ -322,15 +293,6 @@ export const handler = async (event) => {
         console.error('[webhook] premium upsert failed:', e?.message || e);
       }
     }
-    // Provider plan purchase – (Grow / Pro) lahko bi dodali premium flag ali ločeno tabelo; zaenkrat samo log
-    if (type === 'provider-plan' && customerEmail) {
-      try {
-        console.log('[webhook] provider-plan purchased:', planLabel, customerEmail);
-        // Mesto za morebitni zapis v tabelo plans (ni implementirano) ali izpostavitve
-      } catch (e) {
-        console.error('[webhook] provider-plan log failed:', e?.message || e);
-      }
-    }
 
     // ——— EMAIL (profil: bel header + črn napis + tarča) ———
     if (process.env.BREVO_API_KEY && customerEmail) {
@@ -345,9 +307,9 @@ export const handler = async (event) => {
       const imgInMail = imageUrl || null;
 
       // LABEL za znesek: za kupon -> "Cena kupona", sicer "Skupaj"
-  const priceLabel = (type === 'coupon') ? 'Cena kupona' : (type === 'premium' ? 'Cena naročnine' : (type === 'provider-plan' ? 'Cena paketa' : 'Skupaj'));
+  const priceLabel = (type === 'coupon') ? 'Cena kupona' : (type === 'premium' ? 'Cena naročnine' : 'Skupaj');
       // LABEL za prikaz ugodnosti kupona
-  const benefitLabel = (type === 'coupon') ? 'Vrednost kupona' : (type === 'provider-plan' ? 'Paket' : 'Vstopnica');
+      const benefitLabel = (type === 'coupon') ? 'Vrednost kupona' : 'Vstopnica';
 
       const html = `
         <div style="font-family:Arial,Helvetica,sans-serif;background:#f6fbfe;padding:0;margin:0">
@@ -372,19 +334,17 @@ export const handler = async (event) => {
 
               <div style="border:1px solid #cfe1ee;border-radius:12px;padding:14px 16px;margin:12px 0;background:#fff">
                 ${ type==="premium"
-                  ? `<div style=\"font-weight:900;margin-bottom:6px\">NearGo Premium</div><div style=\"margin:2px 0\">Naročnina: <b>1×</b></div>`
-                  : (type==="provider-plan"
-                      ? `<div style=\"font-weight:900;margin-bottom:6px\">${escapeHtml(planLabel)}</div><div style=\"margin:2px 0\">Paket: <b>1×</b></div>`
-                      : `<div style=\"font-weight:900;margin-bottom:6px\">${escapeHtml(eventTitle)}</div><div style=\"margin:2px 0\">${ type==="coupon" ? `${benefitLabel}: <b>${escapeHtml(benefitPretty || 'ugodnost')}</b>` : 'Vstopnica: <b>1×</b>' }</div>` ) }
+                  ? `<div style="font-weight:900;margin-bottom:6px">NearGo Premium</div><div style="margin:2px 0">Naročnina: <b>1×</b></div>`
+                  : `<div style="font-weight:900;margin-bottom:6px">${escapeHtml(eventTitle)}</div><div style="margin:2px 0">${ type==="coupon" ? `${benefitLabel}: <b>${escapeHtml(benefitPretty || 'ugodnost')}</b>` : 'Vstopnica: <b>1×</b>' }</div>` }
                 <div style="margin:6px 0 0"><span style="opacity:.75">${priceLabel}:</span>
-                  <b style=\"font-size:18px\">${(totalGross/100).toFixed(2)} ${CURRENCY.toUpperCase()}</b>
+                  <b style="font-size:18px">${(totalGross/100).toFixed(2)} ${CURRENCY.toUpperCase()}</b>
                 </div>
               </div>
 
-              <p style=\"margin:12px 0\">
-                ${(type==="coupon"?"QR koda kupona":(type==="provider-plan"?"QR koda (informativno – paket)":"QR koda vstopnice"))} je priložena (<i>qr.png</i>), račun pa kot PDF (<i>Racun-${seq}.pdf</i>).
-                <br><b>${ type==="provider-plan" ? "Paket je aktiviran. Podrobnosti v profilu ponudnika." : "Vstopnica/kupon je shranjena tudi v razdelku “Moje”." }</b>
-                ${ type!=="provider-plan" ? `<br><span style=\"opacity:.8\">Št. kode:</span> <code style=\"font-weight:700\">${escapeHtml(token)}</code>` : "" }
+              <p style="margin:12px 0">
+                ${type==="coupon" ? "QR koda kupona" : "QR koda vstopnice"} je priložena (<i>qr.png</i>), račun pa kot PDF (<i>Racun-${seq}.pdf</i>).
+                <br><b>Vstopnica/kupon je shranjena tudi v razdelku “Moje” v aplikaciji NearGo.</b>
+                <br><span style="opacity:.8">Št. kode:</span> <code style="font-weight:700">${escapeHtml(token)}</code>
               </p>
 
               <div style="margin:18px 0 4px;color:#5b6b7b;font-size:13px">

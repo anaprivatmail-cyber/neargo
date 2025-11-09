@@ -34,7 +34,7 @@ export const handler = async (event) => {
 
     // Poišči ticket
     let q = supa.from("tickets")
-      .select("id,type,status,display_benefit,email,redeemed_at,event_id")
+      .select("id,type,status,display_benefit,customer_email,redeemed_at,event_id")
       .eq("token", token)
       .limit(1);
 
@@ -59,7 +59,7 @@ export const handler = async (event) => {
         redeemedAt: row.redeemed_at || null,
         type: row.type,
         display_benefit: row.display_benefit || null,
-  email: row.email || null
+        customer_email: row.customer_email || null
       });
     }
 
@@ -81,7 +81,7 @@ export const handler = async (event) => {
       redeemedAt: nowIso,
       type: row.type,
       display_benefit: row.display_benefit || null,
-  email: row.email || null
+      customer_email: row.customer_email || null
     });
 
   } catch (e) {

@@ -10,10 +10,7 @@
   },
   "scripts": {
     "build": "echo \"No build step\"",
-    "start": "netlify dev",
-    "dump:tables": "node scripts/dump-supabase-tables.mjs",
-    "db:tables": "node scripts/list-db-tables.mjs",
-    "check:tables": "node scripts/check-required-tables.mjs"
+    "start": "netlify dev"
   },
   "dependencies": {
     "@getbrevo/brevo": "^2.5.0",

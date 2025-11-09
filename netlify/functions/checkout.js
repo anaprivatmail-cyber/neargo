@@ -88,8 +88,7 @@ export const handler = async (event) => {
           }
         ],
         payment_intent_data: { description: name },
-        // Dodamo eksplicitni type za webhook, da razlikuje provider-plan
-        metadata: { ...metadata, plan, interval, type: "provider-plan" }
+        metadata: { ...metadata, plan, interval }
       });
       return { statusCode: 200, body: JSON.stringify({ ok: true, url: session.url }) };
     }

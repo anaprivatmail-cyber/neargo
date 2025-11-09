@@ -3,9 +3,3 @@
 
 /*.html
   Cache-Control: no-cache
-
-/assets/header-account.js
-  Cache-Control: no-cache
-
-/assets/early-card.js
-  Cache-Control: no-cache

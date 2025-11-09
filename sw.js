@@ -1,6 +1,6 @@
-// version: 2025-11-09-2
+// version: 2025-11-09-3
 
-const VERSION = '2025-11-09-2';
+const VERSION = '2025-11-09-3';
 
 // Always take control ASAP
 self.addEventListener('install', () => self.skipWaiting());

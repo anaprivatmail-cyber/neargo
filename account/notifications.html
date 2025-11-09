@@ -74,13 +74,13 @@
     </a>
   <div style="flex:1"></div>
   </header>
-  <main>
-    <div class="card" id="introCard" style="margin-top:6px">
+  <main style="padding-top:4px">
+    <div class="card" id="introCard" style="margin-top:0">
       <h1>Predhodna obvestila</h1>
-      <ul class="benefits" style="list-style:none;margin:6px 0 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:.9em;font-weight:600">
-        <li style="display:flex;align-items:center;gap:8px"><span style="background:#0bbbd6;color:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:700">15′</span><span><b>15 minut prej</b> kot ostali</span></li>
-        <li style="display:flex;align-items:center;gap:8px"><span style="background:#ff6b6b;color:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:700">★</span><span><b>Prvi do novih ponudb</b>, tudi brezplačnih promo akcij</span></li>
-        <li style="display:flex;align-items:center;gap:8px"><span style="background:#23c98b;color:#fff;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:13px;font-weight:700">📍</span><span><b>Po tvoji lokaciji</b> in <b>interesih</b></span></li>
+      <ul class="benefits" style="list-style:none;margin:6px 0 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.9em;font-weight:600">
+        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⏰</span><span><b>15 minut prej</b> kot ostali</span></li>
+        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🔔</span><span><b>Prvi do novih ponudb</b> in brezplačnih promo akcij</span></li>
+        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📍</span><span><b>Personalizirano po lokaciji</b> in <b>interesih</b></span></li>
       </ul>
       <div class="muted" style="font-size:.78em;margin-top:6px;font-weight:600">Pridržujemo si pravico, da obvestila ne pošljemo, če v izbrani kategoriji v tem mesecu ni ponudb.</div>
     </div>
@@ -95,7 +95,7 @@
         <legend>1. Tip ponudb</legend>
         <div id="typeToggle" style="display:flex;gap:12px;flex-wrap:wrap">
           <button type="button" data-value="events" class="btn small type-btn type-events active">Dogodki</button>
-          <button type="button" data-value="services" class="btn small type-btn type-services">Storitve</button>
+          <button type="button" data-value="services" class="btn small type-btn type-services" style="background:linear-gradient(180deg,#bfeef6,#8fd8e6);color:#064c56">Storitve</button>
         </div>
       </fieldset>
       <fieldset>
@@ -109,8 +109,10 @@
             <select id="subCategorySelect" multiple size="4" style="min-width:180px;padding:8px;border-radius:8px;border:1px solid var(--chipborder,#cfe1ee)" aria-describedby="subHelp"></select>
             <span id="subHelp" class="muted" style="font-size:.7em">(max 2)</span>
           </div>
-          <div id="subCats" class="chips" style="margin-top:8px"></div>
-          <div id="selectedWrap" class="sel-box" aria-live="polite"></div>
+          <div id="subWrap" class="subwrap" style="display:none">
+            <div id="subCats" class="chips" style="margin-top:8px"></div>
+            <div id="selectedWrap" class="sel-box" aria-live="polite"></div>
+          </div>
         </div>
       </fieldset>
       <fieldset>
@@ -131,7 +133,7 @@
             <div class="muted" id="radiusLbl" style="font-size:.75em;font-weight:800;margin-top:-4px">25 km (premer 50 km)</div>
           </div>
         </div>
-        <div id="earlyMap"></div>
+        <div id="earlyMap" style="margin-top:12px"></div>
       </fieldset>
       <fieldset>
         <legend>4. Kontakt (opcijsko)</legend>

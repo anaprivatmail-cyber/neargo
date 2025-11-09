@@ -1,3 +1,26 @@
+## Zgodnji dostop (Early access) – robusten tok
+
+Za zanesljiv in skalabilen prikaz predčasnih ponudb (15 min pred `publish_at`) smo uvedli kombinacijo front-end oznake in strežniškega filtriranja:
+
+1) Front-end
+	- `index.html` filtrira zalogo (stock) in označi zgodnje ponudbe z značko 🔔 Zgodnji dostop (polje `e._earlyPreview`).
+	- Če je uporabnik Premium in ima nastavljene podkategorije, se predener prikaz dopolni s strogo strežniško listo prek `/api/offers-early`.
+
+2) Strežnik
+	- `netlify/functions/provider-list.js` od straniščnega seznama odstrani razprodane (`stock <= 0`).
+	- Opcijsko skrije še neobjavljene kupone: nastavi `PROVIDER_HIDE_PREPUB_COUPONS=1` v Netlify env (takrat so pre-publish kuponi nedostopni prek javnega seznama).
+	- `netlify/functions/offers-early.js` je strogo zavarovan early endpoint: zahteva `email`, preveri Premium (tabela `premium_users` ali `tickets` tipa `premium`), prebere `notification_prefs`, filtrira po podkategorijah, radiju (≤50 km) in časovnem oknu (`publish_at - EARLY_NOTIFY_MINUTES <= now < publish_at`).
+
+3) Konfiguracija
+	- `EARLY_NOTIFY_MINUTES` (cron in early endpoint, privzeto 15).
+	- `PROVIDER_HIDE_PREPUB_COUPONS` (opcijsko; skrije pre-publish kupon na javnih seznamih).
+
+4) Testni scenariji
+	- Ustvari kupon z `publish_at` čez ~10 min v ujemajoči se podkategoriji.
+	- Premium uporabnik: vidi kartico z 🔔 in lahko odpre; non-premium ne dobi early ponudb.
+	- Po `publish_at` značka izgine in kartica je javno vidna.
+	- `stock` → 0: kartica izgine na klientu in jo server ne vrača več preko `provider-list`.
+
 # neargo
 
 Important setup steps for rewards & Supabase

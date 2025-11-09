@@ -268,6 +268,27 @@ const bindTypeSwitch = () => {
 			btns.forEach(x=>x.classList.remove('active'));
 			b.classList.add('active');
 			state.type = b.dataset.value === 'services' ? 'services' : 'events';
+			// Vizualni stil: storitve ne smejo biti rdeče – ohranimo modro paleto
+			btns.forEach(x=>{
+				if(x.classList.contains('type-services')){
+					if(state.type==='services' && x.classList.contains('active')){
+						x.style.background='linear-gradient(180deg,#bfeef6,#8fd8e6)';
+						x.style.color='#064c56';
+					}else{
+						x.style.background='linear-gradient(180deg,#f7fdff,#e6fbff)';
+						x.style.color='#064c56';
+					}
+				}
+				if(x.classList.contains('type-events')){
+					if(state.type==='events' && x.classList.contains('active')){
+						x.style.background='linear-gradient(180deg,#0bbbd6,#07aab8)';
+						x.style.color='#fff';
+					}else{
+						x.style.background='linear-gradient(180deg,#f7fdff,#e6fbff)';
+						x.style.color='#064c56';
+					}
+				}
+			});
 			state.mainSelected = '';
 			renderMainCategories();
 			populateMainSelect();

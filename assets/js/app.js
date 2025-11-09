@@ -48,141 +48,90 @@ const getCanonicalCategories = (type = 'events') => {
   return [];
 };
 
-// ===== Early-notify renderer (populate premium.html) =====
-const buildEarlyNotifyCategoryList = (selectedKeys = []) => {
+// ===== Early-notify renderer (premium.html) – usklajeno z account/notifications
+const earlyState = { type: 'events', main: '', selected: new Set() };
+
+const buildEarlyNotifyCategoryList = (selectedSubKeys = []) => {
   const container = document.getElementById('earlyNotifyCategoryList');
   if (!container) return;
-  const selectedSet = new Set(Array.isArray(selectedKeys) ? selectedKeys : []);
+  earlyState.selected = new Set(Array.isArray(selectedSubKeys) ? selectedSubKeys.slice(0,2) : []);
   container.innerHTML = '';
 
-  const sections = [
-    { title: 'Dogodki', type: 'events' },
-    { title: 'Storitve', type: 'services' }
-  ];
+  // Toggle tipa (Dogodki/Storitve)
+  const toggle = document.createElement('div');
+  toggle.style.display = 'flex'; toggle.style.gap = '10px'; toggle.style.marginBottom = '8px';
+  const btnEvents = document.createElement('button'); btnEvents.type = 'button'; btnEvents.className='btn small type-btn type-events'; btnEvents.textContent='Dogodki';
+  const btnServices = document.createElement('button'); btnServices.type = 'button'; btnServices.className='btn small type-btn type-services'; btnServices.textContent='Storitve';
+  toggle.append(btnEvents, btnServices); container.appendChild(toggle);
 
-  sections.forEach(({ title, type }) => {
-    const list = getCanonicalCategories(type);
-    if (!Array.isArray(list) || !list.length) return;
+  const mainWrap = document.createElement('div'); mainWrap.id='earlyMainCats'; mainWrap.className='chips'; container.appendChild(mainWrap);
+  const subsWrap = document.createElement('div'); subsWrap.id='earlySubsWrap'; subsWrap.className='subwrap'; subsWrap.style.display='none'; container.appendChild(subsWrap);
+  const subs = document.createElement('div'); subs.id='earlySubCats'; subs.className='chips'; subs.style.marginTop='8px'; subsWrap.appendChild(subs);
+  const selectedWrap = document.createElement('div'); selectedWrap.id='earlySelectedWrap'; selectedWrap.className='sel-box'; subsWrap.appendChild(selectedWrap);
 
-    const section = document.createElement('section');
-    section.className = 'early-notify-section';
-    section.style.marginBottom = '18px';
+  const setTypeButtons = () => {
+    [btnEvents, btnServices].forEach(b=>b.classList.remove('active'));
+    if (earlyState.type==='events') btnEvents.classList.add('active'); else btnServices.classList.add('active');
+    // barvni stil v skladu z account/notifications
+    btnEvents.style.background = earlyState.type==='events' && btnEvents.classList.contains('active') ? 'linear-gradient(180deg,#0bbbd6,#07aab8)' : 'linear-gradient(180deg,#f7fdff,#e6fbff)';
+    btnEvents.style.color = earlyState.type==='events' && btnEvents.classList.contains('active') ? '#fff' : '#064c56';
+    btnServices.style.background = earlyState.type==='services' && btnServices.classList.contains('active') ? 'linear-gradient(180deg,#bfeef6,#8fd8e6)' : 'linear-gradient(180deg,#f7fdff,#e6fbff)';
+    btnServices.style.color = '#064c56';
+  };
+  btnEvents.addEventListener('click', ()=>{ earlyState.type='events'; earlyState.main=''; renderMain(); setTypeButtons(); });
+  btnServices.addEventListener('click', ()=>{ earlyState.type='services'; earlyState.main=''; renderMain(); setTypeButtons(); });
+  setTypeButtons();
 
-    const heading = document.createElement('h3');
-    heading.textContent = title;
-    heading.className = 'early-notify-title';
-    heading.style.margin = '0 0 8px 0';
-    heading.style.fontSize = '1.05em';
-    heading.style.fontWeight = '800';
-    section.appendChild(heading);
-
-    const itemsWrap = document.createElement('div');
-    itemsWrap.className = 'early-notify-grid';
-    itemsWrap.style.display = 'flex';
-    itemsWrap.style.flexWrap = 'wrap';
-    itemsWrap.style.gap = '10px';
-
-    list.forEach((cat) => {
-      if (!cat?.key) return;
-      const item = document.createElement('div');
-      item.className = 'early-notify-item';
-  item.style.display = 'flex';
-  item.style.flexDirection = 'column';
-  item.style.gap = '6px';
-
-      const label = document.createElement('label');
-      label.className = 'cat-chip early-cat';
-      label.dataset.cat = cat.key;
-      label.setAttribute('aria-pressed', 'false');
-      label.style.position = 'relative';
-      label.style.display = 'inline-flex';
-      label.style.alignItems = 'center';
-      label.style.gap = '8px';
-      label.style.cursor = 'pointer';
-
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.name = 'categories';
-      input.value = cat.key;
-      input.style.position = 'absolute';
-      input.style.opacity = '0';
-      input.style.pointerEvents = 'none';
-      input.style.width = '1px';
-      input.style.height = '1px';
-
-      const setChipState = (checked) => {
-        if (checked) {
-          label.classList.add('active');
-          label.setAttribute('aria-pressed', 'true');
-          toggleChipLabel(label, true);
-        } else {
-          label.classList.remove('active');
-          label.setAttribute('aria-pressed', 'false');
-          toggleChipLabel(label, false);
-        }
-      };
-
-      input.addEventListener('change', () => {
-        setChipState(input.checked);
-      });
-
-      label.addEventListener('mouseenter', () => toggleChipLabel(label, true));
-      label.addEventListener('mouseleave', () => toggleChipLabel(label, false));
-      label.addEventListener('focus', () => toggleChipLabel(label, true));
-      label.addEventListener('blur', () => toggleChipLabel(label, false));
-      label.addEventListener('touchstart', () => toggleChipLabel(label, true), { passive: true });
-      label.addEventListener('touchend', () => toggleChipLabel(label, false));
-
-      if (cat.icon) {
-        const img = document.createElement('img');
-        img.src = cat.icon;
-        img.alt = '';
-        img.loading = 'lazy';
-        label.appendChild(img);
-      } else {
-        const emoji = document.createElement('span');
-        emoji.className = 'cat-emoji';
-        emoji.setAttribute('aria-hidden', 'true');
-        emoji.textContent = cat.emoji || '🏷️';
-        label.appendChild(emoji);
-      }
-
-      const text = document.createElement('span');
-      text.className = 'cat-label';
-      text.textContent = cat.label || cat.key;
-      label.appendChild(text);
-
-      if (selectedSet.has(cat.key)) {
-        input.checked = true;
-      }
-      setChipState(input.checked);
-
-      label.appendChild(input);
-      item.appendChild(label);
-
-      if (Array.isArray(cat.sub) && cat.sub.length) {
-        const subList = document.createElement('ul');
-        subList.className = 'early-subcategories';
-        subList.style.margin = '0 0 0 26px';
-        subList.style.padding = '0';
-        subList.style.listStyle = 'disc';
-        subList.style.color = 'var(--muted, #555)';
-        subList.style.fontSize = '13px';
-        cat.sub.forEach((sub) => {
-          if (!sub?.label) return;
-          const li = document.createElement('li');
-          li.textContent = sub.label;
-          subList.appendChild(li);
-        });
-        item.appendChild(subList);
-      }
-
-      itemsWrap.appendChild(item);
+  const renderSelected = () => {
+    selectedWrap.innerHTML='';
+    const cur = Array.from(earlyState.selected);
+    if (!cur.length) {
+      const note = document.createElement('div'); note.className='muted'; note.textContent='Ni izbranih podkategorij. Izberi do 2.'; selectedWrap.appendChild(note); return;
+    }
+    cur.forEach((key)=>{
+      const pill=document.createElement('span'); pill.className='selected-pill'; pill.innerHTML=`${key} <button type="button" aria-label="Odstrani">×</button>`; pill.querySelector('button').addEventListener('click',()=>{ earlyState.selected.delete(key); renderSubs(); }); selectedWrap.appendChild(pill);
     });
+  };
 
-    section.appendChild(itemsWrap);
-    container.appendChild(section);
-  });
+  const renderSubs = () => {
+    subs.innerHTML='';
+    const utils = window.NearGoCategoryUtils;
+    const list = utils?.getSubcategories(earlyState.type, earlyState.main) || [];
+    subsWrap.style.display = list.length ? 'block' : 'none';
+    list.forEach((s)=>{
+      const chip = document.createElement('button'); chip.type='button'; chip.className='cat-chip'; chip.dataset.key=s.key;
+      chip.innerHTML = `${s.icon ? `<img src="${s.icon}" alt="">` : `<span class='cat-emoji'>${s.emoji||'🏷️'}</span>`}<span class="cat-label">${s.label}</span>`;
+      if (earlyState.selected.has(s.key)) chip.classList.add('active','show-label');
+      chip.addEventListener('click', ()=>{
+        if (earlyState.selected.has(s.key)) { earlyState.selected.delete(s.key); renderSubs(); return; }
+        if (earlyState.selected.size >= 2) { // limit 2
+          return;
+        }
+        earlyState.selected.add(s.key); renderSubs();
+      });
+      subs.appendChild(chip);
+    });
+    renderSelected();
+  };
+
+  const renderMain = () => {
+    const list = getCanonicalCategories(earlyState.type);
+    mainWrap.innerHTML='';
+    list.forEach((cat)=>{
+      const chip=document.createElement('button'); chip.type='button'; chip.className='cat-chip'; chip.dataset.key=cat.key;
+      chip.setAttribute('aria-pressed', earlyState.main===cat.key?'true':'false');
+      chip.innerHTML = (cat.icon ? `<img src="${cat.icon}" alt="">` : `<span class="cat-emoji">${cat.emoji||'🏷️'}</span>`) + `<span class="cat-label">${cat.label}</span>`;
+      if (earlyState.main===cat.key) chip.classList.add('active','show-label');
+      chip.addEventListener('mouseenter', ()=> chip.classList.add('show-label'));
+      chip.addEventListener('mouseleave', ()=> { if(!chip.classList.contains('active')) chip.classList.remove('show-label'); });
+      chip.addEventListener('click', ()=>{ earlyState.main = cat.key; mainWrap.querySelectorAll('.cat-chip').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); }); chip.classList.add('active'); chip.setAttribute('aria-pressed','true'); chip.classList.add('show-label'); renderSubs(); });
+      mainWrap.appendChild(chip);
+    });
+    if (!earlyState.main && list[0]) earlyState.main = list[0].key;
+    renderSubs();
+  };
+
+  renderMain();
 };
 
 const readEarlyNotifyState = () => {
@@ -283,8 +232,7 @@ document.addEventListener("DOMContentLoaded", function() {
         return;
       }
       e.preventDefault();
-      const checked = Array.from(form.querySelectorAll("input[type=checkbox]:checked"))
-        .map(cb => cb.value);
+      const checked = Array.from(earlyState.selected);
       const location = document.getElementById("earlyNotifyLocation")?.value?.trim() || "";
       const radius = Number(document.getElementById("earlyNotifyRadius")?.value || 30);
       localStorage.setItem("ng_early_notify_categories", JSON.stringify({categories: checked, location, radius}));

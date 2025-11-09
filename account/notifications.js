@@ -1,4 +1,9 @@
-import { getCategoryList, resolveCategoryKey, getSubcategories } from '../assets/categories.js';
+// Uporabi globalno objavljeno util funkcije iz assets/categories.js, ki je vključena v HTML z verzijskim hashom.
+// Pomembno: NE uporabljaj statičnega `import` tukaj, ker bi to naložilo /assets/categories.js brez ?v=... in obšlo cache-busting.
+const __CatUtils = (typeof window !== 'undefined' && window.NearGoCategoryUtils) ? window.NearGoCategoryUtils : null;
+const getCategoryList = (type) => (__CatUtils && typeof __CatUtils.getList === 'function') ? __CatUtils.getList(type) : [];
+const resolveCategoryKey = (type, value) => (__CatUtils && typeof __CatUtils.resolveKey === 'function') ? __CatUtils.resolveKey(type, value) : '';
+const getSubcategories = (type, key) => (__CatUtils && typeof __CatUtils.getSubcategories === 'function') ? __CatUtils.getSubcategories(type, key) : [];
 
 const EVENT_CATEGORIES = getCategoryList('events');
 const SERVICE_CATEGORIES = getCategoryList('services');

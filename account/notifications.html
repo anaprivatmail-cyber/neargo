@@ -27,12 +27,15 @@
     fieldset{border:none;margin:0;padding:0 0 10px 0}
     legend{font-weight:800;font-size:.85em;text-transform:uppercase;letter-spacing:.5px;color:#0bbbd6;margin:0 0 6px 0}
     .chips{display:flex;flex-wrap:wrap;gap:8px}
-    .cat-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;background:var(--chip,#fff);border:1px solid var(--chipborder,#cfe1ee);color:var(--muted,#5b6b7b);font-weight:800;font-size:14px;line-height:1;cursor:pointer;position:relative;transition:background .2s,border .2s,transform .15s}
-    .cat-chip:hover{transform:translateY(-1px);border-color:var(--primary,#0bbbd6)}
-    .cat-chip img,.cat-chip .cat-emoji{width:20px;height:20px;display:block;flex-shrink:0}
-    .cat-chip.active{background:var(--primary,#0bbbd6);color:#fff;border-color:transparent}
-    .cat-chip .cat-label{display:none;font-weight:800}
-    .cat-chip.show-label .cat-label,.cat-chip.active .cat-label{display:inline}
+  /* CATEGORY CHIPS (profesionalni videz) */
+  .cat-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;background:linear-gradient(180deg,#ffffff,#f6fcff);border:1px solid var(--chipborder,#cfe1ee);color:#274754;font-weight:800;font-size:14px;line-height:1;cursor:pointer;position:relative;box-shadow:0 2px 4px rgba(11,30,60,.06);transition:background .25s,border-color .25s,transform .18s,box-shadow .25s,color .25s}
+  .cat-chip:hover{transform:translateY(-2px);border-color:#0bbbd6;box-shadow:0 6px 16px rgba(11,30,60,.16)}
+  .cat-chip img,.cat-chip .cat-emoji{width:20px;height:20px;display:block;flex-shrink:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,.12))}
+  .cat-chip.active{background:linear-gradient(180deg,#0bbbd6,#0898ad);color:#fff;border-color:#0bbbd6;box-shadow:0 8px 26px rgba(11,187,214,.35)}
+  .cat-chip .cat-label{display:none;font-weight:800}
+  .cat-chip.show-label .cat-label,.cat-chip.active .cat-label{display:inline}
+  .cat-chip:focus{outline:2px solid #0bbbd6;outline-offset:2px}
+  .cat-chip:active{transform:translateY(0);box-shadow:0 3px 10px rgba(11,30,60,.25)}
     .subwrap{margin-top:10px;padding:10px;border:1px dashed var(--chipborder,#cfe1ee);border-radius:12px;background:#fcfeff}
     .sel-box{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
     .selected-pill{background:#0bbbd6;color:#fff;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:800;display:inline-flex;align-items:center;gap:6px}
@@ -47,9 +50,13 @@
     .btn.secondary{background:#0bbbd6;box-shadow:0 4px 12px rgba(11,187,214,0.25)}
     .btn.secondary:hover{background:#0aa5c1}
   .btn.small{padding:8px 12px;border-radius:10px;font-size:14px}
-  .type-btn{background:linear-gradient(180deg,#f7fdff,#e6fbff);color:#064c56;border:1px solid rgba(11,187,214,0.15);box-shadow:0 6px 20px rgba(11,187,214,0.06);font-weight:900}
-  .type-btn.active.type-events{background:linear-gradient(180deg,#0bbbd6,#07aab8);color:#fff;border-color:transparent;box-shadow:0 8px 26px rgba(11,187,214,0.18)}
-  .type-btn.active.type-services{background:linear-gradient(180deg,#ff7b7b,#ff5b5b);color:#fff;border-color:transparent;box-shadow:0 8px 26px rgba(255,107,107,0.18)}
+  /* TYPE TOGGLE BUTTONS */
+  .type-btn{background:linear-gradient(180deg,#ffffff,#f3fbfd);color:#27535f;border:1px solid rgba(11,187,214,0.18);box-shadow:0 2px 4px rgba(11,30,60,0.08);font-weight:900;transition:background .25s,box-shadow .25s,border-color .25s,color .25s}
+  .type-btn:hover{border-color:#0bbbd6;box-shadow:0 6px 14px rgba(11,30,60,.14);color:#0b4d59}
+  .type-btn.active.type-events{background:linear-gradient(180deg,#0bbbd6,#079fb0);color:#fff;border-color:#0bbbd6;box-shadow:0 8px 26px rgba(11,187,214,0.35)}
+  .type-btn.active.type-services{background:linear-gradient(180deg,#ff7b7b,#ff5454);color:#fff;border-color:#ff6b6b;box-shadow:0 8px 26px rgba(255,107,107,0.35)}
+  .type-btn:focus{outline:2px solid #0bbbd6;outline-offset:3px}
+  .type-btn:active{transform:translateY(0);box-shadow:0 3px 12px rgba(11,30,60,0.25)}
   .btn.secondary.active{background:#0aa5c1}
     .quota{font-size:.8em;font-weight:800;margin-top:6px;color:#0bbbd6}
     .disabled-note{color:#d64c4c;font-weight:800;font-size:.8em;margin-top:6px}

@@ -18,8 +18,8 @@
   <script src="assets/boot-utils.js"></script>
   <script type="module" src="assets/categories.js"></script>
   <!-- Ensure newest deployed version is always used -->
-  <script type="module" src="/assets/sw-reload.js"></script>
-  <script type="module">import { initEarlyCard } from '/assets/early-card.js'; window.addEventListener('DOMContentLoaded', initEarlyCard);</script>
+  <script type="module" src="/assets/sw-reload.js?v=f8287c1cc1"></script>
+  <script type="module">import { initEarlyCard } from '/assets/early-card.js?v=2f4a53b7b2'; window.addEventListener('DOMContentLoaded', initEarlyCard);</script>
 
   <!-- Leaflet -->
   <link rel="preconnect" href="https://unpkg.com">
@@ -1220,7 +1220,7 @@ var supabaseClientPromise=null;
 function loadSupabaseClient(){
   if(window.supabase) return Promise.resolve(window.supabase);
   if(!supabaseClientPromise){
-    supabaseClientPromise = import('/assets/supabase-client.js').then(function(mod){ return mod.supabase; }).catch(function(){ return null; });
+    supabaseClientPromise = import('/assets/supabase-client.js?v=7bd893b1ab').then(function(mod){ return mod.supabase; }).catch(function(){ return null; });
   }
   return supabaseClientPromise;
 }

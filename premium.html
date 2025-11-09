@@ -105,6 +105,8 @@
 		<div id="earlyNotifyConfirmation" style="display:none; color:green; margin-top:10px;"></div>
 	</section>
 	<script type="module" src="assets/js/app.js"></script>
+		<script defer src="/assets/header-account.js?v=20251109"></script>
+		<script type="module">import { initEarlyCard } from '/assets/early-card.js'; window.addEventListener('DOMContentLoaded', initEarlyCard);</script>
 <script>
 document.getElementById('premiumEmailForm')?.addEventListener('submit', async function(e) {
 	e.preventDefault();

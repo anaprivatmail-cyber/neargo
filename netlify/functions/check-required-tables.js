@@ -21,7 +21,7 @@ export const handler = async (event) => {
 
   const REQUIRED = [
     { name: 'offers', columns: ['id','name','subcategory','publish_at','venue_lat','venue_lon'] },
-    { name: 'tickets', columns: ['id','type','customer_email','token','redeemed_at'] },
+  { name: 'tickets', columns: ['id','type','email','token','redeemed_at'] },
     { name: 'premium_users', columns: ['email','premium_until'] },
     { name: 'notification_prefs', columns: ['email','categories','radius','lat','lon','phone'] },
     { name: 'event_views', columns: ['user_id','item_id','item_type','viewed_at'] },
@@ -32,7 +32,7 @@ export const handler = async (event) => {
     { name: 'verif_codes', columns: ['id','email','code','created_at','expires_at'] },
     { name: 'scans', columns: ['ticket_id','event_id','token','scanned_at'] },
     { name: 'events', columns: ['id','title','city'] },
-    { name: 'invoices', columns: ['id','number','pdf_url'] },
+  { name: 'invoices', columns: ['id','number','pdf_url','email'] },
     { name: 'invoice_counters', columns: ['year','last_no'] },
     { name: 'geo_queue', columns: ['id','offer_id','addr_raw','status'] },
     { name: 'geocode_cache', columns: ['addr_norm','lat','lon'] },

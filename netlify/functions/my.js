@@ -36,14 +36,14 @@ export const handler = async (event) => {
       }
     }catch{}
     if (!isPremium){
-      try{ const { count } = await supa.from('tickets').select('*',{head:true, count:'exact'}).eq('customer_email', email).eq('type','premium'); isPremium = (count||0) > 0; }catch{}
+      try{ const { count } = await supa.from('tickets').select('*',{head:true, count:'exact'}).eq('email', email).eq('type','premium'); isPremium = (count||0) > 0; }catch{}
     }
 
     // 1) Tickets po e-pošti (brez kakršnihkoli 'demo' vnosov)
     const { data: tickets, error } = await supa
       .from("tickets")
-      .select("id,type,event_id,issued_at,token,customer_email")
-      .eq("customer_email", email)
+  .select("id,type,event_id,issued_at,token,email")
+  .eq("email", email)
       .order("issued_at", { ascending:false });
 
     if (error) return bad("db_error: "+error.message, 500);

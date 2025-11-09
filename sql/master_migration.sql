@@ -58,12 +58,12 @@ CREATE INDEX IF NOT EXISTS offers_subcategory_idx ON public.offers (subcategory)
 CREATE TABLE IF NOT EXISTS public.tickets (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   type text,
-  customer_email text,
+  email text,
   token text UNIQUE,
   redeemed_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS tickets_customer_idx ON public.tickets (customer_email);
+CREATE INDEX IF NOT EXISTS tickets_email_idx ON public.tickets (email);
 CREATE INDEX IF NOT EXISTS tickets_token_not_redeemed_idx ON public.tickets (token) WHERE redeemed_at IS NULL;
 
 /* ===================== VERIFICATION CODES ===================== */

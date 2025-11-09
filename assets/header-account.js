@@ -532,11 +532,14 @@
   }
 
   // If a page doesn't include the account button in the static header,
-  // inject a minimal avatar button into the `.nav` container so the
-  // menu can bind everywhere without editing each HTML file.
+  // inject a minimal avatar button into a suitable header ('.nav' or 'header.slim')
+  // so the menu can bind everywhere without editing each HTML file.
   function ensureAccountButton(){
-    const nav = document.querySelector('.nav');
-    if (!nav) return null;
+    const host = document.querySelector('.nav')
+      || document.querySelector('header.slim')
+      || document.querySelector('header')
+      || null;
+    if (!host) return null;
     const existing = document.getElementById('btnAccount') || document.getElementById('btnMine');
     if (existing){
       const prepared = prepareAccountButton(existing);
@@ -553,7 +556,9 @@
       btn.setAttribute('aria-haspopup','true');
       btn.setAttribute('aria-expanded','false');
       btn.style.marginLeft = 'auto';
-      nav.appendChild(btn);
+      // ensure the button is aligned to the right end of a flex header
+      try{ host.style.display = host.style.display || 'flex'; }catch{}
+      host.appendChild(btn);
       const prepared = prepareAccountButton(btn);
       if (prepared) bindButton(prepared);
       return prepared;
@@ -591,6 +596,23 @@
     // Refresh session once
     refreshSession().catch(()=>{});
     watchAuth();
+    // Lightweight self-test: warn if button not prepared within 1200ms
+    setTimeout(()=>{
+      try{
+        const btn = document.getElementById('btnAccount') || document.getElementById('btnMine');
+        const prepared = btn && btn.dataset.accountMenuPrepared;
+        if (!prepared){
+          console.warn('[account-menu] Button not prepared after 1.2s – header structure may have changed.');
+        }
+        const handlers = btn && btn.__accountMenuHandlersCount;
+        if (btn){
+          const listeners = btn.getAttribute('data-accountMenuBound');
+          // Simple duplicate detection by flag; if multiple, log
+          const dups = (btn.dataset.accountMenuBound === '1' && btn.dataset.accountMenuPrepared === '1') ? false : false;
+          if (handlers && handlers > 4){ console.warn('[account-menu] High handler count on button (', handlers, ') – possible duplicate binding.'); }
+        }
+      }catch{}
+    },1200);
   }
 
   if (document.readyState === 'loading'){

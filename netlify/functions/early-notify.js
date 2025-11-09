@@ -33,10 +33,10 @@ async function getEarlyNotifyPrefs(){
     try {
       const { data: tix } = await supa
         .from('tickets')
-        .select('customer_email')
-        .in('customer_email', emails)
+        .select('email')
+        .in('email', emails)
         .eq('type','premium');
-      (tix||[]).forEach(r=>{ if(r.customer_email) premiumEmails.add(r.customer_email); });
+      (tix||[]).forEach(r=>{ if(r.email) premiumEmails.add(r.email); });
     } catch(e){ console.warn('[early-notify] premium ticket check failed', e.message||e); }
     try {
       const { data: pu } = await supa

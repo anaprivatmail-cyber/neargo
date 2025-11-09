@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS public.invoices (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   seq_no text UNIQUE,
   year integer NOT NULL,
-  customer_email text,
+  email text,
   items jsonb NOT NULL DEFAULT '[]'::jsonb,
   currency text NOT NULL DEFAULT 'eur',
   subtotal integer NOT NULL DEFAULT 0,
@@ -47,14 +47,14 @@ CREATE TABLE IF NOT EXISTS public.invoices (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS invoices_paid_idx ON public.invoices (paid_at DESC);
-CREATE INDEX IF NOT EXISTS invoices_email_idx ON public.invoices (customer_email, paid_at DESC);
+CREATE INDEX IF NOT EXISTS invoices_email_idx ON public.invoices (email, paid_at DESC);
 CREATE INDEX IF NOT EXISTS invoices_year_idx ON public.invoices (year);
 
 /* ===================== TICKETS (add missing columns) ===================== */
 CREATE TABLE IF NOT EXISTS public.tickets (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   type text,
-  customer_email text,
+  email text,
   token text UNIQUE,
   redeemed_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
@@ -70,6 +70,6 @@ ALTER TABLE public.tickets ADD COLUMN IF NOT EXISTS status text;
 ALTER TABLE public.tickets ADD COLUMN IF NOT EXISTS issued_at timestamptz;
 -- created_at already ensured above
 
-CREATE INDEX IF NOT EXISTS tickets_email_idx ON public.tickets (customer_email);
+CREATE INDEX IF NOT EXISTS tickets_email_idx ON public.tickets (email);
 CREATE INDEX IF NOT EXISTS tickets_token_idx ON public.tickets (token);
 CREATE INDEX IF NOT EXISTS tickets_status_idx ON public.tickets (status);

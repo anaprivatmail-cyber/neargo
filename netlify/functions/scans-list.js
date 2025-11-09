@@ -41,11 +41,11 @@ export const handler = async (event) => {
     if (error) return bad("db_error: "+error.message, 500);
     if (!scans?.length) return ok({ ok:true, items: [] });
 
-    // 2) Dopolni z info iz tickets (type, customer_email)
+  // 2) Dopolni z info iz tickets (type, email)
     const ticketIds = [...new Set(scans.map(s => s.ticket_id).filter(Boolean))];
     let tmap = new Map();
     if (ticketIds.length){
-      const { data: tix } = await supa.from("tickets").select("id,type,customer_email").in("id", ticketIds);
+  const { data: tix } = await supa.from("tickets").select("id,type,email").in("id", ticketIds);
       (tix||[]).forEach(t => tmap.set(t.id, t));
     }
 
@@ -68,7 +68,7 @@ export const handler = async (event) => {
         event_title: e.title || null,
         event_city: e.city || null,
         type: t.type || null,
-        customer_email: t.customer_email || null,
+  customer_email: t.email || null,
         scanner_email: s.scanner_email || null
       };
     });

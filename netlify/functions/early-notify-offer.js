@@ -32,7 +32,7 @@ async function loadPrefs(){
   if (requirePremium && prefs.length){
     const emails = prefs.map(p=>p.email).filter(Boolean);
     let premiumEmails = new Set();
-    try{ const { data: tix } = await supa.from('tickets').select('customer_email').in('customer_email', emails).eq('type','premium'); (tix||[]).forEach(r=>r.customer_email&&premiumEmails.add(r.customer_email)); }catch{}
+  try{ const { data: tix } = await supa.from('tickets').select('email').in('email', emails).eq('type','premium'); (tix||[]).forEach(r=>r.email&&premiumEmails.add(r.email)); }catch{}
     try{ const { data: pu } = await supa.from('premium_users').select('email,premium_until').in('email', emails); const now=Date.now(); (pu||[]).forEach(r=>{ if(r.email && r.premium_until && new Date(r.premium_until).getTime()>now) premiumEmails.add(r.email); }); }catch{}
     prefs = prefs.filter(p=>premiumEmails.has(p.email));
   }

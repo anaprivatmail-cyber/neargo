@@ -114,7 +114,7 @@
               <td>${(x.event_title||'—')}${x.event_city?(' • '+x.event_city):''}</td>
               <td>${x.token||''}</td>
               <td>${x.type||''}</td>
-              <td>${x.customer_email||''}</td>
+              <td>${x.email||x.customer_email||''}</td>
               <td>${x.scanner_email||''}</td>
             </tr>
           `).join('');

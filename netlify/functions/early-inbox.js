@@ -26,7 +26,7 @@ export const handler = async (event) => {
           const { data: pu } = await supa.from('premium_users').select('email,premium_until').eq('email', email).maybeSingle();
           const ok = pu && pu.premium_until && new Date(pu.premium_until).getTime() > Date.now();
           if (!ok){
-            const { count } = await supa.from('tickets').select('*',{head:true,count:'exact'}).eq('customer_email', email).eq('type','premium');
+            const { count } = await supa.from('tickets').select('*',{head:true,count:'exact'}).eq('email', email).eq('type','premium');
             if (!count) return ok({ ok:true, items: [] });
           }
         }catch{}

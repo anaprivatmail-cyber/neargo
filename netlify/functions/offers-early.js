@@ -53,7 +53,7 @@ async function isPremium(email){
     if (pu && pu.premium_until && new Date(pu.premium_until).getTime() > nowMs) return true;
   }catch{}
   try{
-    const { count } = await supa.from('tickets').select('*', { head:true, count:'exact' }).eq('customer_email', email).eq('type', 'premium');
+  const { count } = await supa.from('tickets').select('*', { head:true, count:'exact' }).eq('email', email).eq('type', 'premium');
     return (count||0) > 0;
   }catch{}
   return false;

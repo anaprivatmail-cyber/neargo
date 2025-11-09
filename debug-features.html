@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NearGo – Debug</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <script type="module" src="/assets/sw-reload.js"></script>
+  <style>
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:14px;max-width:920px;margin:0 auto}
+    h1{font-weight:900;letter-spacing:-0.3px}
+    section{background:#fff;border:1px solid #cfe1ee;border-radius:12px;padding:12px;margin:10px 0}
+    .kv{display:grid;grid-template-columns:200px 1fr;gap:10px 14px}
+    pre{white-space:pre-wrap;word-break:break-word;background:#061b24;color:#e0f6fa;padding:10px;border-radius:8px}
+    button{background:#0bbbd6;border:none;border-radius:10px;color:#fff;font-weight:800;padding:8px 12px;cursor:pointer}
+  </style>
+</head>
+<body>
+  <h1>NearGo – Debug pregled</h1>
+  <section>
+    <div class="kv">
+      <div>SW_VERSION</div><div id="swv">…</div>
+      <div>Asset primer</div><div id="assets">…</div>
+      <div>Premium</div><div id="prem">…</div>
+      <div>Email</div><div id="email">…</div>
+      <div>Točke</div><div id="points">…</div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+      <button id="btnReloadSW">Force SW update</button>
+      <button id="btnOpenNotif">Odpri Predhodna obvestila (diag=all)</button>
+    </div>
+  </section>
+  <section>
+    <h3>Kategorije (events/services)</h3>
+    <pre id="cats">…</pre>
+  </section>
+  <section>
+    <h3>Prefs GET</h3>
+    <pre id="prefs">…</pre>
+  </section>
+  <section>
+    <h3>Early-notify count</h3>
+    <pre id="count">…</pre>
+  </section>
+  <script type="module">
+    function q(id){return document.getElementById(id)}
+    const email = localStorage.getItem('user_email')||'';
+    q('email').textContent = email||'(ni)';
+    q('prem').textContent = window.IS_PREMIUM? 'DA' : 'NE';
+    q('swv').textContent = localStorage.getItem('SW_VERSION') || '(ni)';
+    q('assets').textContent = [...document.querySelectorAll('link[rel=stylesheet],script[src]')]
+      .map(n=>n.href||n.src).filter(Boolean).slice(0,6).join('\n');
+    q('points').textContent = typeof window.MY_POINTS==='number'? String(window.MY_POINTS) : '(ni)';
+
+    const ev = window.NearGoCategories?.events||[];
+    const sv = window.NearGoCategories?.services||[];
+    q('cats').textContent = [
+      `Events: ${ev.length}`, ...ev.slice(0,15).map(c=>`- ${c.key} (${c.sub?.length||0} sub)`),
+      '',
+      `Services: ${sv.length}`, ...sv.slice(0,15).map(c=>`- ${c.key} (${c.sub?.length||0} sub)`)
+    ].join('\n');
+
+    async function loadPrefs(){
+      if(!email){ q('prefs').textContent='(ni email)'; return; }
+      const r = await fetch(`/.netlify/functions/notifications-prefs-get?email=${encodeURIComponent(email)}`).then(x=>x.json()).catch(()=>null);
+      q('prefs').textContent = r? JSON.stringify(r,null,2) : '(napaka)';
+    }
+    async function loadCount(){
+      if(!email){ q('count').textContent='(ni email)'; return; }
+      const r = await fetch(`/api/early-notify-count?email=${encodeURIComponent(email)}`).then(x=>x.json()).catch(()=>null);
+      q('count').textContent = r? JSON.stringify(r,null,2) : '(napaka)';
+    }
+    loadPrefs(); loadCount();
+
+    q('btnReloadSW').addEventListener('click', ()=>{
+      try{
+        if(navigator.serviceWorker?.controller){
+          navigator.serviceWorker.controller.postMessage({ type:'SKIP_WAITING_AND_RELOAD' });
+        }
+        setTimeout(()=>location.reload(), 400);
+      }catch{ location.reload(); }
+    });
+    q('btnOpenNotif').addEventListener('click', ()=>{
+      location.href = '/account/notifications.html?diag=all';
+    });
+  </script>
+  <script type="module" src="/assets/categories.js"></script>
+</body>
+</html>

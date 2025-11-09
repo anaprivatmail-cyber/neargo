@@ -1,6 +1,10 @@
 [build]
   publish = "."
   functions = "netlify/functions"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
 
 # ===== Redirects to serverless functions (API) =====
 

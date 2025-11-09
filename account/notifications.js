@@ -594,3 +594,103 @@ async function updateMonthlyCounter(){
 	// Small delay to allow refreshPremiumFlag to complete on first load
 	try{ await new Promise(r=>setTimeout(r, 400)); updateMonthlyCounter(); }catch{}
 })();
+
+// ===== Diagnostični overlay (?diag=1) =====
+function initDiagnosticsOverlay(){
+	try{
+		const qs = new URLSearchParams(location.search);
+		if(!qs.has('diag')) return;
+		const showAll = qs.get('diag') === 'all';
+		const wrap = document.createElement('div');
+		wrap.id='diagOverlay';
+		wrap.style.cssText='position:fixed;bottom:10px;right:10px;z-index:9999;background:#061b24;color:#e0f6fa;font:12px/1.4 monospace;padding:10px 12px;border:2px solid #0bbbd6;border-radius:10px;max-width:320px;max-height:60vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.35)';
+		const btn = document.createElement('button');
+		btn.type='button';
+		btn.textContent='✕';
+		btn.style.cssText='position:absolute;top:4px;right:6px;background:none;border:none;color:#69e4f3;font-size:14px;cursor:pointer;font-weight:700';
+		btn.addEventListener('click',()=>wrap.remove());
+		wrap.appendChild(btn);
+		const pre = document.createElement('pre');
+		pre.style.margin='0';
+		pre.style.whiteSpace='pre-wrap';
+		pre.style.wordBreak='break-word';
+			async function snapshot(){
+			const email = localStorage.getItem('user_email')||'';
+			const cats = Array.from(state.selected);
+			const radius = document.getElementById('notifRadius')?.value;
+			const loc = document.getElementById('notifLocation')?.value || '';
+			const phone = document.getElementById('notifPhone')?.value || '';
+			const swv = localStorage.getItem('SW_VERSION') || '(ni)';
+			const isPrem = !!window.IS_PREMIUM;
+			const scriptTag = [...document.querySelectorAll('script')].find(s=>/account\/notifications\.js/.test(s.src));
+			let scriptVer='';
+			if(scriptTag){ try{ const u=new URL(scriptTag.src); scriptVer=u.searchParams.get('v')||''; }catch{} }
+				const lines = [
+				'DIAG NEARGO',
+				'--------------------------',
+				'Email: '+email,
+				'Premium: '+(isPrem?'DA':'NE'),
+				'SW_VERSION(localStorage): '+swv,
+				'Vrsta (events/services): '+state.type,
+				'Main category key: '+state.mainSelected,
+				'Izbrane podkategorije: '+(cats.length?cats.join(', '):'(nič)'),
+				'Radius km: '+radius,
+				'Lokacija polje: '+loc,
+				'Telefon: '+(phone||'(prazno)'),
+				'Script v param: '+(scriptVer||'(brez)'),
+				'URL: '+location.pathname+location.search,
+				'Čas: '+new Date().toLocaleString('sl-SI'),
+				];
+
+				if (showAll){
+					try{
+						// Kategorije (prvih nekaj za preglednost)
+						const ev = window.NearGoCategories?.events || [];
+						const sv = window.NearGoCategories?.services || [];
+						lines.push('');
+						lines.push('Kategorije – EVENTS: '+ev.length);
+						ev.slice(0,10).forEach(c=>lines.push('  - '+c.key+ (Array.isArray(c.sub)?` (${c.sub.length} sub)`:'')));
+						if (ev.length>10) lines.push(`  ... (+${ev.length-10})`);
+						lines.push('Kategorije – SERVICES: '+sv.length);
+						sv.slice(0,10).forEach(c=>lines.push('  - '+c.key+ (Array.isArray(c.sub)?` (${c.sub.length} sub)`:'')));
+						if (sv.length>10) lines.push(`  ... (+${sv.length-10})`);
+					}catch{}
+					try{
+						// Prefs GET
+						if (email){
+							const r = await fetch(`/.netlify/functions/notifications-prefs-get?email=${encodeURIComponent(email)}`).then(x=>x.json()).catch(()=>null);
+							lines.push(''); lines.push('Prefs GET:');
+							lines.push(JSON.stringify(r));
+						}
+					}catch{}
+					try{
+						// Mesečna kvota
+						if (email){
+							const r2 = await fetch(`/api/early-notify-count?email=${encodeURIComponent(email)}`).then(x=>x.json()).catch(()=>null);
+							lines.push(''); lines.push('Early-notify count:');
+							lines.push(JSON.stringify(r2));
+						}
+					}catch{}
+					try{
+						// Vzorčni asset hash iz CSS
+						const css = [...document.querySelectorAll('link[rel="stylesheet"]')].map(l=>l.href).filter(h=>/\/assets\//.test(h));
+						lines.push(''); lines.push('Assets CSS:');
+						css.forEach(h=>lines.push('  - '+h));
+					}catch{}
+				}
+
+				pre.textContent = lines.join('\n');
+		}
+		wrap.appendChild(pre);
+		document.body.appendChild(wrap);
+		snapshot();
+		// osvežimo ob spremembah izbire / radius
+		document.addEventListener('click', (e)=>{ if(e.target.closest('.cat-chip')||e.target.id==='saveNotify') setTimeout(snapshot,50); });
+		['input','change'].forEach(ev=>document.addEventListener(ev,(e)=>{ if(['notifRadius','notifLocation','notifPhone'].includes(e.target.id)) snapshot(); }));
+		window.addEventListener('focus', snapshot);
+		// periodic refresh
+		setInterval(snapshot, 5000);
+	}catch(err){ console.warn('[diag] neuspeh', err); }
+}
+
+document.addEventListener('DOMContentLoaded', initDiagnosticsOverlay);

@@ -15,7 +15,6 @@
     { id: 'mi-inbox', label: 'Sporočila', url: '/account/inbox.html', icon: '💬' },
     { id: 'mi-account', label: 'Profil & nastavitve', url: '/account/account.html', icon: '⚙️' }
   ];
-  const MENU_ORGANIZER = { id: 'mi-organizers', label: 'Za organizatorje', url: '/organizers.html', icon: '🛠️' };
   const DEFAULT_LOGIN_REDIRECT = '/';
 
   const state = {
@@ -176,8 +175,7 @@
       { id: 'mi-notifications', label: 'Predhodna obvestila', url: '/account/notifications.html', icon: '🔔' },
       { id: 'mi-account', label: 'Nastavitve / Račun', url: '/account/account.html', icon: '⚙️' }
     ];
-    if (loggedIn) return [...base, MENU_ORGANIZER];
-    return [MENU_ORGANIZER];
+    return base;
   }
 
   

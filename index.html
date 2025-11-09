@@ -1393,9 +1393,9 @@ function startAutoScroll(){
 }
 var carousel=$("#carousel"); if(carousel) carousel.addEventListener("click",function(){ featuredPaused=true; setTimeout(function(){featuredPaused=false;},1500); });
 
-/* Heuristika za storitve */
-var EVENT_CATS=["","koncerti","kultura-umetnost","druzina-otroci","kulinarika","outdoor-narava","sport-tekmovanja","ucenje-skill","posel-networking","dom-vrt","ostalo"];
-var SERVICE_CATS_UI=["","frizer","wellness","zdravje","kozmetika","fitnes","avto-moto","turizem","gospodinjske","ostalo"];
+/* Heuristika za storitve – usklajena z enotnim virom kategorij */
+var EVENT_CATS=["","koncerti","kulinarika","kultura-umetnost","druzina-otroci","sport-tekmovanja","outdoor-narava","ucenje-skill","dom-vrt","posel-networking","ostalo"];
+var SERVICE_CATS_UI=["","lepota","nega-kozmetika","wellness","zdravje","trening","kulinarika-catering","dom-vrt","avto","druzina-otroci","poslovne","izobrazevanje","ljubljencki","ostalo"];
 
 function looksService(e){
   var t=((e.type||e.entryType||"") + " " + (e.category||"") + " " + (e.name||e.title||"") + " " + (e.description||"")).toLowerCase();

@@ -571,6 +571,26 @@ document.addEventListener('DOMContentLoaded', () => {
 	bindSelectHandlers();
 });
 
+	// Telefon formatiranje (poenoti +386 xxx xxx xxx)
+	const phoneInput = document.getElementById('notifPhone');
+	if (phoneInput){
+		phoneInput.addEventListener('input', () => {
+			let v = phoneInput.value.replace(/[^0-9+]/g,'');
+			// pretvori 00 v +
+			if (v.startsWith('00')) v = '+' + v.slice(2);
+			// odstrani dvojne plus
+			v = v.replace(/(^\++)+/,'+');
+			// lokalno formatiranje za +386
+			if (v.startsWith('+386')) {
+				let rest = v.slice(4).replace(/\s+/g,'');
+				// skupine po 3 (približno mobilni izgled)
+				let parts = [];
+				while(rest.length){ parts.push(rest.slice(0,3)); rest = rest.slice(3); }
+				v = '+386 ' + parts.join(' ');
+			}
+			phoneInput.value = v;
+		});
+	}
 // ===== Monthly notifications counter (X/25) =====
 async function updateMonthlyCounter(){
 	try{

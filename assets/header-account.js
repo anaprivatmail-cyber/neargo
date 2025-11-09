@@ -244,10 +244,7 @@
     }
 
     if (!loggedIn){
-      const benefits = document.createElement('div');
-      benefits.className = 'account-menu__benefits';
-      benefits.innerHTML = '<ul><li>Prijava omogoča shranjevanje najljubših in kuponov.</li><li>Prejmite obvestila o novih dogodkih in nagradah.</li><li>Preprosto upravljajte QR skeniranja in nakupe.</li></ul>';
-      menu.appendChild(benefits);
+      // brez dodatnega opisa, da ostane meni bolj zgoščen
     }
 
     const list = document.createElement('div');

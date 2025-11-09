@@ -33,9 +33,9 @@ export const CATEGORY_SOURCE = {
     {
       key: 'kultura-umetnost',
       label: 'Kultura & umetnost',
-      emoji: '🎨',
+      emoji: '�',
       icon: 'culture.svg',
-      aliases: ['kultura', 'umetnost', 'razstava', 'film'],
+      aliases: ['kultura', 'umetnost', 'razstava', 'film', '🎨'],
       sub: [
         { key: 'gledalisce', label: 'Gledališče' },
         { key: 'razstave-muzeji', label: 'Razstave & muzeji' },
@@ -92,9 +92,9 @@ export const CATEGORY_SOURCE = {
     {
       key: 'ucenje-skill',
       label: 'Učenje & skill',
-      emoji: '💡',
+      emoji: '�',
       icon: 'learn.svg',
-      aliases: ['ucenje', 'delavnice', 'skill', 'workshop', 'izobrazevanje'],
+      aliases: ['ucenje', 'delavnice', 'skill', 'workshop', 'izobrazevanje', '💡'],
       sub: [
         { key: 'karierni-pospesek', label: 'Karierni pospešek' },
         { key: 'tech-digital', label: 'Tech & digital' },
@@ -122,9 +122,9 @@ export const CATEGORY_SOURCE = {
     {
       key: 'posel-networking',
       label: 'Posel & networking',
-      emoji: '🧑‍💼',
+      emoji: '💼',
       icon: 'service.svg',
-      aliases: ['poslovni', 'business', 'b2b', 'za-podjetja'],
+      aliases: ['poslovni', 'business', 'b2b', 'za-podjetja', '🧑‍💼'],
       sub: [
         { key: 'konference', label: 'Konference' },
         { key: 'startup-pitch', label: 'Startup pitch' },
@@ -287,9 +287,9 @@ export const CATEGORY_SOURCE = {
     {
       key: 'poslovne',
       label: 'Poslovne storitve',
-      emoji: '📈',
+      emoji: '�️',
       icon: 'service.svg',
-      aliases: ['poslovne-storitve', 'business', 'b2b'],
+      aliases: ['poslovne-storitve', 'business', 'b2b', '📈', 'servis', 'orodje'],
       sub: [
         { key: 'racunovodstvo-finance', label: 'Računovodstvo & finance' },
         { key: 'pravne-storitve', label: 'Pravne storitve' },

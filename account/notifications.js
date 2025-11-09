@@ -583,6 +583,32 @@ function bindMapPickButton(){
 	b.addEventListener('click', ()=>{ if(!ensurePremiumOrPrompt()) return; document.dispatchEvent(new CustomEvent('picker:open')); });
 }
 
+// Show confirm button when picker opens and allow explicit confirmation
+function bindConfirmMap(){
+	const btn = document.getElementById('btnConfirmMap');
+	if (!btn) return;
+	// When user opens the picker, show the confirm button and focus map
+	document.addEventListener('picker:open', ()=>{
+		if (!ensurePremiumOrPrompt()) return;
+		try{ initMap(); }catch{}
+		try{ document.getElementById('earlyMap')?.scrollIntoView({behavior:'smooth', block:'center'}); }catch{}
+		btn.style.display = 'inline-block';
+	});
+	// On confirm, write current marker position to the text input and hide button
+	btn.addEventListener('click', ()=>{
+		if (!ensurePremiumOrPrompt()) return;
+		try{
+			const loc = document.getElementById('notifLocation');
+			if (loc && state.marker){
+				const ll = state.marker.getLatLng();
+				loc.value = `${ll.lat.toFixed(5)},${ll.lng.toFixed(5)}`;
+			}
+		}catch{}
+		btn.style.display = 'none';
+		setMessage('Lokacija potrjena.', 'info');
+	});
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 	const saveBtn = document.getElementById('saveNotify');
 	if (saveBtn) {
@@ -600,6 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	gatePremium();
 		refreshPremiumFlag();
 		bindMapPickButton();
+		bindConfirmMap();
 	// Show monthly early notifications counter
 	updateMonthlyCounter();
 	initMap();
@@ -630,7 +657,8 @@ async function updateMonthlyCounter(){
 	}catch{
 		const node = document.getElementById('monthlyNotifCount');
 		if (node) node.style.display='none';
-	}
+}
+
 }
 
 // Re-run counter update whenever premium flag refreshes

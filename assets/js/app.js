@@ -48,275 +48,141 @@ const getCanonicalCategories = (type = 'events') => {
   return [];
 };
 
-const resolveCategoryMode = () => {
-  if (typeof window === 'undefined') return 'chips';
-  try {
-    const params = new URLSearchParams(window.location.search || '');
-    const param = (params.get('catmode') || params.get('categoryMode') || '').toLowerCase();
-    let hinted = '';
-    if (typeof window.NG_CATEGORY_MODE === 'string') hinted = window.NG_CATEGORY_MODE;
-    else if (typeof window.CATEGORY_MODE === 'string') hinted = window.CATEGORY_MODE;
-    let stored = '';
-    try { stored = localStorage.getItem('ng_category_mode') || ''; } catch { stored = ''; }
-    const choice = (param || hinted || stored).toLowerCase();
-    if (choice === 'dropdown' || choice === 'select') return 'dropdown';
-  } catch {}
-  return 'chips';
-};
-
-const CATEGORY_MODE = resolveCategoryMode();
-if (typeof window !== 'undefined') {
-  window.NG_CATEGORY_MODE = CATEGORY_MODE;
-}
-
-// ===== Early-notify renderer (premium.html) – usklajeno z account/notifications
-const earlyState = { type: 'events', main: '', selected: new Set() };
-
-const buildEarlyNotifyCategoryList = (selectedSubKeys = []) => {
+// ===== Early-notify renderer (populate premium.html) =====
+const buildEarlyNotifyCategoryList = (selectedKeys = []) => {
   const container = document.getElementById('earlyNotifyCategoryList');
   if (!container) return;
-  earlyState.selected = new Set(Array.isArray(selectedSubKeys) ? selectedSubKeys.slice(0,2) : []);
+  const selectedSet = new Set(Array.isArray(selectedKeys) ? selectedKeys : []);
   container.innerHTML = '';
 
-  // Toggle tipa (Dogodki/Storitve)
-  const toggle = document.createElement('div');
-  toggle.className = 'type-toggle';
-  const btnEvents = document.createElement('button'); btnEvents.type = 'button'; btnEvents.className='btn small type-btn type-events'; btnEvents.textContent='Dogodki';
-  const btnServices = document.createElement('button'); btnServices.type = 'button'; btnServices.className='btn small type-btn type-services'; btnServices.textContent='Storitve';
-  toggle.append(btnEvents, btnServices);
-  container.appendChild(toggle);
+  const sections = [
+    { title: 'Dogodki', type: 'events' },
+    { title: 'Storitve', type: 'services' }
+  ];
 
-  const mainWrap = document.createElement('div');
-  mainWrap.id='earlyMainCats';
-  mainWrap.className='chips';
-  container.appendChild(mainWrap);
+  sections.forEach(({ title, type }) => {
+    const list = getCanonicalCategories(type);
+    if (!Array.isArray(list) || !list.length) return;
 
-  const subsWrap = document.createElement('div');
-  subsWrap.id='earlySubsWrap';
-  subsWrap.className='subwrap';
-  subsWrap.style.display='none';
-  container.appendChild(subsWrap);
+    const section = document.createElement('section');
+    section.className = 'early-notify-section';
+    section.style.marginBottom = '18px';
 
-  const subs = document.createElement('div');
-  subs.id='earlySubCats';
-  subs.className='chips';
-  subs.style.marginTop='8px';
-  subsWrap.appendChild(subs);
+    const heading = document.createElement('h3');
+    heading.textContent = title;
+    heading.className = 'early-notify-title';
+    heading.style.margin = '0 0 8px 0';
+    heading.style.fontSize = '1.05em';
+    heading.style.fontWeight = '800';
+    section.appendChild(heading);
 
-  const selectedWrap = document.createElement('div');
-  selectedWrap.id='earlySelectedWrap';
-  selectedWrap.className='sel-box';
-  subsWrap.appendChild(selectedWrap);
+    const itemsWrap = document.createElement('div');
+    itemsWrap.className = 'early-notify-grid';
+    itemsWrap.style.display = 'flex';
+    itemsWrap.style.flexWrap = 'wrap';
+    itemsWrap.style.gap = '10px';
 
-  const selectWrap = document.createElement('div');
-  selectWrap.id='earlySelectWrap';
-  selectWrap.style.display='none';
-  selectWrap.style.gap='8px';
-  selectWrap.style.flexWrap='wrap';
-  selectWrap.style.alignItems='center';
-  selectWrap.style.marginTop='8px';
-  container.appendChild(selectWrap);
+    list.forEach((cat) => {
+      if (!cat?.key) return;
+      const item = document.createElement('div');
+      item.className = 'early-notify-item';
+  item.style.display = 'flex';
+  item.style.flexDirection = 'column';
+  item.style.gap = '6px';
 
-  const mainLabel = document.createElement('label');
-  mainLabel.style.display='flex';
-  mainLabel.style.flexDirection='column';
-  mainLabel.style.gap='4px';
-  mainLabel.style.fontWeight='700';
-  mainLabel.style.fontSize='13px';
-  const mainLabelText = document.createElement('span'); mainLabelText.textContent='Kategorija';
-  const mainSelect = document.createElement('select');
-  mainSelect.id='earlyMainSelect';
-  mainSelect.style.minWidth='180px';
-  mainSelect.style.padding='8px';
-  mainSelect.style.borderRadius='8px';
-  mainSelect.style.border='1px solid var(--chipborder,#cfe1ee)';
-  mainLabel.append(mainLabelText, mainSelect);
+      const label = document.createElement('label');
+      label.className = 'cat-chip early-cat';
+      label.dataset.cat = cat.key;
+      label.setAttribute('aria-pressed', 'false');
+      label.style.position = 'relative';
+      label.style.display = 'inline-flex';
+      label.style.alignItems = 'center';
+      label.style.gap = '8px';
+      label.style.cursor = 'pointer';
 
-  const subLabel = document.createElement('label');
-  subLabel.style.display='flex';
-  subLabel.style.flexDirection='column';
-  subLabel.style.gap='4px';
-  subLabel.style.fontWeight='700';
-  subLabel.style.fontSize='13px';
-  const subLabelText = document.createElement('span'); subLabelText.textContent='Podkategorije';
-  const subSelect = document.createElement('select');
-  subSelect.id='earlySubSelect';
-  subSelect.multiple = true;
-  subSelect.size = 4;
-  subSelect.style.minWidth='180px';
-  subSelect.style.padding='8px';
-  subSelect.style.borderRadius='8px';
-  subSelect.style.border='1px solid var(--chipborder,#cfe1ee)';
-  subLabel.append(subLabelText, subSelect);
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.name = 'categories';
+      input.value = cat.key;
+      input.style.position = 'absolute';
+      input.style.opacity = '0';
+      input.style.pointerEvents = 'none';
+      input.style.width = '1px';
+      input.style.height = '1px';
 
-  const subHelp = document.createElement('span');
-  subHelp.id='earlySubHelp';
-  subHelp.className='muted';
-  subHelp.style.fontSize='.7em';
-  subHelp.textContent='(max 2)';
+      const setChipState = (checked) => {
+        if (checked) {
+          label.classList.add('active');
+          label.setAttribute('aria-pressed', 'true');
+          toggleChipLabel(label, true);
+        } else {
+          label.classList.remove('active');
+          label.setAttribute('aria-pressed', 'false');
+          toggleChipLabel(label, false);
+        }
+      };
 
-  selectWrap.append(mainLabel, subLabel, subHelp);
-
-  const setTypeButtons = () => {
-    btnEvents.classList.toggle('active', earlyState.type === 'events');
-    btnServices.classList.toggle('active', earlyState.type === 'services');
-  };
-
-  const applyMode = () => {
-    if (CATEGORY_MODE === 'chips') {
-      mainWrap.style.display='';
-      selectedWrap.style.display='';
-      selectWrap.style.display='none';
-    } else {
-      mainWrap.style.display='none';
-      subsWrap.style.display='none';
-      selectedWrap.style.display='none';
-      selectWrap.style.display='flex';
-    }
-    if (CATEGORY_MODE === 'dropdown') subHelp.style.display = 'inline'; else subHelp.style.display = 'none';
-    try { document.body?.setAttribute('data-category-mode', CATEGORY_MODE); } catch {}
-  };
-
-  const populateMainSelect = () => {
-    const list = getCanonicalCategories(earlyState.type);
-    mainSelect.innerHTML='';
-    list.forEach((cat)=>{
-      const opt = document.createElement('option');
-      opt.value = cat.key;
-      opt.textContent = cat.label;
-      mainSelect.appendChild(opt);
-    });
-    const fallback = (earlyState.main && list.some((cat)=>cat.key===earlyState.main)) ? earlyState.main : (list[0]?.key || '');
-    if (fallback) {
-      mainSelect.value = fallback;
-      earlyState.main = fallback;
-    }
-  };
-
-  const populateSubSelect = () => {
-    const utils = window.NearGoCategoryUtils;
-    const list = utils?.getSubcategories(earlyState.type, earlyState.main) || [];
-    subSelect.innerHTML='';
-    list.forEach((sub)=>{
-      const opt = document.createElement('option');
-      opt.value = sub.key;
-      opt.textContent = sub.label;
-      opt.selected = earlyState.selected.has(sub.key);
-      subSelect.appendChild(opt);
-    });
-    if (CATEGORY_MODE === 'dropdown') {
-      subHelp.style.display = list.length ? 'inline' : 'none';
-    }
-  };
-
-  const clampSubSelect = () => {
-    const chosen = Array.from(subSelect.options).filter((opt) => opt.selected);
-    if (chosen.length > 2) {
-      chosen.slice(2).forEach((opt) => { opt.selected = false; });
-    }
-    const accepted = Array.from(subSelect.options).filter((opt) => opt.selected).map((opt) => opt.value).slice(0,2);
-    earlyState.selected = new Set(accepted);
-  };
-
-  subSelect.addEventListener('change', () => {
-    clampSubSelect();
-    if (CATEGORY_MODE === 'chips') renderSubs();
-  });
-
-  mainSelect.addEventListener('change', (e) => {
-    earlyState.main = e.target.value;
-    if (CATEGORY_MODE === 'chips') renderSubs(); else populateSubSelect();
-  });
-
-  btnEvents.addEventListener('click', ()=>{
-    earlyState.type='events';
-    earlyState.main='';
-    setTypeButtons();
-    renderMain();
-    applyMode();
-  });
-  btnServices.addEventListener('click', ()=>{
-    earlyState.type='services';
-    earlyState.main='';
-    setTypeButtons();
-    renderMain();
-    applyMode();
-  });
-
-  const renderSelected = () => {
-    if (CATEGORY_MODE !== 'chips') return;
-    selectedWrap.innerHTML='';
-    const cur = Array.from(earlyState.selected);
-    if (!cur.length) {
-      const note = document.createElement('div'); note.className='muted'; note.textContent='Ni izbranih podkategorij. Izberi do 2.'; selectedWrap.appendChild(note); return;
-    }
-    cur.forEach((key)=>{
-      const pill=document.createElement('span'); pill.className='selected-pill'; pill.innerHTML=`${key} <button type="button" aria-label="Odstrani">×</button>`;
-      pill.querySelector('button').addEventListener('click',()=>{ earlyState.selected.delete(key); renderSubs(); });
-      selectedWrap.appendChild(pill);
-    });
-  };
-
-  const renderSubs = () => {
-    const utils = window.NearGoCategoryUtils;
-    if (CATEGORY_MODE !== 'chips') {
-      populateSubSelect();
-      return;
-    }
-    const list = utils?.getSubcategories(earlyState.type, earlyState.main) || [];
-    subs.innerHTML='';
-    subsWrap.style.display = list.length ? 'block' : 'none';
-    list.forEach((s)=>{
-      const chip = document.createElement('button'); chip.type='button'; chip.className='cat-chip'; chip.dataset.key=s.key;
-      chip.innerHTML = `${s.icon ? `<img src="${s.icon}" alt="">` : `<span class='cat-emoji'>${s.emoji||'🏷️'}</span>`}<span class="cat-label">${s.label}</span>`;
-      if (earlyState.selected.has(s.key)) chip.classList.add('active','show-label');
-      chip.addEventListener('mouseenter', ()=> chip.classList.add('show-label'));
-      chip.addEventListener('mouseleave', ()=> { if(!chip.classList.contains('active')) chip.classList.remove('show-label'); });
-      chip.addEventListener('click', ()=>{
-        if (earlyState.selected.has(s.key)) { earlyState.selected.delete(s.key); renderSubs(); return; }
-        if (earlyState.selected.size >= 2) { return; }
-        earlyState.selected.add(s.key); renderSubs();
+      input.addEventListener('change', () => {
+        setChipState(input.checked);
       });
-      subs.appendChild(chip);
-    });
-    renderSelected();
-    populateSubSelect();
-  };
 
-  const renderMain = () => {
-    const list = getCanonicalCategories(earlyState.type);
-    if (CATEGORY_MODE !== 'chips') {
-      const exists = list.some((cat)=>cat.key===earlyState.main);
-      if (!exists) earlyState.main = list[0]?.key || '';
-      populateMainSelect();
-      populateSubSelect();
-      return;
-    }
-    mainWrap.innerHTML='';
-    const fallback = (earlyState.main && list.some((cat)=>cat.key===earlyState.main)) ? earlyState.main : (list[0]?.key || '');
-    earlyState.main = fallback;
-    list.forEach((cat)=>{
-      const chip=document.createElement('button'); chip.type='button'; chip.className='cat-chip'; chip.dataset.key=cat.key;
-      chip.setAttribute('aria-pressed', earlyState.main===cat.key?'true':'false');
-      chip.innerHTML = (cat.icon ? `<img src="${cat.icon}" alt="">` : `<span class="cat-emoji">${cat.emoji||'🏷️'}</span>`) + `<span class="cat-label">${cat.label}</span>`;
-      if (earlyState.main===cat.key) chip.classList.add('active','show-label');
-      chip.addEventListener('mouseenter', ()=> chip.classList.add('show-label'));
-      chip.addEventListener('mouseleave', ()=> { if(!chip.classList.contains('active')) chip.classList.remove('show-label'); });
-      chip.addEventListener('click', ()=>{
-        earlyState.main = cat.key;
-        mainWrap.querySelectorAll('.cat-chip').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
-        chip.classList.add('active'); chip.setAttribute('aria-pressed','true'); chip.classList.add('show-label');
-        renderSubs();
-      });
-      mainWrap.appendChild(chip);
-    });
-    renderSubs();
-    populateMainSelect();
-  };
+      label.addEventListener('mouseenter', () => toggleChipLabel(label, true));
+      label.addEventListener('mouseleave', () => toggleChipLabel(label, false));
+      label.addEventListener('focus', () => toggleChipLabel(label, true));
+      label.addEventListener('blur', () => toggleChipLabel(label, false));
+      label.addEventListener('touchstart', () => toggleChipLabel(label, true), { passive: true });
+      label.addEventListener('touchend', () => toggleChipLabel(label, false));
 
-  setTypeButtons();
-  renderMain();
-  applyMode();
+      if (cat.icon) {
+        const img = document.createElement('img');
+        img.src = cat.icon;
+        img.alt = '';
+        img.loading = 'lazy';
+        label.appendChild(img);
+      } else {
+        const emoji = document.createElement('span');
+        emoji.className = 'cat-emoji';
+        emoji.setAttribute('aria-hidden', 'true');
+        emoji.textContent = cat.emoji || '🏷️';
+        label.appendChild(emoji);
+      }
+
+      const text = document.createElement('span');
+      text.className = 'cat-label';
+      text.textContent = cat.label || cat.key;
+      label.appendChild(text);
+
+      if (selectedSet.has(cat.key)) {
+        input.checked = true;
+      }
+      setChipState(input.checked);
+
+      label.appendChild(input);
+      item.appendChild(label);
+
+      if (Array.isArray(cat.sub) && cat.sub.length) {
+        const subList = document.createElement('ul');
+        subList.className = 'early-subcategories';
+        subList.style.margin = '0 0 0 26px';
+        subList.style.padding = '0';
+        subList.style.listStyle = 'disc';
+        subList.style.color = 'var(--muted, #555)';
+        subList.style.fontSize = '13px';
+        cat.sub.forEach((sub) => {
+          if (!sub?.label) return;
+          const li = document.createElement('li');
+          li.textContent = sub.label;
+          subList.appendChild(li);
+        });
+        item.appendChild(subList);
+      }
+
+      itemsWrap.appendChild(item);
+    });
+
+    section.appendChild(itemsWrap);
+    container.appendChild(section);
+  });
 };
 
 const readEarlyNotifyState = () => {
@@ -417,7 +283,8 @@ document.addEventListener("DOMContentLoaded", function() {
         return;
       }
       e.preventDefault();
-      const checked = Array.from(earlyState.selected);
+      const checked = Array.from(form.querySelectorAll("input[type=checkbox]:checked"))
+        .map(cb => cb.value);
       const location = document.getElementById("earlyNotifyLocation")?.value?.trim() || "";
       const radius = Number(document.getElementById("earlyNotifyRadius")?.value || 30);
       localStorage.setItem("ng_early_notify_categories", JSON.stringify({categories: checked, location, radius}));

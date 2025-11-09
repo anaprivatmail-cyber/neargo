@@ -1,32 +1,17 @@
-// version: 2025-11-09-3
+// version: 2025-11-09-1
 
-self.addEventListener('install', (e) => { self.skipWaiting(); });
+self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
       .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ includeUncontrolled:true, type:'window'}))
-      .then(clients => { clients.forEach(c => { try{ c.postMessage({ type:'SW_VERSION', v:'2025-11-09-3'}); }catch{} }); })
   );
 });
 
 // Passthrough (network)
 // Basic fetch passthrough
-// Vedno uporabi network-first za JS/CSS/HTML, da dobimo najnovejse verzije
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
-  const url = new URL(req.url);
-  const isHTML = req.destination === 'document' || url.pathname.endsWith('.html');
-  const isAsset = url.pathname.endsWith('.js') || url.pathname.endsWith('.css');
-  if (isHTML || isAsset) {
-    event.respondWith(
-      fetch(req, { cache: 'no-store' }).catch(() => fetch(req))
-    );
-    return;
-  }
-  // za ostalo ne spreminjamo
-});
+self.addEventListener('fetch', () => { /* no-op */ });
 
 // In-app early notification: receive message and show system notification
 self.addEventListener('message', (event) => {
@@ -62,4 +47,4 @@ self.addEventListener('activate', (e) => {
 });
 
 // Passthrough (network)
-// duplikat iz starega bloka odstranimo
+self.addEventListener('fetch', () => { /* no-op */ });

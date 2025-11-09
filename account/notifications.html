@@ -15,7 +15,7 @@
     header.slim{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:10px;padding:8px 14px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.06)}
     header.slim .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:20px;letter-spacing:-1px}
     header.slim svg{width:30px;height:30px}
-  main{max-width:900px;margin:0 auto;padding:4px 12px 28px}
+  main{max-width:900px;margin:0 auto;padding:8px 14px 40px}
   .card{background:#fff;border:1px solid var(--chipborder,#cfe1ee);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.06);margin-top:12px}
     h1{font-size:1.55em;margin:0 0 4px 0;font-weight:900;letter-spacing:-0.5px}
     .muted{color:var(--muted,#5b6b7b)}
@@ -74,14 +74,15 @@
     </a>
   <div style="flex:1"></div>
   </header>
-  <main style="padding-top:0">
-    <div class="card" id="introCard" style="margin-top:0; padding:18px 16px 16px 16px">
-      <h1 style="margin:0 0 10px 0">Predhodna obvestila</h1>
-      <ul class="benefits" style="list-style:none;margin:0 0 0 0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:.9em;font-weight:600">
-        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⏰</span><span><b>15 minut prej do novih ponudb</b>, tudi do <b>brezplačnih promo dogodkov in storitev</b></span></li>
-        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📍</span><span><b>Personalizirano po lokaciji in interesih</b> – izberite do 2 podkategoriji</span></li>
+  <main style="padding-top:4px">
+    <div class="card" id="introCard" style="margin-top:0">
+      <h1>Predhodna obvestila</h1>
+      <ul class="benefits" style="list-style:none;margin:6px 0 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.9em;font-weight:600">
+        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⏰</span><span><b>15 minut prej</b> kot ostali</span></li>
+        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🔔</span><span><b>Prvi do novih ponudb</b> in brezplačnih promo akcij</span></li>
+        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📍</span><span><b>Personalizirano po lokaciji</b> in <b>interesih</b></span></li>
       </ul>
-      <div class="muted" style="font-size:.72em;margin-top:8px;font-weight:600;line-height:1.3">Obvestila se pošljejo samo, če so relevantne nove ponudbe (promocije, dogodki, storitve) v vašem izboru.</div>
+      <div class="muted" style="font-size:.78em;margin-top:6px;font-weight:600">Pridržujemo si pravico, da obvestila ne pošljemo, če v izbrani kategoriji v tem mesecu ni ponudb.</div>
     </div>
 
   <form id="notifyForm" class="card" aria-labelledby="introCard" style="margin-top:10px">
@@ -90,26 +91,23 @@
         <div id="monthlyNotifCount" class="quota" style="display:none;margin-top:0">Obvestila ta mesec: …</div>
         <div id="premiumCycle" class="muted" style="font-size:.7em;display:none">Premium začetek: <span id="premiumStartDate">—</span></div>
       </div>
-      <fieldset style="margin-top:4px">
+      <fieldset>
         <legend>1. Tip ponudb</legend>
-        <div id="typeToggle" class="type-toggle" style="gap:10px">
-          <button type="button" data-value="events" class="btn small type-btn type-events active" aria-pressed="true">Dogodki</button>
-          <button type="button" data-value="services" class="btn small type-btn type-services" aria-pressed="false">Storitve</button>
+        <div id="typeToggle" style="display:flex;gap:12px;flex-wrap:wrap">
+          <button type="button" data-value="events" class="btn small type-btn type-events active">Dogodki</button>
+          <button type="button" data-value="services" class="btn small type-btn type-services" style="background:linear-gradient(180deg,#bfeef6,#8fd8e6);color:#064c56">Storitve</button>
         </div>
       </fieldset>
-      <fieldset style="margin-top:6px">
+      <fieldset>
         <legend>2. Kategorija</legend>
-        <div style="display:flex;gap:14px;flex-direction:column">
-          <div id="mainCats" class="chips" role="list" aria-label="Glavne kategorije"></div>
-          <div id="selectModeWrap" style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
-            <div style="display:flex;flex-direction:column;gap:4px">
-              <label style="font-weight:700;font-size:13px">Kategorija</label>
-              <select id="mainCategorySelect" style="min-width:200px;padding:8px;border-radius:10px;border:1px solid var(--chipborder,#cfe1ee)"></select>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:4px">
-              <label style="font-weight:700;font-size:13px">Podkategorije <span class="muted" style="font-size:.7em;font-weight:600">(max 2)</span></label>
-              <select id="subCategorySelect" multiple size="5" style="min-width:200px;padding:8px;border-radius:10px;border:1px solid var(--chipborder,#cfe1ee)" aria-describedby="subHelp"></select>
-            </div>
+        <div style="display:flex;gap:12px;flex-direction:column">
+          <div id="mainCats" class="chips" role="list"></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label style="font-weight:700;font-size:13px">Kategorija:</label>
+            <select id="mainCategorySelect" style="min-width:180px;padding:8px;border-radius:8px;border:1px solid var(--chipborder,#cfe1ee)"></select>
+            <label style="font-weight:700;font-size:13px">Podkategorije:</label>
+            <select id="subCategorySelect" multiple size="4" style="min-width:180px;padding:8px;border-radius:8px;border:1px solid var(--chipborder,#cfe1ee)" aria-describedby="subHelp"></select>
+            <span id="subHelp" class="muted" style="font-size:.7em">(max 2)</span>
           </div>
           <div id="subWrap" class="subwrap" style="display:none">
             <div id="subCats" class="chips" style="margin-top:8px"></div>
@@ -117,13 +115,12 @@
           </div>
         </div>
       </fieldset>
-      <fieldset style="margin-top:6px">
+      <fieldset>
         <legend>3. Lokacija</legend>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 10px 0">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
           <button type="button" class="btn secondary small" id="btnMapPick">Zemljevid</button>
           <button type="button" class="btn secondary small" id="btnUseGPS">Moja lokacija</button>
           <button type="button" class="btn secondary small" id="btnResetLoc">Počisti</button>
-          <button type="button" class="btn secondary small" id="btnConfirmMap" style="display:none">Potrdi lokacijo</button>
         </div>
         <label class="input" style="margin-top:0">Mesto / kraj
           <input id="notifLocation" type="text" placeholder="npr. Ljubljana" autocomplete="off">
@@ -138,27 +135,11 @@
         </div>
         <div id="earlyMap" style="margin-top:12px"></div>
       </fieldset>
-      <fieldset style="margin-top:6px">
+      <fieldset>
         <legend>4. Kontakt (opcijsko)</legend>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-          <label class="input" style="margin-top:0;flex:0 0 140px">Koda države
-            <select id="phoneCountry" style="padding:10px 12px;border-radius:12px;border:1px solid var(--chipborder,#cfe1ee);background:#fff;font-size:15px">
-              <option value="+386" selected>+386 🇸🇮</option>
-              <option value="+385">+385 🇭🇷</option>
-              <option value="+43">+43 🇦🇹</option>
-              <option value="+39">+39 🇮🇹</option>
-              <option value="+49">+49 🇩🇪</option>
-              <option value="+420">+420 🇨🇿</option>
-              <option value="+421">+421 🇸🇰</option>
-              <option value="+48">+48 🇵🇱</option>
-              <option value="+44">+44 🇬🇧</option>
-              <option value="+1">+1 🇺🇸</option>
-            </select>
-          </label>
-          <label class="input" style="margin-top:0;flex:1">Telefonska številka
-            <input id="notifPhone" type="tel" inputmode="tel" pattern="[0-9 ]{5,}" placeholder="npr. 640 123 456" autocomplete="tel-local">
-          </label>
-        </div>
+        <label class="input" style="margin-top:0">Telefonska številka (SMS)
+          <input id="notifPhone" type="text" inputmode="tel" pattern="[0-9 +()-]{6,}" placeholder="npr. +38640111222" autocomplete="tel">
+        </label>
       </fieldset>
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
         <button id="saveNotify" class="btn" type="submit">Shrani nastavitve</button>
@@ -168,7 +149,6 @@
       <div id="nonPremiumInline" class="upgrade-box" style="display:none">Za aktivacijo nadgradi v <a href="/premium.html" style="color:#d64c4c;text-decoration:underline;font-weight:900">Premium</a>.</div>
     </form>
   </main>
-  <script src="/assets/sw-reload.js?v=20251109"></script>
   <script type="module" src="/account/notifications.js?v=20251109"></script>
 </body>
 </html>

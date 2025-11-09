@@ -135,6 +135,13 @@
   status = 200
   force = true
 
+# Schema checker (secured via env flags)
+[[redirects]]
+  from = "/api/check-required-tables"
+  to   = "/.netlify/functions/check-required-tables"
+  status = 200
+  force = true
+
 # Strict early-access gated offers (server-side filtering)
 [[redirects]]
   from = "/api/offers-early"

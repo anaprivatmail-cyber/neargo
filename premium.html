@@ -93,9 +93,9 @@
 		</script>
 	</div>
 
-	<section id="earlyNotifySection" style="max-width:500px;margin:0 auto 16px auto;">
+	<section id="earlyNotifySection" style="max-width:500px;margin:0 auto 24px auto;">
 		<h2>Predčasna obvestila</h2>
-		<p style="margin-top:4px">Izberite kategorije ali tipe ponudb za personalizirano predčasno obveščanje (max 2 podkategoriji):</p>
+		<p>Izberite kategorije ali tipe ponudb, za katere želite prejemati predčasna obvestila:</p>
 		<form id="earlyNotifyForm">
 			<div id="earlyNotifyCategoryList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;"></div>
 			<label style="margin-top:10px;display:block;">Lokacija (kraj): <input type="text" name="location" id="earlyNotifyLocation" placeholder="npr. Ljubljana"></label>
@@ -104,7 +104,6 @@
 		</form>
 		<div id="earlyNotifyConfirmation" style="display:none; color:green; margin-top:10px;"></div>
 	</section>
-        <script src="assets/sw-reload.js?v=20251109"></script>
 	<script type="module" src="assets/js/app.js"></script>
 <script>
 document.getElementById('premiumEmailForm')?.addEventListener('submit', async function(e) {

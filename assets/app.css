@@ -174,8 +174,6 @@ input[type=range]{accent-color:#7cdbe9; height:28px; width:100%}
   display:block;
   flex-shrink:0;
 }
-.cat-chip img{ filter:none; }
-.cat-chip.active img{ filter:brightness(0) invert(1); }
 .cat-chip .cat-emoji{
   line-height:20px;
   font-size:18px;
@@ -231,16 +229,6 @@ input[type="file"]::file-selector-button{padding:.35rem .6rem; border-radius:10p
 
 /* Footer */
 footer{text-align:center; color:var(--muted); margin-top:18px; font-size:14px}
-
-/* ===== Toggle gumbi: Dogodki / Storitve (globalno) ===== */
-.type-btn{background:linear-gradient(180deg,#f7fdff,#e6fbff);color:#064c56;border:1px solid rgba(11,187,214,0.15);box-shadow:0 6px 20px rgba(11,187,214,0.06);font-weight:900}
-.type-btn.active{color:#fff;border-color:transparent}
-/* Enoten stil brez inline JS barvanja */
-.type-btn.type-events.active{background:linear-gradient(180deg,#4dd6e9,#18bfd5)}
-.type-btn.type-services.active{background:linear-gradient(180deg,#d4f5fb,#b9ecf5);color:#064c56}
-.type-btn.type-events:not(.active),
-.type-btn.type-services:not(.active){background:linear-gradient(180deg,#f7fdff,#e6fbff);color:#064c56}
-.type-toggle{display:flex;gap:12px;flex-wrap:wrap}
 #benefits b{ color:var(--primary) }
 /* --- NAV: 2. vrstica točno po želji --- */
 /* levo: 🌙 tema, nato jezik; skrajno desno: Moje */
@@ -248,13 +236,6 @@ header .nav > .second-row{ justify-content:flex-start !important; }
 #btnThemeToggle{ order:0; }
 #langWrap{ order:1; }
 #btnMine{ order:2; margin-left:auto; }
-
-/* Cat & sub chips icon/emoji sizing refinements */
-.cat-chip img{ width:20px; height:20px; object-fit:contain; }
-.cat-chip .cat-emoji{ font-size:18px; line-height:20px; }
-.sub-chip img{ width:18px; height:18px; object-fit:contain; }
-.sub-chip .cat-emoji{ font-size:16px; line-height:18px; }
-.cat-chip:not(.active):hover, .sub-chip:not(.active):hover{ outline:2px solid #0bbbd631; }
 
 /* Ensure avatar is clickable and not covered by overlays */
 #btnMine, #btnAccount{

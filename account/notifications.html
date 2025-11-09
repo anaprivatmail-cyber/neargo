@@ -15,7 +15,7 @@
     header.slim{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:10px;padding:8px 14px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.06)}
     header.slim .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:20px;letter-spacing:-1px}
     header.slim svg{width:30px;height:30px}
-  main{max-width:900px;margin:0 auto;padding:8px 14px 40px}
+  main{max-width:900px;margin:0 auto;padding:4px 12px 28px}
   .card{background:#fff;border:1px solid var(--chipborder,#cfe1ee);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.06);margin-top:12px}
     h1{font-size:1.55em;margin:0 0 4px 0;font-weight:900;letter-spacing:-0.5px}
     .muted{color:var(--muted,#5b6b7b)}
@@ -75,11 +75,10 @@
   <div style="flex:1"></div>
   </header>
   <main style="padding-top:4px">
-    <div class="card" id="introCard" style="margin-top:0">
+    <div class="card" id="introCard" style="margin-top:2px">
       <h1>Predhodna obvestila</h1>
-      <ul class="benefits" style="list-style:none;margin:6px 0 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.9em;font-weight:600">
-        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⏰</span><span><b>15 minut prej</b> kot ostali</span></li>
-        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🔔</span><span><b>Prvi do novih ponudb</b> in brezplačnih promo akcij</span></li>
+      <ul class="benefits" style="list-style:none;margin:4px 0 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.9em;font-weight:600">
+        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⏰</span><span><b>15 minut prej do novih ponudb</b> in promocij</span></li>
         <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📍</span><span><b>Personalizirano po lokaciji</b> in <b>interesih</b></span></li>
       </ul>
       <div class="muted" style="font-size:.78em;margin-top:6px;font-weight:600">Pridržujemo si pravico, da obvestila ne pošljemo, če v izbrani kategoriji v tem mesecu ni ponudb.</div>
@@ -93,9 +92,9 @@
       </div>
       <fieldset>
         <legend>1. Tip ponudb</legend>
-        <div id="typeToggle" style="display:flex;gap:12px;flex-wrap:wrap">
+        <div id="typeToggle" class="type-toggle">
           <button type="button" data-value="events" class="btn small type-btn type-events active">Dogodki</button>
-          <button type="button" data-value="services" class="btn small type-btn type-services" style="background:linear-gradient(180deg,#bfeef6,#8fd8e6);color:#064c56">Storitve</button>
+          <button type="button" data-value="services" class="btn small type-btn type-services">Storitve</button>
         </div>
       </fieldset>
       <fieldset>
@@ -149,6 +148,7 @@
       <div id="nonPremiumInline" class="upgrade-box" style="display:none">Za aktivacijo nadgradi v <a href="/premium.html" style="color:#d64c4c;text-decoration:underline;font-weight:900">Premium</a>.</div>
     </form>
   </main>
+  <script src="/assets/sw-reload.js?v=20251109"></script>
   <script type="module" src="/account/notifications.js?v=20251109"></script>
 </body>
 </html>

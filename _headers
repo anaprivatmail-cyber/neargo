@@ -9,3 +9,6 @@
 
 /assets/supabase-client.js
   Cache-Control: no-cache, no-store, must-revalidate
+
+/assets/sw-reload.js
+  Cache-Control: no-cache, no-store, must-revalidate

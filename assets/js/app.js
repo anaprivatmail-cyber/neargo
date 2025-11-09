@@ -48,6 +48,27 @@ const getCanonicalCategories = (type = 'events') => {
   return [];
 };
 
+const resolveCategoryMode = () => {
+  if (typeof window === 'undefined') return 'chips';
+  try {
+    const params = new URLSearchParams(window.location.search || '');
+    const param = (params.get('catmode') || params.get('categoryMode') || '').toLowerCase();
+    let hinted = '';
+    if (typeof window.NG_CATEGORY_MODE === 'string') hinted = window.NG_CATEGORY_MODE;
+    else if (typeof window.CATEGORY_MODE === 'string') hinted = window.CATEGORY_MODE;
+    let stored = '';
+    try { stored = localStorage.getItem('ng_category_mode') || ''; } catch { stored = ''; }
+    const choice = (param || hinted || stored).toLowerCase();
+    if (choice === 'dropdown' || choice === 'select') return 'dropdown';
+  } catch {}
+  return 'chips';
+};
+
+const CATEGORY_MODE = resolveCategoryMode();
+if (typeof window !== 'undefined') {
+  window.NG_CATEGORY_MODE = CATEGORY_MODE;
+}
+
 // ===== Early-notify renderer (premium.html) – usklajeno z account/notifications
 const earlyState = { type: 'events', main: '', selected: new Set() };
 
@@ -59,64 +80,221 @@ const buildEarlyNotifyCategoryList = (selectedSubKeys = []) => {
 
   // Toggle tipa (Dogodki/Storitve)
   const toggle = document.createElement('div');
-  toggle.style.display = 'flex'; toggle.style.gap = '10px'; toggle.style.marginBottom = '8px';
+  toggle.className = 'type-toggle';
   const btnEvents = document.createElement('button'); btnEvents.type = 'button'; btnEvents.className='btn small type-btn type-events'; btnEvents.textContent='Dogodki';
   const btnServices = document.createElement('button'); btnServices.type = 'button'; btnServices.className='btn small type-btn type-services'; btnServices.textContent='Storitve';
-  toggle.append(btnEvents, btnServices); container.appendChild(toggle);
+  toggle.append(btnEvents, btnServices);
+  container.appendChild(toggle);
 
-  const mainWrap = document.createElement('div'); mainWrap.id='earlyMainCats'; mainWrap.className='chips'; container.appendChild(mainWrap);
-  const subsWrap = document.createElement('div'); subsWrap.id='earlySubsWrap'; subsWrap.className='subwrap'; subsWrap.style.display='none'; container.appendChild(subsWrap);
-  const subs = document.createElement('div'); subs.id='earlySubCats'; subs.className='chips'; subs.style.marginTop='8px'; subsWrap.appendChild(subs);
-  const selectedWrap = document.createElement('div'); selectedWrap.id='earlySelectedWrap'; selectedWrap.className='sel-box'; subsWrap.appendChild(selectedWrap);
+  const mainWrap = document.createElement('div');
+  mainWrap.id='earlyMainCats';
+  mainWrap.className='chips';
+  container.appendChild(mainWrap);
+
+  const subsWrap = document.createElement('div');
+  subsWrap.id='earlySubsWrap';
+  subsWrap.className='subwrap';
+  subsWrap.style.display='none';
+  container.appendChild(subsWrap);
+
+  const subs = document.createElement('div');
+  subs.id='earlySubCats';
+  subs.className='chips';
+  subs.style.marginTop='8px';
+  subsWrap.appendChild(subs);
+
+  const selectedWrap = document.createElement('div');
+  selectedWrap.id='earlySelectedWrap';
+  selectedWrap.className='sel-box';
+  subsWrap.appendChild(selectedWrap);
+
+  const selectWrap = document.createElement('div');
+  selectWrap.id='earlySelectWrap';
+  selectWrap.style.display='none';
+  selectWrap.style.gap='8px';
+  selectWrap.style.flexWrap='wrap';
+  selectWrap.style.alignItems='center';
+  selectWrap.style.marginTop='8px';
+  container.appendChild(selectWrap);
+
+  const mainLabel = document.createElement('label');
+  mainLabel.style.display='flex';
+  mainLabel.style.flexDirection='column';
+  mainLabel.style.gap='4px';
+  mainLabel.style.fontWeight='700';
+  mainLabel.style.fontSize='13px';
+  const mainLabelText = document.createElement('span'); mainLabelText.textContent='Kategorija';
+  const mainSelect = document.createElement('select');
+  mainSelect.id='earlyMainSelect';
+  mainSelect.style.minWidth='180px';
+  mainSelect.style.padding='8px';
+  mainSelect.style.borderRadius='8px';
+  mainSelect.style.border='1px solid var(--chipborder,#cfe1ee)';
+  mainLabel.append(mainLabelText, mainSelect);
+
+  const subLabel = document.createElement('label');
+  subLabel.style.display='flex';
+  subLabel.style.flexDirection='column';
+  subLabel.style.gap='4px';
+  subLabel.style.fontWeight='700';
+  subLabel.style.fontSize='13px';
+  const subLabelText = document.createElement('span'); subLabelText.textContent='Podkategorije';
+  const subSelect = document.createElement('select');
+  subSelect.id='earlySubSelect';
+  subSelect.multiple = true;
+  subSelect.size = 4;
+  subSelect.style.minWidth='180px';
+  subSelect.style.padding='8px';
+  subSelect.style.borderRadius='8px';
+  subSelect.style.border='1px solid var(--chipborder,#cfe1ee)';
+  subLabel.append(subLabelText, subSelect);
+
+  const subHelp = document.createElement('span');
+  subHelp.id='earlySubHelp';
+  subHelp.className='muted';
+  subHelp.style.fontSize='.7em';
+  subHelp.textContent='(max 2)';
+
+  selectWrap.append(mainLabel, subLabel, subHelp);
 
   const setTypeButtons = () => {
-    [btnEvents, btnServices].forEach(b=>b.classList.remove('active'));
-    if (earlyState.type==='events') btnEvents.classList.add('active'); else btnServices.classList.add('active');
-    // barvni stil v skladu z account/notifications
-    btnEvents.style.background = earlyState.type==='events' && btnEvents.classList.contains('active') ? 'linear-gradient(180deg,#0bbbd6,#07aab8)' : 'linear-gradient(180deg,#f7fdff,#e6fbff)';
-    btnEvents.style.color = earlyState.type==='events' && btnEvents.classList.contains('active') ? '#fff' : '#064c56';
-    btnServices.style.background = earlyState.type==='services' && btnServices.classList.contains('active') ? 'linear-gradient(180deg,#bfeef6,#8fd8e6)' : 'linear-gradient(180deg,#f7fdff,#e6fbff)';
-    btnServices.style.color = '#064c56';
+    btnEvents.classList.toggle('active', earlyState.type === 'events');
+    btnServices.classList.toggle('active', earlyState.type === 'services');
   };
-  btnEvents.addEventListener('click', ()=>{ earlyState.type='events'; earlyState.main=''; renderMain(); setTypeButtons(); });
-  btnServices.addEventListener('click', ()=>{ earlyState.type='services'; earlyState.main=''; renderMain(); setTypeButtons(); });
-  setTypeButtons();
+
+  const applyMode = () => {
+    if (CATEGORY_MODE === 'chips') {
+      mainWrap.style.display='';
+      selectedWrap.style.display='';
+      selectWrap.style.display='none';
+    } else {
+      mainWrap.style.display='none';
+      subsWrap.style.display='none';
+      selectedWrap.style.display='none';
+      selectWrap.style.display='flex';
+    }
+    if (CATEGORY_MODE === 'dropdown') subHelp.style.display = 'inline'; else subHelp.style.display = 'none';
+    try { document.body?.setAttribute('data-category-mode', CATEGORY_MODE); } catch {}
+  };
+
+  const populateMainSelect = () => {
+    const list = getCanonicalCategories(earlyState.type);
+    mainSelect.innerHTML='';
+    list.forEach((cat)=>{
+      const opt = document.createElement('option');
+      opt.value = cat.key;
+      opt.textContent = cat.label;
+      mainSelect.appendChild(opt);
+    });
+    const fallback = (earlyState.main && list.some((cat)=>cat.key===earlyState.main)) ? earlyState.main : (list[0]?.key || '');
+    if (fallback) {
+      mainSelect.value = fallback;
+      earlyState.main = fallback;
+    }
+  };
+
+  const populateSubSelect = () => {
+    const utils = window.NearGoCategoryUtils;
+    const list = utils?.getSubcategories(earlyState.type, earlyState.main) || [];
+    subSelect.innerHTML='';
+    list.forEach((sub)=>{
+      const opt = document.createElement('option');
+      opt.value = sub.key;
+      opt.textContent = sub.label;
+      opt.selected = earlyState.selected.has(sub.key);
+      subSelect.appendChild(opt);
+    });
+    if (CATEGORY_MODE === 'dropdown') {
+      subHelp.style.display = list.length ? 'inline' : 'none';
+    }
+  };
+
+  const clampSubSelect = () => {
+    const chosen = Array.from(subSelect.options).filter((opt) => opt.selected);
+    if (chosen.length > 2) {
+      chosen.slice(2).forEach((opt) => { opt.selected = false; });
+    }
+    const accepted = Array.from(subSelect.options).filter((opt) => opt.selected).map((opt) => opt.value).slice(0,2);
+    earlyState.selected = new Set(accepted);
+  };
+
+  subSelect.addEventListener('change', () => {
+    clampSubSelect();
+    if (CATEGORY_MODE === 'chips') renderSubs();
+  });
+
+  mainSelect.addEventListener('change', (e) => {
+    earlyState.main = e.target.value;
+    if (CATEGORY_MODE === 'chips') renderSubs(); else populateSubSelect();
+  });
+
+  btnEvents.addEventListener('click', ()=>{
+    earlyState.type='events';
+    earlyState.main='';
+    setTypeButtons();
+    renderMain();
+    applyMode();
+  });
+  btnServices.addEventListener('click', ()=>{
+    earlyState.type='services';
+    earlyState.main='';
+    setTypeButtons();
+    renderMain();
+    applyMode();
+  });
 
   const renderSelected = () => {
+    if (CATEGORY_MODE !== 'chips') return;
     selectedWrap.innerHTML='';
     const cur = Array.from(earlyState.selected);
     if (!cur.length) {
       const note = document.createElement('div'); note.className='muted'; note.textContent='Ni izbranih podkategorij. Izberi do 2.'; selectedWrap.appendChild(note); return;
     }
     cur.forEach((key)=>{
-      const pill=document.createElement('span'); pill.className='selected-pill'; pill.innerHTML=`${key} <button type="button" aria-label="Odstrani">×</button>`; pill.querySelector('button').addEventListener('click',()=>{ earlyState.selected.delete(key); renderSubs(); }); selectedWrap.appendChild(pill);
+      const pill=document.createElement('span'); pill.className='selected-pill'; pill.innerHTML=`${key} <button type="button" aria-label="Odstrani">×</button>`;
+      pill.querySelector('button').addEventListener('click',()=>{ earlyState.selected.delete(key); renderSubs(); });
+      selectedWrap.appendChild(pill);
     });
   };
 
   const renderSubs = () => {
-    subs.innerHTML='';
     const utils = window.NearGoCategoryUtils;
+    if (CATEGORY_MODE !== 'chips') {
+      populateSubSelect();
+      return;
+    }
     const list = utils?.getSubcategories(earlyState.type, earlyState.main) || [];
+    subs.innerHTML='';
     subsWrap.style.display = list.length ? 'block' : 'none';
     list.forEach((s)=>{
       const chip = document.createElement('button'); chip.type='button'; chip.className='cat-chip'; chip.dataset.key=s.key;
       chip.innerHTML = `${s.icon ? `<img src="${s.icon}" alt="">` : `<span class='cat-emoji'>${s.emoji||'🏷️'}</span>`}<span class="cat-label">${s.label}</span>`;
       if (earlyState.selected.has(s.key)) chip.classList.add('active','show-label');
+      chip.addEventListener('mouseenter', ()=> chip.classList.add('show-label'));
+      chip.addEventListener('mouseleave', ()=> { if(!chip.classList.contains('active')) chip.classList.remove('show-label'); });
       chip.addEventListener('click', ()=>{
         if (earlyState.selected.has(s.key)) { earlyState.selected.delete(s.key); renderSubs(); return; }
-        if (earlyState.selected.size >= 2) { // limit 2
-          return;
-        }
+        if (earlyState.selected.size >= 2) { return; }
         earlyState.selected.add(s.key); renderSubs();
       });
       subs.appendChild(chip);
     });
     renderSelected();
+    populateSubSelect();
   };
 
   const renderMain = () => {
     const list = getCanonicalCategories(earlyState.type);
+    if (CATEGORY_MODE !== 'chips') {
+      const exists = list.some((cat)=>cat.key===earlyState.main);
+      if (!exists) earlyState.main = list[0]?.key || '';
+      populateMainSelect();
+      populateSubSelect();
+      return;
+    }
     mainWrap.innerHTML='';
+    const fallback = (earlyState.main && list.some((cat)=>cat.key===earlyState.main)) ? earlyState.main : (list[0]?.key || '');
+    earlyState.main = fallback;
     list.forEach((cat)=>{
       const chip=document.createElement('button'); chip.type='button'; chip.className='cat-chip'; chip.dataset.key=cat.key;
       chip.setAttribute('aria-pressed', earlyState.main===cat.key?'true':'false');
@@ -124,14 +302,21 @@ const buildEarlyNotifyCategoryList = (selectedSubKeys = []) => {
       if (earlyState.main===cat.key) chip.classList.add('active','show-label');
       chip.addEventListener('mouseenter', ()=> chip.classList.add('show-label'));
       chip.addEventListener('mouseleave', ()=> { if(!chip.classList.contains('active')) chip.classList.remove('show-label'); });
-      chip.addEventListener('click', ()=>{ earlyState.main = cat.key; mainWrap.querySelectorAll('.cat-chip').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); }); chip.classList.add('active'); chip.setAttribute('aria-pressed','true'); chip.classList.add('show-label'); renderSubs(); });
+      chip.addEventListener('click', ()=>{
+        earlyState.main = cat.key;
+        mainWrap.querySelectorAll('.cat-chip').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-pressed','false'); });
+        chip.classList.add('active'); chip.setAttribute('aria-pressed','true'); chip.classList.add('show-label');
+        renderSubs();
+      });
       mainWrap.appendChild(chip);
     });
-    if (!earlyState.main && list[0]) earlyState.main = list[0].key;
     renderSubs();
+    populateMainSelect();
   };
 
+  setTypeButtons();
   renderMain();
+  applyMode();
 };
 
 const readEarlyNotifyState = () => {

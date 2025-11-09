@@ -5,6 +5,27 @@ const SERVICE_CATEGORIES = getCategoryList('services');
 const EVENT_KEYS = new Set(EVENT_CATEGORIES.map((cat) => cat.key));
 const SERVICE_KEYS = new Set(SERVICE_CATEGORIES.map((cat) => cat.key));
 
+const getCategoryMode = () => {
+	if (typeof window === 'undefined') return 'chips';
+	try {
+		const search = new URLSearchParams(window.location.search || '');
+		const param = (search.get('catmode') || search.get('categoryMode') || '').toLowerCase();
+		let hinted = '';
+		if (typeof window.CATEGORY_MODE === 'string') hinted = window.CATEGORY_MODE;
+		else if (typeof window.NG_CATEGORY_MODE === 'string') hinted = window.NG_CATEGORY_MODE;
+		let stored = '';
+		try { stored = localStorage.getItem('ng_category_mode') || ''; } catch { stored = ''; }
+		const candidate = (param || hinted || stored).toLowerCase();
+		if (candidate === 'dropdown' || candidate === 'select') return 'dropdown';
+	} catch {}
+	return 'chips';
+};
+
+const CATEGORY_MODE = getCategoryMode();
+if (typeof window !== 'undefined') {
+	window.NG_CATEGORY_MODE = CATEGORY_MODE;
+}
+
 const LEGACY_MAP = {
 	koncerti: 'koncerti',
 	kulinarika: 'kulinarika',
@@ -51,6 +72,23 @@ const state = {
 	circle: null
 };
 
+const applyCategoryMode = () => {
+	if (typeof document === 'undefined') return;
+	const chipsWrap = document.getElementById('mainCats');
+	if (chipsWrap) chipsWrap.style.display = CATEGORY_MODE === 'chips' ? '' : 'none';
+	const selectContainer = document.getElementById('mainCategorySelect')?.parentElement;
+	if (selectContainer) selectContainer.style.display = CATEGORY_MODE === 'dropdown' ? 'flex' : 'none';
+	const subWrap = document.getElementById('subWrap');
+	if (subWrap && CATEGORY_MODE !== 'chips') {
+		subWrap.style.display = 'none';
+	}
+	const selectedWrap = document.getElementById('selectedWrap');
+	if (selectedWrap) selectedWrap.style.display = CATEGORY_MODE === 'chips' ? '' : 'none';
+	const subHelp = document.getElementById('subHelp');
+	if (subHelp) subHelp.style.display = CATEGORY_MODE === 'dropdown' ? 'inline' : '';
+	try { document.body?.setAttribute('data-category-mode', CATEGORY_MODE); } catch {}
+};
+
 const getMessageElement = () => document.getElementById('notifyMsg');
 
 const setMessage = (text = '', tone = 'info') => {
@@ -85,18 +123,33 @@ const handleCategoryToggle = (key, checked) => {
 };
 
 // Build main categories (events/services) chips
+const FALLBACK_EMOJI = (key) => ({
+	'koncerti':'🎸','kulinarika':'🍽️','sport-tekmovanja':'🏟️','kultura-umetnost':'🎭','druzina-otroci':'👨\u200d👩\u200d👧','outdoor-narava':'🏞️','posel-networking':'💼','ostalo':'✨'
+})[key] || '🏷️';
+
 const renderMainCategories = () => {
-	const wrap = document.getElementById('mainCats');
-	if (!wrap) return;
-	wrap.innerHTML = '';
 	const list = state.type === 'services' ? SERVICE_CATEGORIES : EVENT_CATEGORIES;
+	const hasCurrent = list.some((cat) => cat.key === state.mainSelected);
+	if (!hasCurrent) state.mainSelected = list[0]?.key || '';
+	const wrap = document.getElementById('mainCats');
+	if (CATEGORY_MODE !== 'chips') {
+		if (wrap) {
+			wrap.innerHTML = '';
+			wrap.style.display = 'none';
+		}
+		renderSubcategories();
+		return;
+	}
+	if (!wrap) return;
+	wrap.style.display = '';
+	wrap.innerHTML = '';
 	list.forEach((cat) => {
 		const chip = document.createElement('button');
 		chip.type = 'button';
 		chip.className = 'cat-chip';
 		chip.dataset.key = cat.key;
 		chip.setAttribute('aria-pressed', state.mainSelected === cat.key ? 'true' : 'false');
-		chip.innerHTML = (cat.icon ? `<img src="${cat.icon}" alt="">` : `<span class="cat-emoji">${cat.emoji || '🏷️'}</span>`) +
+		chip.innerHTML = (cat.icon ? `<img src="${cat.icon}" alt="">` : `<span class="cat-emoji">${cat.emoji || FALLBACK_EMOJI(cat.key)}</span>`) +
 			`<span class="cat-label">${cat.label}</span>`;
 		if (state.mainSelected === cat.key) chip.classList.add('active', 'show-label');
 		chip.addEventListener('mouseenter', () => chip.classList.add('show-label'));
@@ -107,11 +160,10 @@ const renderMainCategories = () => {
 			chip.classList.add('active'); chip.setAttribute('aria-pressed','true');
 			chip.classList.add('show-label');
 			renderSubcategories();
+			populateSubSelect();
 		});
 		wrap.appendChild(chip);
 	});
-	// pick first by default
-	if (!state.mainSelected && list[0]) { state.mainSelected = list[0].key; }
 	renderSubcategories();
 };
 
@@ -120,6 +172,10 @@ const renderSubcategories = () => {
 	const wrap = document.getElementById('subCats');
 	const subWrap = document.getElementById('subWrap');
 	if (!wrap || !subWrap) return;
+	if (CATEGORY_MODE !== 'chips') {
+		subWrap.style.display = 'none';
+		return;
+	}
 	const subs = getSubcategories(state.type, state.mainSelected) || [];
 	wrap.innerHTML = '';
 	subWrap.style.display = subs.length ? 'block' : 'none';
@@ -128,7 +184,7 @@ const renderSubcategories = () => {
 		chip.type = 'button';
 		chip.className = 'cat-chip';
 		chip.dataset.key = sub.key;
-		chip.innerHTML = `${sub.icon ? `<img src="${sub.icon}" alt="">` : `<span class='cat-emoji'>${sub.emoji||'🏷️'}</span>`}<span class="cat-label">${sub.label}</span>`;
+		chip.innerHTML = `${sub.icon ? `<img src="${sub.icon}" alt="">` : `<span class='cat-emoji'>${sub.emoji||FALLBACK_EMOJI(sub.key)}</span>`}<span class="cat-label">${sub.label}</span>`;
 		if (state.selected.has(sub.key)) chip.classList.add('active','show-label');
 		chip.addEventListener('click', () => toggleSubcategory(sub.key, sub.label));
 		wrap.appendChild(chip);
@@ -137,6 +193,7 @@ const renderSubcategories = () => {
 };
 
 const renderSelected = () => {
+	if (CATEGORY_MODE !== 'chips') return;
 	const host = document.getElementById('selectedWrap');
 	if (!host) return;
 	host.innerHTML = '';
@@ -268,35 +325,16 @@ const bindTypeSwitch = () => {
 			btns.forEach(x=>x.classList.remove('active'));
 			b.classList.add('active');
 			state.type = b.dataset.value === 'services' ? 'services' : 'events';
-			// Vizualni stil: storitve ne smejo biti rdeče – ohranimo modro paleto
-			btns.forEach(x=>{
-				if(x.classList.contains('type-services')){
-					if(state.type==='services' && x.classList.contains('active')){
-						x.style.background='linear-gradient(180deg,#bfeef6,#8fd8e6)';
-						x.style.color='#064c56';
-					}else{
-						x.style.background='linear-gradient(180deg,#f7fdff,#e6fbff)';
-						x.style.color='#064c56';
-					}
-				}
-				if(x.classList.contains('type-events')){
-					if(state.type==='events' && x.classList.contains('active')){
-						x.style.background='linear-gradient(180deg,#0bbbd6,#07aab8)';
-						x.style.color='#fff';
-					}else{
-						x.style.background='linear-gradient(180deg,#f7fdff,#e6fbff)';
-						x.style.color='#064c56';
-					}
-				}
-			});
 			state.mainSelected = '';
 			renderMainCategories();
 			populateMainSelect();
 			populateSubSelect();
+			applyCategoryMode();
 		});
 	});
 	// initial
 	renderMainCategories();
+	applyCategoryMode();
 };
 
 // populate the quick main category <select>
@@ -305,13 +343,17 @@ function populateMainSelect(){
 	if (!sel) return;
 	sel.innerHTML = '';
 	const list = state.type === 'services' ? SERVICE_CATEGORIES : EVENT_CATEGORIES;
+	const fallback = state.mainSelected && list.some((c)=>c.key === state.mainSelected) ? state.mainSelected : (list[0]?.key || '');
 	list.forEach((c)=>{
 		const opt = document.createElement('option');
 		opt.value = c.key; opt.textContent = c.label;
 		sel.appendChild(opt);
 	});
 	// set current
-	try{ sel.value = state.mainSelected || list[0]?.key || ''; }catch{}
+	try{
+		sel.value = fallback;
+		state.mainSelected = sel.value;
+	}catch{}
 }
 
 // populate the subcategory multi-select
@@ -551,6 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 
 	state.selected = new Set();
+	applyCategoryMode();
 	bindTypeSwitch();
 	loadPreferences();
 	updateQuotaInfo();
@@ -564,6 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	populateMainSelect();
 	populateSubSelect();
 	bindSelectHandlers();
+	applyCategoryMode();
 });
 
 // ===== Monthly notifications counter (X/25) =====

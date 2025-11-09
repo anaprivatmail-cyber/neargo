@@ -1,13 +1,22 @@
-// Netlify function – preveri obvezne tabele/kolone v Supabase prek meta API
-// Ne izpisuje ključev in ne razkriva podatkov; vrne samo manjkajoče entitete.
+// Netlify function – preveri obvezne tabele/kolone v Supabase z direktnimi SELECT poizvedbami.
+// Če dodaš ?diag=1 vrne diagnostične indikatorje (brez skrivnosti).
+
+import { createClient } from '@supabase/supabase-js';
 
 export const handler = async (event) => {
-  if (!isAllowed(event)) {
-    return json(404, { ok:false, error:'disabled' });
-  }
+  if (!isAllowed(event)) return json(404, { ok:false, error:'disabled' });
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
+  if (event?.queryStringParameters?.diag === '1') {
+    return json(200, {
+      diag: true,
+      hasUrl: !!SUPABASE_URL,
+      hasService: !!SUPABASE_SERVICE_ROLE_KEY,
+      nodeVersion: process.version,
+      hasFetch: typeof fetch === 'function'
+    });
+  }
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    return json(200, { ok: false, configured: false, error: 'SUPABASE_URL ali SERVICE ROLE manjka' });
+    return json(200, { ok:false, configured:false, error:'Manjka SUPABASE_URL ali SERVICE ROLE KEY' });
   }
 
   const REQUIRED = [
@@ -31,43 +40,49 @@ export const handler = async (event) => {
   ];
 
   try {
-    const tablesRes = await rawMeta('tables', SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    if (!tablesRes.ok) return json(500, { ok:false, step:'tables', status: tablesRes.status, body: tablesRes.body });
-    const tables = JSON.parse(tablesRes.body || '[]');
-
-    const colsRes = await rawMeta('columns', SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    if (!colsRes.ok) return json(500, { ok:false, step:'columns', status: colsRes.status, body: colsRes.body });
-    const cols = JSON.parse(colsRes.body || '[]');
-
-    const tPublic = tables.filter(t => t.schema === 'public');
-    const cPublic = cols.filter(c => c.schema === 'public');
-
-    const have = new Map(tPublic.map(t => [t.name, t]));
-    const byTable = new Map();
-    for (const c of cPublic) {
-      const arr = byTable.get(c.table) || []; arr.push(c.name); byTable.set(c.table, arr);
-    }
-
+    const client = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth:{ persistSession:false } });
     const missingTables = [];
     const missingColumns = [];
     for (const req of REQUIRED) {
-      if (!have.has(req.name)) { if (!req.optional) missingTables.push(req.name); continue; }
-      const haveCols = new Set(byTable.get(req.name) || []);
-      const miss = (req.columns||[]).filter(col => !haveCols.has(col));
-      if (miss.length) missingColumns.push({ table: req.name, missing: miss });
+      const cols = req.columns || [];
+      let tableExists = true;
+      let missingForTable = new Set();
+      // Poskus osnovnega select-a
+      try {
+        const { error } = await client.from(req.name).select(cols.slice(0, Math.min(cols.length,5)).join(',') || '*').limit(1);
+        if (error) {
+          const msg = (error.message||'').toLowerCase();
+          if (msg.includes('does not exist') || msg.includes('relation')) tableExists = false;
+          if (tableExists && msg.includes('column')) {
+            cols.forEach(c => { if (msg.includes(c.toLowerCase())) missingForTable.add(c); });
+          }
+        }
+      } catch(e){
+        const msg = String(e.message||e).toLowerCase();
+        if (msg.includes('does not exist') || msg.includes('relation')) tableExists = false;
+      }
+      if (!tableExists) { if (!req.optional) missingTables.push(req.name); continue; }
+      // Preveri vsako kolono posebej če še ni potrjena
+      for (const col of cols) {
+        if (missingForTable.has(col)) continue;
+        try {
+          const { error } = await client.from(req.name).select(col).limit(1);
+          if (error) {
+            const m = (error.message||'').toLowerCase();
+            if (m.includes('column') && m.includes('does not exist')) missingForTable.add(col);
+          }
+        } catch(e){
+          const m = String(e.message||e).toLowerCase();
+          if (m.includes('column') && m.includes('does not exist')) missingForTable.add(col);
+        }
+      }
+      if (missingForTable.size) missingColumns.push({ table:req.name, missing:Array.from(missingForTable) });
     }
-
     return json(200, { ok: missingTables.length===0 && missingColumns.length===0, missingTables, missingColumns });
-  } catch (e) {
-    return json(500, { ok:false, error: String(e.message||e) });
+  } catch(e){
+    return json(500, { ok:false, error:String(e.message||e) });
   }
 };
-
-async function rawMeta(path, url, key){
-  const r = await fetch(`${url}/pg/meta/${path}`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
-  const body = await r.text().catch(()=> '');
-  return { ok: r.ok, status: r.status, body };
-}
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',

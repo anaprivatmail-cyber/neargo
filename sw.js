@@ -1,11 +1,13 @@
-// version: 2025-11-09-2
+// version: 2025-11-09-3
 
-self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('install', (e) => { self.skipWaiting(); });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
       .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ includeUncontrolled:true, type:'window'}))
+      .then(clients => { clients.forEach(c => { try{ c.postMessage({ type:'SW_VERSION', v:'2025-11-09-3'}); }catch{} }); })
   );
 });
 

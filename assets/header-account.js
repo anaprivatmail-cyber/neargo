@@ -47,6 +47,17 @@
   @media(max-width:640px){.account-menu{left:16px !important;right:16px !important;width:auto;min-width:0;}}
   `;
 
+  // Manjkajoča funkcija (v prejšnjem refaktorju odstranjena): poskrbi, da se STYLE_CSS injecta samo enkrat.
+  function injectStyles(){
+    if (document.getElementById(STYLE_ID)) return;
+    try{
+      const style = document.createElement('style');
+      style.id = STYLE_ID;
+      style.textContent = STYLE_CSS;
+      document.head.appendChild(style);
+    }catch(e){ /* ignore */ }
+  }
+
   async function getSupabase(){
     if (state.supabase) return state.supabase;
     if (window.supabase){ state.supabase = window.supabase; return state.supabase; }

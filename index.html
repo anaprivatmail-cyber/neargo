@@ -2404,6 +2404,19 @@ var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("clic
   </script>
   <script defer src="assets/header-account.js?v=20251110b"></script>
   <script src="assets/app-logic.js"></script>
+  <script>
+    // Če SW sporoči novo verzijo, prisilno osveži stran (1x)
+    if ('serviceWorker' in navigator) {
+      try{
+        navigator.serviceWorker.addEventListener('message', function(e){
+          if (e && e.data && e.data.type === 'SW_VERSION') {
+            try { sessionStorage.setItem('ng_sw_updated','1'); } catch {}
+            location.reload();
+          }
+        });
+      }catch{}
+    }
+  </script>
   <div style="margin:2em 0">
   <h3>Test vpis / registracija (debug)</h3>
   <input id="testEmail" type="email" placeholder="Email" style="margin-right:8px">

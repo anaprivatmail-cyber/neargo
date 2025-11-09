@@ -61,7 +61,7 @@ export const handler = async (event) => {
 };
 
 async function meta(path, url, key){
-  const r = await fetch(`${url}/pg/meta/${path}`, { headers: { apiKey: key, Authorization: `Bearer ${key}` } });
+  const r = await fetch(`${url}/pg/meta/${path}`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
   if (!r.ok) throw new Error(`meta ${path} → ${r.status}`);
   return r.json();
 }

@@ -31,10 +31,13 @@ export const handler = async (event) => {
   ];
 
   try {
-    const [tables, cols] = await Promise.all([
-      meta('tables', SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY),
-      meta('columns', SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY),
-    ]);
+    const tablesRes = await rawMeta('tables', SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    if (!tablesRes.ok) return json(500, { ok:false, step:'tables', status: tablesRes.status, body: tablesRes.body });
+    const tables = JSON.parse(tablesRes.body || '[]');
+
+    const colsRes = await rawMeta('columns', SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    if (!colsRes.ok) return json(500, { ok:false, step:'columns', status: colsRes.status, body: colsRes.body });
+    const cols = JSON.parse(colsRes.body || '[]');
 
     const tPublic = tables.filter(t => t.schema === 'public');
     const cPublic = cols.filter(c => c.schema === 'public');
@@ -60,10 +63,10 @@ export const handler = async (event) => {
   }
 };
 
-async function meta(path, url, key){
+async function rawMeta(path, url, key){
   const r = await fetch(`${url}/pg/meta/${path}`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
-  if (!r.ok) throw new Error(`meta ${path} → ${r.status}`);
-  return r.json();
+  const body = await r.text().catch(()=> '');
+  return { ok: r.ok, status: r.status, body };
 }
 
 const CORS = {

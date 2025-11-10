@@ -19,7 +19,11 @@
     .item img{width:120px;height:100%;object-fit:cover}
     .meta{padding:10px;flex:1}
     .muted{color:var(--muted);font-size:13px}
-    .btn{display:inline-block;background:var(--brand);color:#fff;text-decoration:none;padding:8px 12px;border-radius:10px;font-weight:800;border:0}
+  .btn{display:inline-block;background:var(--brand);color:#fff;text-decoration:none;padding:8px 12px;border-radius:10px;font-weight:800;border:0}
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;letter-spacing:.3px;border:1px solid var(--border);background:#fff;color:#0b1b2b;box-shadow:0 2px 4px rgba(0,0,0,.04)}
+  .badge.active{border-color:#0bbbd6;color:#0b1b2b;background:#e9f7fc}
+  .badge.used{border-color:#b2dbe6;color:#0b6d7b;background:#f4fafc}
+  .badge.free{border-color:#11a67a;color:#0d4a3a;background:#e9f9f4}
     .empty{padding:14px;border:1px dashed var(--border);border-radius:12px;color:var(--muted)}
   </style>
 </head>
@@ -114,7 +118,12 @@
     $("#redeemFlash").onclick = ()=>handleRedeem('flash');
     $("#redeemPremium").onclick = ()=>handleRedeem('premium');
 
-    function chip(html, bg, color){ return `<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:${bg};color:${color};font-weight:800;font-size:12px">${html}</span>`; }
+    function chip(type){
+      if(type==='active') return '<span class="badge active">Aktivno</span>';
+      if(type==='used')   return '<span class="badge used">Koriščeno</span>';
+      if(type==='free')   return '<span class="badge free">Gratis</span>';
+      return '<span class="badge">Status</span>';
+    }
 
     function renderItems(items){
       const filt = items.filter(it => currentTab==='all' ? true : (currentTab==='active' ? it.status.toLowerCase()!=='redeemed' : it.status.toLowerCase()==='redeemed'));
@@ -126,7 +135,8 @@
         const isCoupon = (it.kind || it.type) === 'coupon';
         const qr   = it.qr || (it.token ? (`/r/${encodeURIComponent(it.token)}`) : (it.url || "#"));
         const status = (it.status||'issued').toLowerCase();
-        const badge = status==='redeemed' ? chip('Koriščeno','rgba(11,187,214,.12)','#0bbbd6') : chip('Aktivno','#0bbbd6','#fff');
+  const isFree = isCoupon && (/(brezplačno|gratis)/i.test(it.benefit||''));
+  const badge = status==='redeemed' ? chip('used') : (isFree ? chip('free') : chip('active'));
         const benefit = it.benefit ? `<div class="muted" style="margin:6px 0">${it.benefit}</div>` : '';
         const kind = isCoupon ? 'Kupon' : 'Vstopnica';
         return `

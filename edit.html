@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Uredi ponudbo – NearGo</title>
-  <script type="module" src="/assets/categories.js"></script>
+  <script type="module" src="/assets/categories.js?v=20251110b"></script>
   <style>
     :root{ --bg:#f6fbfe; --card:#fff; --text:#0b1b2b; --muted:#5b6b7b; --border:#e3eef7; --brand:#0bbbd6; --shadow:0 12px 30px rgba(0,0,0,.06);}
     *{box-sizing:border-box}
@@ -82,10 +82,6 @@
               const bootstrap = window.NearGoCategoryBootstrap;
               if (bootstrap && Array.isArray(bootstrap.events) && bootstrap.events.length) {
                 return normalizeList(bootstrap.events);
-              }
-              const source = window.NearGoCategorySource;
-              if (source && Array.isArray(source.events) && source.events.length) {
-                return normalizeList(source.events);
               }
               return [];
             };

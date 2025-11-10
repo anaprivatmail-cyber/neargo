@@ -17,7 +17,7 @@
   </script>
   <script src="assets/boot-utils.js"></script>
   <!-- Cache bust version bump for latest categories (icons update) -->
-  <script type="module" src="assets/categories.js?v=20251110a"></script>
+  <script type="module" src="assets/categories.js?v=20251110b"></script>
   <script type="module">import { initEarlyCard } from '/assets/early-card.js'; window.addEventListener('DOMContentLoaded', initEarlyCard);</script>
 
   <!-- Leaflet -->
@@ -556,17 +556,16 @@
           }
 
           function getCanonicalList(mode) {
+            // Primary: published canonical categories
             var published = window.NearGoCategories;
             if (published && Array.isArray(published[mode]) && published[mode].length) {
               return cloneList(published[mode]);
             }
+            // Fallback only to bootstrap (initial snapshot while module loads);
+            // legacy NearGoCategorySource removed.
             var bootstrap = window.NearGoCategoryBootstrap;
             if (bootstrap && Array.isArray(bootstrap[mode]) && bootstrap[mode].length) {
               return cloneList(bootstrap[mode]);
-            }
-            var source = window.NearGoCategorySource;
-            if (source && Array.isArray(source[mode]) && source[mode].length) {
-              return cloneList(source[mode]);
             }
             return [];
           }
@@ -1991,7 +1990,7 @@ function detectCategory(e){
   var svcAddOption=$("#svcAddOption");
 
   function getCanonicalCategoryOptions(mode){
-    var sources = [window.NearGoCategories, window.NearGoCategoryBootstrap, window.NearGoCategorySource];
+  var sources = [window.NearGoCategories, window.NearGoCategoryBootstrap];
     for (var i = 0; i < sources.length; i++) {
       var src = sources[i];
       if (!src || !Array.isArray(src[mode]) || !src[mode].length) continue;

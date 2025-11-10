@@ -1,4 +1,4 @@
-// version: 2025-11-10-1
+// version: 2025-11-10-3 // cache bust (categories fallback purge)
 
 self.addEventListener('install', () => self.skipWaiting());
 

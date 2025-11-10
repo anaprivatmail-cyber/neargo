@@ -1,4 +1,4 @@
-// version: 2025-11-10-4 // cache bust (categories immediate init + notifications fixes)
+// version: 2025-11-10-5 // cache bust (auth-gating for search & notifications)
 
 self.addEventListener('install', () => self.skipWaiting());
 

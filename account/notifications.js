@@ -556,6 +556,33 @@ function ensurePremiumOrPrompt(){
 	}
 	return false;
 }
+function ensureLogin(){
+	const email = localStorage.getItem('user_email') || '';
+	if (email) return true;
+	// redirect to login preserving return
+	const next = window.location.pathname || '/account/notifications.html';
+	const params = new URLSearchParams();
+	params.set('next', next);
+	window.location.href = '/login.html?' + params.toString();
+	return false;
+}
+
+function ensurePremiumOrPrompt(){
+	if (!ensureLogin()) return false; // first require login
+	const isPremium = !!window.IS_PREMIUM;
+	if (isPremium) return true;
+	const box = document.getElementById('nonPremiumInline');
+	if (box){
+		box.style.display='block';
+		// vibracija (če podprta)
+		try{ if(navigator.vibrate) navigator.vibrate(45); }catch{}
+		// vizualni 'shake'
+		box.classList.add('shake');
+		setTimeout(()=>{ try{ box.classList.remove('shake'); }catch{} }, 600);
+		try{ box.scrollIntoView({behavior:'smooth', block:'center'}); }catch{}
+	}
+	return false;
+}
 
 function bindMapPickButton(){
 	const b = document.getElementById('btnMapPick');

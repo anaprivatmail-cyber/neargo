@@ -1594,6 +1594,11 @@ var CITY_ALIASES={
 
 /* Iskanje + straničenje */
 function doSearch(page, byGeo){
+  // Zahtevaj prijavo za iskanje (UI ostane enak, ob dejanskem iskanju pozovemo k prijavi)
+  try{
+    var email = localStorage.getItem('user_email')||'';
+    if(!email){ redirectToLogin((window.location.pathname||'/') + '#searchPanel'); return; }
+  }catch(_){ /* nadaljuj */ }
   if(page==null) page=0; if(byGeo==null) byGeo=false;
   currentPage=page;
   var qVal=(qEl && qEl.value ? qEl.value.trim() : "");

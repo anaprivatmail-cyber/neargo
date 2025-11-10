@@ -26,6 +26,8 @@
   .ng-edit-panel button.secondary{ background:#fff; color:#0b1b2b; border:1px solid #cfe1ee }
   .ng-edit-info{ font-size:12px; color:#5b6b7b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; }
   .ng-edit-textarea{ display:none; width:100%; height:80px; border:1px solid #cfe1ee; border-radius:8px; padding:6px 8px; font:inherit; }
+  .ng-edit-fab{ position: fixed; top: 12px; right: 12px; z-index: 4100; background:#0bbbd6; color:#fff; border:none; padding:10px 12px; border-radius:999px; font-weight:900; box-shadow:0 8px 20px rgba(11,187,214,.35); cursor:pointer; }
+  .ng-edit-fab.secondary{ background:#fff; color:#0b1b2b; border:1px solid #cfe1ee }
   @media(min-width:680px){ .ng-edit-panel{ left:auto; width: 560px; right: 12px; } }
   `;
 
@@ -175,6 +177,23 @@
     document.addEventListener('mouseover', handleHover, true);
     document.addEventListener('mouseout', handleHoverOut, true);
     updateInfo();
+
+    // Floating badge (always visible) to show/hide panel and quick-pick
+    const fab = document.createElement('button');
+    fab.className = 'ng-edit-fab';
+    fab.type = 'button';
+    fab.textContent = 'Edit';
+    fab.title = 'Edit Mode – klik za prikaz orodij, dvojni klik za Izberi';
+    fab.addEventListener('click', () => {
+      if (!state.panel) return;
+      const cur = state.panel.style.display;
+      state.panel.style.display = (cur === 'none') ? 'flex' : 'none';
+    });
+    fab.addEventListener('dblclick', () => {
+      const btn = state.panel && state.panel.querySelector('[data-act="pick"]');
+      if (btn) btn.click();
+    });
+    document.body.appendChild(fab);
   }
 
   function boot(){ addStyle(); buildPanel(); }

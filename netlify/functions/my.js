@@ -42,7 +42,7 @@ export const handler = async (event) => {
     // 1) Tickets po e-pošti (brez kakršnihkoli 'demo' vnosov)
     const { data: tickets, error } = await supa
       .from("tickets")
-      .select("id,type,event_id,issued_at,token,customer_email")
+      .select("id,type,event_id,issued_at,token,customer_email,status,redeemed_at,display_benefit")
       .eq("customer_email", email)
       .order("issued_at", { ascending:false });
 
@@ -74,7 +74,10 @@ export const handler = async (event) => {
         image: e.image || "",
         qr:    token ? `/r/${encodeURIComponent(token)}` : "",
         code:  token, // <-- DODANO: številka QR kode (token) za prikaz v "Moje"
-        url:   e.url || ""
+        url:   e.url || "",
+        status: t.status || "issued",
+        redeemed_at: t.redeemed_at || null,
+        benefit: t.display_benefit || null
       };
     });
 

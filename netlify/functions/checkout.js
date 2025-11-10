@@ -38,6 +38,8 @@ export const handler = async (event) => {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         payment_method_types: ["card"],
+        // vedno ustvari Customer in zberi email
+        customer_creation: "always",
         success_url: successUrl,
         cancel_url: cancelUrl,
         line_items: [
@@ -74,6 +76,7 @@ export const handler = async (event) => {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         payment_method_types: ["card"],
+        customer_creation: "always",
         success_url: successUrl,
         cancel_url: cancelUrl,
         line_items: [
@@ -101,6 +104,7 @@ export const handler = async (event) => {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         payment_method_types: ["card"],
+        customer_creation: "always",
         success_url: successUrl,
         cancel_url: cancelUrl,
         line_items: [
@@ -143,12 +147,13 @@ export const handler = async (event) => {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         payment_method_types: ["card"],
+        customer_creation: "always",
         success_url: successUrl,
         cancel_url: cancelUrl,
         line_items: items,
         payment_intent_data: { description: firstName },
         client_reference_id: metadata.event_id ? String(metadata.event_id) : undefined,
-        metadata
+        metadata: { ...metadata, type: (metadata.type || "ticket"), event_title: firstName }
       });
 
       return { statusCode: 200, body: JSON.stringify({ ok: true, url: session.url }) };

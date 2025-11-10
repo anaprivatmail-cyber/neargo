@@ -54,6 +54,20 @@ export function initBuy(){
         const kind=btn.dataset.kind||"ticket"; 
         let payload;
         if(kind==="coupon"){
+          // podpora za FREE kupon preko data-free="1"
+          if (btn.dataset.free === '1') {
+            const freeBody = {
+              email: (localStorage.getItem('user_email')||'').trim(),
+              event_id: btn.dataset.eid || '',
+              event_title: decodeURIComponent(btn.dataset.name||'Dogodek'),
+              display_benefit: decodeURIComponent(btn.dataset.benefit||'Brezplačno')
+            };
+            const fr = await fetch('/api/free-coupon', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(freeBody) })
+                       .then(r=>r.json()).catch(()=>({}));
+            if(fr && fr.ok){ window._toast?.('Kupon izdan ✅', true); location.href = '/my.html#success'; }
+            else { alert('Napaka pri izdaji brezplačnega kupona'); }
+            return; // skip stripe
+          }
           payload={
             type:"coupon",
             metadata:{type:"coupon",event_title:decodeURIComponent(btn.dataset.name||"Dogodek"),

@@ -54,6 +54,12 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/api/free-coupon"
+  to   = "/.netlify/functions/free-coupon"
+  status = 200
+  force = true
+
 # Redeem (QR unovčitev) – kuponi
 [[redirects]]
   from = "/api/redeem/*"

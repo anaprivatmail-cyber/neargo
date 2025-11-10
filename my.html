@@ -33,65 +33,26 @@
       </nav>
     </div>
   </header>
-  <div class="wrap">
-    <div class="card">
-      <div id="greeting" style="font-size:1.25em;font-weight:700;color:#0bbbd6;margin-bottom:12px;"></div>
-      <h1>Moje vstopnice & kuponi</h1>
-      <div class="row">
-        <input id="email" placeholder="vnesi e-pošto (za dostavo vstopnic)">
-        <button id="save">Shrani</button>
+  <div class="wrap" style="max-width:420px">
+    <div class="card" style="padding:16px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h1 style="margin:0;font-size:20px">Moje</h1>
+        <a href="/" style="color:#0bbbd6;font-weight:800;text-decoration:none">Domov</a>
+      </div>
+      <div class="row" style="gap:8px">
+        <input id="email" placeholder="tvoj e-mail" style="flex:1">
+        <button id="save" class="btn" style="background:#0bbbd6;color:#fff;border:0">Shrani</button>
         <button id="load" class="btn" style="border:0">Naloži</button>
-        <button id="editEarlyNotify" class="btn" style="background:#11a67a;color:#fff;border:0;">Uredi predhodna obvestila</button>
       </div>
       <div id="msg" class="muted" style="margin-top:8px"></div>
-      <div id="list" class="grid" style="margin-top:12px"></div>
-      <hr style="margin:24px 0;">
-      <h2 style="font-size:1.08em;color:#0bbbd6;margin-bottom:8px;">Uredi profil</h2>
-      <div class="row" style="margin-bottom:10px;">
-        <input id="profileEmail" placeholder="Spremeni email" style="max-width:220px;">
-        <input id="profilePassword" type="password" placeholder="Spremeni geslo" style="max-width:180px;">
-        <button id="saveProfile" class="btn mini" style="background:#0bbbd6;color:#fff;">Shrani profil</button>
+
+      <div id="tabs" style="display:flex;gap:8px;margin:12px 0 6px">
+        <button data-tab="all"   class="btn" style="background:#fff;color:#0b1b2b;border:1px solid var(--border)">Vse</button>
+        <button data-tab="active"class="btn" style="background:#fff;color:#0b1b2b;border:1px solid var(--border)">Aktivne</button>
+        <button data-tab="used"  class="btn" style="background:#fff;color:#0b1b2b;border:1px solid var(--border)">Koriščene</button>
       </div>
-      <div id="profileMsg" class="muted" style="margin-bottom:8px;"></div>
-      <h2 style="font-size:1.08em;color:#11a67a;margin-bottom:8px;">Zgodovina nagrad</h2>
-      <div id="rewardsHistory" class="muted" style="font-size:14px;"></div>
-    </div>
-    <div class="card" style="margin-top:18px;padding:18px 12px;background:#f6fbfe;border:1px solid #e6eef7;">
-      <h2 style="font-size:1.15em;color:#0bbbd6;margin-bottom:10px;">Unovči točke</h2>
-      <div id="pointsProgressWrap" style="margin-bottom:18px;">
-        <label for="pointsProgress" style="font-weight:700;color:#0bbbd6;">Napredek do nagrade:</label>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <progress id="pointsProgress" value="0" max="100" style="width:220px;height:18px;"></progress>
-          <span id="pointsProgressLabel" style="font-weight:700;color:#0bbbd6;">0 / 100</span>
-        </div>
-      </div>
-      <div id="pointsStore" style="display:grid;gap:14px;">
-        <div class="store-item" style="background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 2px 8px rgba(11,187,214,.07);display:flex;align-items:center;justify-content:space-between;">
-          <div>
-            <div style="font-weight:900;color:#0bbbd6;">Flash kupon</div>
-            <div class="muted" style="font-size:13px;">100 točk = 1 brezplačni kupon</div>
-          </div>
-          <button class="btn" id="redeemFlash" style="background:#0bbbd6;color:#fff;">Unovči</button>
-        </div>
-        <div class="store-item" style="background:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 2px 8px rgba(11,187,214,.07);display:flex;align-items:center;justify-content:space-between;">
-          <div>
-            <div style="font-weight:900;color:#0bbbd6;">Premium mesec</div>
-            <div class="muted" style="font-size:13px;">500 točk = 1 mesec Premium</div>
-          </div>
-          <button class="btn" id="redeemPremium" style="background:#0bbbd6;color:#fff;">Unovči</button>
-        </div>
-      </div>
-    </div>
-    <!-- REFERENČNI PROGRAM -->
-    <div class="card" id="referralCard" style="margin-top:18px;padding:18px 12px;background:#f6fff6;border:1px solid #d4edda;box-shadow:0 2px 12px rgba(17,166,122,.08);">
-      <h2 style="font-size:1.15em;color:#11a67a;margin-bottom:10px;display:flex;align-items:center;gap:8px;">Povabi prijatelje <span style="font-size:1.3em">🤝</span></h2>
-      <p style="color:#155724;font-weight:500;margin-bottom:10px;">Vsak prijatelj, ki se registrira preko tvoje povezave, ti prinese nagrade! Za vsaka 2 povabila prejmeš 1 mesec Premium, vsak nov uporabnik pa dobi Flash kupon.</p>
-      <div class="row" style="gap:8px;align-items:center;">
-        <input id="referralLink" readonly style="flex:1;font-size:15px;padding:8px 10px;border:1px solid #cfe1ee;border-radius:8px;background:#fff;color:#155724;font-weight:700;" value="Pridobivam povezavo ...">
-        <button class="btn mini" id="copyReferralBtn" style="background:#11a67a;color:#fff;">Kopiraj povezavo</button>
-      </div>
-      <div id="referralProgress" style="margin-top:10px;color:#155724;font-size:14px;font-weight:700;"></div>
-      <div id="referralRewardMsg" style="margin-top:8px;color:#0bbbd6;font-size:13px;font-weight:700;display:none;"></div>
+
+      <div id="list" class="grid" style="margin-top:8px"></div>
     </div>
   </div>
 
@@ -123,23 +84,10 @@
 
     $("#load").onclick = load;
 
-    // Omejitev urejanja predhodnih obvestil na 5x na mesec
-    $("#editEarlyNotify").onclick = ()=>{
-      const em = emailInput.value.trim();
-      if(!em){ msg.textContent = "Vnesi e-pošto za urejanje obvestil."; return; }
-      let edits = JSON.parse(localStorage.getItem("ng_early_notify_edits") || "{}");
-      const month = new Date().getMonth();
-      if (!edits[em] || edits[em].month !== month) {
-        edits[em] = { month, count: 0 };
-      }
-      if (edits[em].count >= 5) {
-        msg.textContent = "Obvestila lahko spreminjate največ 5x na mesec.";
-        return;
-      }
-      edits[em].count++;
-      localStorage.setItem("ng_early_notify_edits", JSON.stringify(edits));
-      window.location.href = "/premium.html#earlyNotifySection";
-    };
+    // tabs
+    const tabs = document.querySelectorAll('#tabs [data-tab]');
+    let currentTab = 'all';
+    tabs.forEach(b=> b.onclick = ()=>{ currentTab = b.dataset.tab; renderItems(window.__items||[]); });
 
     // Unovčevanje točk
     import { getUserPoints, redeemUserPoints } from '../providers/supabase-points.js';
@@ -166,6 +114,38 @@
     $("#redeemFlash").onclick = ()=>handleRedeem('flash');
     $("#redeemPremium").onclick = ()=>handleRedeem('premium');
 
+    function chip(html, bg, color){ return `<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:${bg};color:${color};font-weight:800;font-size:12px">${html}</span>`; }
+
+    function renderItems(items){
+      const filt = items.filter(it => currentTab==='all' ? true : (currentTab==='active' ? it.status.toLowerCase()!=='redeemed' : it.status.toLowerCase()==='redeemed'));
+      if(!filt.length){ list.innerHTML = `<div class="empty">Ni najdenih vstopnic ali kuponov.</div>`; return; }
+      list.innerHTML = filt.map(it=>{
+        const img  = it.image || it.images?.[0] || "https://picsum.photos/640/360?blur=2";
+        const when = it.date || "";
+        const where= it.place || "";
+        const isCoupon = (it.kind || it.type) === 'coupon';
+        const qr   = it.qr || (it.token ? (`/r/${encodeURIComponent(it.token)}`) : (it.url || "#"));
+        const status = (it.status||'issued').toLowerCase();
+        const badge = status==='redeemed' ? chip('Koriščeno','rgba(11,187,214,.12)','#0bbbd6') : chip('Aktivno','#0bbbd6','#fff');
+        const benefit = it.benefit ? `<div class="muted" style="margin:6px 0">${it.benefit}</div>` : '';
+        const kind = isCoupon ? 'Kupon' : 'Vstopnica';
+        return `
+          <div class="item">
+            <img src="${img}" alt="">
+            <div class="meta">
+              <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+                <div style="font-weight:900">${it.title||'Dogodek'}</div>
+                <div>${badge}</div>
+              </div>
+              <div class="muted">${[when, where].filter(Boolean).join(" • ")}</div>
+              <div class="muted" style="margin:6px 0">${kind}</div>
+              ${benefit}
+              ${ qr && qr !== "#" ? `<a class="btn" href="${qr}" target="_blank" rel="noopener">Koda / QR</a>` : '' }
+            </div>
+          </div>`;
+      }).join("");
+    }
+
     async function load(){
       list.innerHTML = ""; msg.textContent = "";
       const em = emailInput.value.trim();
@@ -180,151 +160,13 @@
           return;
         }
         const items = data.items || data.results;
-        if(!items.length){
-          list.innerHTML = `<div class="empty">Ni najdenih vstopnic ali kuponov.</div>`;
-          return;
-        }
-        list.innerHTML = items.map(it=>{
-          const img  = it.image || it.images?.[0] || "https://picsum.photos/640/360?blur=2";
-          const name = it.title || it.name || "Dogodek";
-          const when = it.date || it.start || "";
-          const where= it.place || it.venue?.address || "";
-          const kind = (it.kind || it.type) === 'coupon' ? 'Kupon' : 'Vstopnica';
-          const qr   = it.qr || it.qr_url || it.qrCode || it.token ? (`/r/${encodeURIComponent(it.token)}`) : (it.url || "#");
-          return `
-            <div class="item">
-              <img src="${img}" alt="">
-              <div class="meta">
-                <div style="font-weight:900">${name}</div>
-                <div class="muted">${[when, where].filter(Boolean).join(" • ")}</div>
-                <div class="muted" style="margin:6px 0">${kind}</div>
-                ${ qr && qr !== "#" ? `<a class="btn" href="${qr}" target="_blank" rel="noopener">Koda / QR</a>` : '' }
-              </div>
-            </div>
-          `;
-        }).join("");
+        window.__items = items;
+        renderItems(items);
       }catch(e){
       // ...obstoječa obravnava napake...
     }
-    if (emailInput.value.trim()) load();
+  if (emailInput.value.trim()) load();
 
-    // Referral program logic
-    const referralLinkInput = $("#referralLink");
-    const copyReferralBtn = $("#copyReferralBtn");
-    const referralProgress = $("#referralProgress");
-    const referralRewardMsg = $("#referralRewardMsg");
-
-    async function updateReferralLink() {
-      const em = emailInput.value.trim();
-      if(!em) return;
-      // Simulate API call to get referral link
-      setTimeout(() => {
-        const link = `https://neargo.com/referral/${btoa(em)}`;
-        referralLinkInput.value = link;
-        msg.textContent = "Povezava je pripravljena!";
-      }, 1000);
-    }
-
-    copyReferralBtn.onclick = () => {
-  referralLinkInput.select();
-  document.execCommand("copy");
-  msg.textContent = "Povezava skopirana v odložišče!";
-        const email = $("#profileEmail").value.trim();
-        const password = $("#profilePassword").value.trim();
-        const profileMsg = $("#profileMsg");
-        if (!email && !password) { profileMsg.textContent = "Vnesi email ali geslo."; return; }
-        // Klic backend funkcije za posodobitev profila
-        (async function() {
-          try {
-            const res = await fetch("/.netlify/functions/update-profile", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email, password, user: localStorage.getItem("user_email") })
-            });
-            const data = await res.json();
-            if (data.success) {
-              profileMsg.textContent = "Profil uspešno posodobljen.";
-              if (email) localStorage.setItem("user_email", email);
-            } else {
-              profileMsg.textContent = data.error || "Napaka pri posodabljanju profila.";
-            }
-          } catch (e) {
-            profileMsg.textContent = "Napaka pri povezavi.";
-          }
-        })();
-      };
-      document.execCommand("copy");
-      // Load reward history
-      async function loadRewardsHistory() {
-        const rewardsDiv = $("#rewardsHistory");
-        const email = localStorage.getItem("user_email");
-        if (!email) { rewardsDiv.textContent = "Vnesi email in shrani za prikaz zgodovine."; return; }
-        try {
-          const res = await fetch(`/.netlify/functions/rewards-history?email=${encodeURIComponent(email)}`);
-          const data = await res.json();
-          if (data && data.length) {
-            rewardsDiv.innerHTML = data.map(r => `<div>${r.date}: <b>${r.type}</b> (${r.points} točk)</div>`).join("");
-          } else {
-            rewardsDiv.textContent = "Ni zgodovine nagrad.";
-          }
-        } catch (e) {
-          rewardsDiv.textContent = "Napaka pri nalaganju zgodovine.";
-        }
-      }
-      document.addEventListener("DOMContentLoaded", loadRewardsHistory);
-      msg.textContent = "Povezava skopirana v odložišče!";
-      // Referral logic
-      async function loadReferral() {
-        const linkInput = $("#referralLink");
-        const progressDiv = $("#referralProgress");
-        const rewardMsg = $("#referralRewardMsg");
-        const email = localStorage.getItem("user_email");
-        if (!email) { linkInput.value = "Vnesi email in shrani."; return; }
-        try {
-          const res = await fetch(`/.netlify/functions/referral?email=${encodeURIComponent(email)}`);
-          const data = await res.json();
-          linkInput.value = data.link || "Napaka pri pridobivanju povezave.";
-          progressDiv.textContent = `Povabljeni: ${data.invited || 0}, Nagrade: ${data.rewards || 0}`;
-          if (data.rewardMsg) { rewardMsg.textContent = data.rewardMsg; rewardMsg.style.display = "block"; }
-          else { rewardMsg.style.display = "none"; }
-          $("#copyReferralBtn").onclick = () => {
-            navigator.clipboard.writeText(linkInput.value);
-            if (window._toast) window._toast("Povezava kopirana!", true);
-          };
-        } catch (e) {
-          linkInput.value = "Napaka pri povezavi.";
-        }
-      }
-      document.addEventListener("DOMContentLoaded", loadReferral);
-    };
-
-    // Simulate fetching referral progress
-    async function loadReferralProgress() {
-      const em = emailInput.value.trim();
-      if(!em) return;
-      // Simulate API call
-      setTimeout(() => {
-        const progress = Math.floor(Math.random() * 3);
-        referralProgress.textContent = `Imate ${progress} aktivnih povabil.`;
-        if(progress > 0) {
-          referralRewardMsg.textContent = `Čestitamo! Dosegli ste nagrado za ${progress} povabila!`;
-          referralRewardMsg.style.display = "block";
-        } else {
-          referralRewardMsg.style.display = "none";
-        }
-      }, 1000);
-    }
-
-    emailInput.oninput = () => {
-      const em = emailInput.value.trim();
-      if(em) {
-        updateReferralLink();
-        loadReferralProgress();
-      } else {
-        referralLinkInput.value = "Pridobivam povezavo ...";
-        referralProgress.textContent = "";
-        referralRewardMsg.style.display = "none";
-      }
     };
   </script>
 </body>

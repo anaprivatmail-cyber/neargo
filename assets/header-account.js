@@ -8,13 +8,14 @@
 
   const STYLE_ID = 'account-menu-styles';
   const MENU_CORE = [
-    { id: 'mi-dashboard', label: 'Moje vstopnice & kuponi', url: '/my.html', icon: '🎟️' },
-    { id: 'mi-rewards', label: 'Točke & nagrade', url: '/account/rewards.html', icon: '🏆' },
+    { id: 'mi-dashboard', label: 'Moje vstopnice & kuponi', url: '/my.html', icon: '�️' },
+    { id: 'mi-rewards', label: 'Točke & nagrade', url: '/account/rewards.html', icon: '�' },
     { id: 'mi-favourites', label: 'Najljubše', url: '/account/favorites.html', icon: '⭐' },
     { id: 'mi-notifications', label: 'Obvestila', url: '/account/notifications.html', icon: '🔔' },
     { id: 'mi-inbox', label: 'Sporočila', url: '/account/inbox.html', icon: '💬' },
     { id: 'mi-account', label: 'Profil & nastavitve', url: '/account/account.html', icon: '⚙️' }
   ];
+  const MENU_ORGANIZER = { id: 'mi-organizers', label: 'Za organizatorje', url: '/organizers.html', icon: '🛠️' };
   const DEFAULT_LOGIN_REDIRECT = '/';
 
   const state = {
@@ -175,8 +176,11 @@
       { id: 'mi-notifications', label: 'Predhodna obvestila', url: '/account/notifications.html', icon: '🔔' },
       { id: 'mi-account', label: 'Nastavitve / Račun', url: '/account/account.html', icon: '⚙️' }
     ];
-    return base;
+    if (loggedIn) return [...base, MENU_ORGANIZER];
+    return [MENU_ORGANIZER];
   }
+
+  
 
   function buildMenu(identity, options = {}){
     const { logoutSuccess = false } = options;

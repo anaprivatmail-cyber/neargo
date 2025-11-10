@@ -16,7 +16,7 @@
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
   </script>
   <script src="assets/boot-utils.js"></script>
-  <script type="module" src="/assets/categories.js?v=20251110"></script>
+  <script type="module" src="assets/categories.js"></script>
   <script type="module">import { initEarlyCard } from '/assets/early-card.js'; window.addEventListener('DOMContentLoaded', initEarlyCard);</script>
 
   <!-- Leaflet -->
@@ -1392,7 +1392,7 @@ function startAutoScroll(){
 var carousel=$("#carousel"); if(carousel) carousel.addEventListener("click",function(){ featuredPaused=true; setTimeout(function(){featuredPaused=false;},1500); });
 
 /* Heuristika za storitve */
-var EVENT_CATS=["","koncerti","kultura-umetnost","druzina-otroci","kulinarika","outdoor-narava","sport-tekmovanja","ucenje-skill","posel-networking","dom-vrt","ostalo"];
+var EVENT_CATS=["","koncerti","kultura-umetnost","druzina-otroci","kulinarka","outdoor-narava","sport-tekmovanja","ucenje-skill","posel-networking","dom-vrt","ostalo"];
 var SERVICE_CATS_UI=["","frizer","wellness","zdravje","kozmetika","fitnes","avto-moto","turizem","gospodinjske","ostalo"];
 
 function looksService(e){
@@ -1953,13 +1953,13 @@ function detectCategory(e){
   var t=((e.name||e.title||"").toLowerCase()+" "+(e.description||"").toLowerCase());
   if(/koncert|band|music|festival/.test(t)) return "koncerti";
   if(/otro[kc]|family|kids/.test(t)) return "druzina-otroci";
-  if(/food|hrana|kulinar|street/.test(t)) return "kulinarika";
+  if(/food|hrana|kulinar|street/.test(t)) return "kulinarka";
   if(/šport|sport|tek|match|liga|fit/.test(t)) return "sport-tekmovanja";
   if(/narav|hike|trek|outdoor|park/.test(t)) return "outdoor-narava";
   if(/uč|ucenje|workshop|delavn|tečaj|tecaj|skill/.test(t)) return "ucenje-skill";
   if(/party|žur|zabav|afterwork|lounge/.test(t)) return "ostalo";
   if(/podjet|biz|business|b2b|konferenc/.test(t)) return "posel-networking";
-  if(looksService(e)) return "kulinarika-catering";
+  if(looksService(e)) return "kulinarka-catering";
   return "kultura-umetnost";
 }
 

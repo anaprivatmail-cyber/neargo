@@ -16,11 +16,11 @@ export const CATEGORY_SOURCE = {
       ]
     },
     {
-      key: 'kulinarika',
-      label: 'Kulinarika',
+      key: 'kulinarka',
+      label: 'Kulinarka',
       emoji: '🍽️',
       icon: 'food.svg',
-      aliases: ['hrana', 'gastro', 'food', 'degustacija', 'trznica'],
+      aliases: ['kulinarika', 'hrana', 'gastro', 'food', 'degustacija', 'trznica'],
       sub: [
         { key: 'degustacije', label: 'Degustacije' },
         { key: 'tematski-veceri', label: 'Tematski večeri' },
@@ -48,7 +48,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'druzina-otroci',
       label: 'Družina & otroci',
-      emoji: '🧸',
+      emoji: '👨‍👩‍👧',
       icon: 'family.svg',
       aliases: ['otroci', 'family', 'kids', 'druzina'],
       sub: [
@@ -61,10 +61,10 @@ export const CATEGORY_SOURCE = {
     },
     {
       key: 'sport-tekmovanja',
-  label: 'Šport',
-      emoji: '⚽',
+      label: 'Šport & tekmovanja',
+      emoji: '🏃‍♀️',
       icon: 'sport.svg',
-  aliases: ['sport', 'šport', 'rekreacija', 'fit', 'tekma', 'tekmovanje', 'liga'],
+      aliases: ['sport', 'šport', 'rekreacija', 'fit', 'tekma', 'tekmovanje', 'liga'],
       sub: [
         { key: 'rekreativni-teki', label: 'Rekreativni teki' },
         { key: 'ekipni-turnirji', label: 'Ekipni turnirji' },
@@ -92,7 +92,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'ucenje-skill',
       label: 'Učenje & skill',
-      emoji: '💡',
+      emoji: '🧠',
       icon: 'learn.svg',
       aliases: ['ucenje', 'delavnice', 'skill', 'workshop', 'izobrazevanje'],
       sub: [
@@ -122,7 +122,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'posel-networking',
       label: 'Posel & networking',
-      emoji: '🧑‍💼',
+      emoji: '�',
       icon: 'service.svg',
       aliases: ['poslovni', 'business', 'b2b', 'za-podjetja'],
       sub: [
@@ -154,7 +154,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'lepota',
       label: 'Lepota',
-      emoji: '✂️',
+      emoji: '🪞',
       icon: 'beauty.svg',
       aliases: ['frizer', 'barber', 'lepota', 'salon'],
       sub: [
@@ -167,7 +167,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'nega-kozmetika',
       label: 'Nega & kozmetika',
-      emoji: '💆',
+      emoji: '🧴',
       icon: 'beauty.svg',
       aliases: ['kozmetika', 'nega', 'kozmeticni salon'],
       sub: [
@@ -182,7 +182,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'wellness',
       label: 'Wellness',
-      emoji: '🧖',
+      emoji: '�‍♀️',
       icon: 'wellness.svg',
       aliases: ['spa', 'wellness', 'relax'],
       sub: [
@@ -211,7 +211,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'trening',
       label: 'Trening',
-      emoji: '🏋️',
+      emoji: '🏋️‍♂️',
       icon: 'fit.svg',
       aliases: ['fitnes', 'sport', 'coaching'],
       sub: [
@@ -224,11 +224,11 @@ export const CATEGORY_SOURCE = {
       ]
     },
     {
-      key: 'kulinarika-catering',
-      label: 'Kulinarika & catering',
-      emoji: '🍲',
+      key: 'kulinarka-catering',
+      label: 'Kulinarka & catering',
+      emoji: '�️',
       icon: 'food.svg',
-      aliases: ['catering', 'kulinarika', 'kulinarične storitve'],
+      aliases: ['kulinarika-catering', 'catering', 'kulinarika', 'kulinarične storitve'],
       sub: [
         { key: 'catering', label: 'Catering' },
         { key: 'privatni-kuhar', label: 'Privatni kuhar' },
@@ -272,7 +272,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'druzina-otroci',
       label: 'Družina & otroci',
-      emoji: '🧑‍👧',
+      emoji: '👨‍👩‍👧',
       icon: 'family.svg',
       aliases: ['varstvo', 'kids', 'otroci', 'druzina'],
       sub: [
@@ -287,7 +287,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'poslovne',
       label: 'Poslovne storitve',
-      emoji: '📈',
+      emoji: '�',
       icon: 'service.svg',
       aliases: ['poslovne-storitve', 'business', 'b2b'],
       sub: [
@@ -302,7 +302,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'izobrazevanje',
       label: 'Izobraževanje & mentoring',
-      emoji: '📚',
+      emoji: '🎓',
       icon: 'learn.svg',
       aliases: ['izobrazevanje', 'mentoring', 'tecaji', 'coaching'],
       sub: [
@@ -332,7 +332,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'ostalo',
       label: 'Ostalo',
-      emoji: '🌈',
+      emoji: '✨',
       icon: 'other.svg',
       aliases: ['ostalo', 'drugo'],
       sub: [

@@ -7,7 +7,7 @@ const SERVICE_KEYS = new Set(SERVICE_CATEGORIES.map((cat) => cat.key));
 
 const LEGACY_MAP = {
 	koncerti: 'koncerti',
-	kulinarika: 'kulinarika',
+	kulinarika: 'kulinarka',
 	sport: 'sport-tekmovanja',
 	'šport': 'sport-tekmovanja',
 	kultura: 'kultura-umetnost',

@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import * as Brevo from "@getbrevo/brevo";
+import nodemailer from "nodemailer";
 import fs from "fs";
 import path from "path";
 import crypto from "node:crypto";
@@ -233,26 +234,30 @@ export const handler = async (event) => {
 
     const paidAt = nowIso;
     const { seq, year } = await nextInvoiceNo();
+    const shouldInvoice = totalGross > 0; // free kuponi ne dobijo računa
+    let pdfBytes = null;
+    let pdfPath = null;
+    if (shouldInvoice) {
+      try {
+        pdfBytes = await createInvoicePdf({
+          seqNo: seq,
+          buyer: { name:"", email:customerEmail },
+          totalGross, base, tax,
+          paidAt, sessionId: s.id,
+          type
+        });
+      } catch (e) {
+        console.error("[webhook] fatal while creating PDF:", e?.message || e);
+      }
 
-    let pdfBytes;
-    try {
-      pdfBytes = await createInvoicePdf({
-        seqNo: seq,
-        buyer: { name:"", email:customerEmail },
-        totalGross, base, tax,
-        paidAt, sessionId: s.id,
-        type
-      });
-    } catch (e) {
-      console.error("[webhook] fatal while creating PDF:", e?.message || e);
-      return { statusCode:200, headers:cors(), body: JSON.stringify({ received:true, pdf:"error" }) };
-    }
-
-    const pdfPath = `invoices/${year}/${seq}.pdf`;
-    try {
-      await supa.storage.from("invoices").upload(pdfPath, pdfBytes, { contentType: "application/pdf", upsert: true });
-    } catch (e) {
-      console.error("[webhook] upload invoice error:", e?.message || e);
+      if (pdfBytes) {
+        pdfPath = `invoices/${year}/${seq}.pdf`;
+        try {
+          await supa.storage.from("invoices").upload(pdfPath, pdfBytes, { contentType: "application/pdf", upsert: true });
+        } catch (e) {
+          console.error("[webhook] upload invoice error:", e?.message || e);
+        }
+      }
     }
 
     if (qrPngBuffer) {
@@ -264,22 +269,27 @@ export const handler = async (event) => {
       }
     }
 
-    const { data: signed } = await supa.storage.from("invoices").createSignedUrl(pdfPath, 60*60*24*30);
-    const pdfUrl = signed?.signedUrl || null;
+    let pdfUrl = null;
+    if (pdfPath) {
+      const { data: signed } = await supa.storage.from("invoices").createSignedUrl(pdfPath, 60*60*24*30);
+      pdfUrl = signed?.signedUrl || null;
+    }
 
-    await supa.from("invoices").insert({
-      seq_no: seq, year,
-      customer_email: customerEmail,
-      items: [{ name: type==="coupon" ? `Kupon: ${eventTitle}` : (type==="premium" ? `Premium NearGo` : `Vstopnica: ${eventTitle}`), qty:1, unit_price: totalGross }],
-      currency: CURRENCY,
-      subtotal: base, tax_rate: TAX_RATE, tax_amount: tax, total: totalGross,
-      paid_at: paidAt,
-      stripe_session_id: s.id,
-      stripe_payment_intent: s.payment_intent,
-      event_id: eventId,
-      type,
-      pdf_url: pdfUrl
-    });
+    if (shouldInvoice) {
+      await supa.from("invoices").insert({
+        seq_no: seq, year,
+        customer_email: customerEmail,
+        items: [{ name: type==="coupon" ? `Kupon: ${eventTitle}` : (type==="premium" ? `Premium NearGo` : `Vstopnica: ${eventTitle}`), qty:1, unit_price: totalGross }],
+        currency: CURRENCY,
+        subtotal: base, tax_rate: TAX_RATE, tax_amount: tax, total: totalGross,
+        paid_at: paidAt,
+        stripe_session_id: s.id,
+        stripe_payment_intent: s.payment_intent,
+        event_id: eventId,
+        type,
+        pdf_url: pdfUrl
+      });
+    }
 
     // Premium purchase: grant premium access (default 1 year)
     if (type === 'premium' && customerEmail) {
@@ -297,7 +307,7 @@ export const handler = async (event) => {
     }
 
     // ——— EMAIL (profil: bel header + črn napis + tarča) ———
-    if (process.env.BREVO_API_KEY && customerEmail) {
+  if (customerEmail) {
       const logoTargetSvg = `
         <svg width="36" height="36" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
           <circle cx="16" cy="16" r="13" fill="none" stroke="#0b1b2b" stroke-width="2"/>
@@ -347,7 +357,7 @@ export const handler = async (event) => {
 
               ${ type!=="premium" ? `
               <p style="margin:12px 0">
-                ${type==="coupon" ? "QR koda kupona" : "QR koda vstopnice"} je priložena (<i>qr.png</i>), račun pa kot PDF (<i>Racun-${seq}.pdf</i>).
+                ${type==="coupon" ? "QR koda kupona" : "QR koda vstopnice"} je priložena (<i>qr.png</i>)${ shouldInvoice ? `, račun pa kot PDF (<i>Racun-${seq}.pdf</i>).` : "."}
                 <br><b>Vstopnica/kupon je shranjena tudi v razdelku “Moje” v aplikaciji NearGo.</b>
                 <br><span style="opacity:.8">Št. kode:</span> <code style="font-weight:700">${escapeHtml(token)}</code>
               </p>` : `
@@ -367,18 +377,30 @@ export const handler = async (event) => {
         </div>`;
 
       try {
-        const email = new Brevo.SendSmtpEmail();
-        email.sender      = { email: FROM_EMAIL, name: FROM_NAME };
-        email.to          = [{ email: customerEmail }];
-        email.subject     = subject;
-        email.htmlContent = html;
-        email.attachment  = [
-          ...(qrPngBuffer ? [{ name: "qr.png", content: qrPngBuffer.toString("base64") }] : []),
-          { name: `Racun-${seq}.pdf`, content: Buffer.from(pdfBytes).toString("base64") }
+        const attachments = [
+          ...(qrPngBuffer ? [{ name: "qr.png", content: qrPngBuffer.toString("base64") }] : [])
         ];
-        await brevoApi.sendTransacEmail(email);
+        if (shouldInvoice && pdfBytes) attachments.push({ name: `Racun-${seq}.pdf`, content: Buffer.from(pdfBytes).toString("base64") });
+
+        if (process.env.BREVO_API_KEY) {
+          const email = new Brevo.SendSmtpEmail();
+          email.sender      = { email: FROM_EMAIL, name: FROM_NAME };
+          email.to          = [{ email: customerEmail }];
+          email.subject     = subject;
+          email.htmlContent = html;
+          if (attachments.length) email.attachment = attachments;
+          await brevoApi.sendTransacEmail(email);
+        } else {
+          const host = process.env.SMTP_HOST, port = Number(process.env.SMTP_PORT||0), user=process.env.SMTP_USER, pass=process.env.SMTP_PASS;
+          if (host && port && user && pass) {
+            const transporter = nodemailer.createTransport({ host, port, secure: port===465, auth:{ user, pass } });
+            await transporter.sendMail({ from: EMAIL_FROM, to: customerEmail, subject, html });
+          } else {
+            console.warn('[webhook] No email provider configured (Brevo/SMTP)');
+          }
+        }
       } catch (mailErr) {
-        console.error("[webhook] Brevo send error:", mailErr?.message || mailErr);
+        console.error("[webhook] send error:", mailErr?.message || mailErr);
       }
     }
 

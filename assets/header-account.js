@@ -176,8 +176,8 @@
       { id: 'mi-notifications', label: 'Predhodna obvestila', url: '/account/notifications.html', icon: '🔔' },
       { id: 'mi-account', label: 'Nastavitve / Račun', url: '/account/account.html', icon: '⚙️' }
     ];
-    if (loggedIn) return [...base, MENU_ORGANIZER];
-    return [MENU_ORGANIZER];
+    // Organizer link is intentionally NOT included here because there's a dedicated button in the app header.
+    return base;
   }
 
   

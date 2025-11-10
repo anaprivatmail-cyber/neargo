@@ -1,9 +1,19 @@
-import { getCategoryList, resolveCategoryKey, getSubcategories } from '../assets/categories.js';
+import { getCategoryList, resolveCategoryKey, getSubcategories, EVENT_CATEGORIES, SERVICE_CATEGORIES } from '../assets/categories.js';
 
 const EVENT_CATEGORIES = getCategoryList('events');
 const SERVICE_CATEGORIES = getCategoryList('services');
 const EVENT_KEYS = new Set(EVENT_CATEGORIES.map((cat) => cat.key));
 const SERVICE_KEYS = new Set(SERVICE_CATEGORIES.map((cat) => cat.key));
+
+// Build a quick lookup for subcategory labels by key (across events/services)
+const SUB_LABEL_MAP = (() => {
+	const map = Object.create(null);
+	const add = (list=[]) => list.forEach(c => (Array.isArray(c.sub) ? c.sub : []).forEach(s => { if (!map[s.key]) map[s.key] = s.label; }));
+	try{ add(EVENT_CATEGORIES); add(SERVICE_CATEGORIES); }catch{}
+	try{ add(typeof EVENT_CATEGORIES === 'undefined' ? [] : EVENT_CATEGORIES); }catch{}
+	try{ add(typeof SERVICE_CATEGORIES === 'undefined' ? [] : SERVICE_CATEGORIES); }catch{}
+	return map;
+})();
 
 const LEGACY_MAP = {
 	koncerti: 'koncerti',
@@ -95,6 +105,7 @@ const renderMainCategories = () => {
 		chip.type = 'button';
 		chip.className = 'cat-chip';
 		chip.dataset.key = cat.key;
+		chip.setAttribute('aria-label', cat.label);
 		chip.setAttribute('aria-pressed', state.mainSelected === cat.key ? 'true' : 'false');
 		chip.innerHTML = (cat.icon ? `<img src="${cat.icon}" alt="">` : `<span class="cat-emoji">${cat.emoji || '🏷️'}</span>`) +
 			`<span class="cat-label">${cat.label}</span>`;
@@ -128,6 +139,7 @@ const renderSubcategories = () => {
 		chip.type = 'button';
 		chip.className = 'cat-chip';
 		chip.dataset.key = sub.key;
+		chip.setAttribute('aria-label', sub.label);
 		chip.innerHTML = `${sub.icon ? `<img src="${sub.icon}" alt="">` : `<span class='cat-emoji'>${sub.emoji||'🏷️'}</span>`}<span class="cat-label">${sub.label}</span>`;
 		if (state.selected.has(sub.key)) chip.classList.add('active','show-label');
 		chip.addEventListener('click', () => toggleSubcategory(sub.key, sub.label));
@@ -151,7 +163,8 @@ const renderSelected = () => {
 	current.forEach((key) => {
 		const pill = document.createElement('span');
 		pill.className='selected-pill';
-		pill.innerHTML = `${key} <button type="button" aria-label="Odstrani">×</button>`;
+		const label = SUB_LABEL_MAP[key] || key;
+		pill.innerHTML = `${label} <button type="button" aria-label="Odstrani">×</button>`;
 		pill.querySelector('button').addEventListener('click', () => { state.selected.delete(key); renderSubcategories(); });
 		host.appendChild(pill);
 	});
@@ -291,53 +304,16 @@ const bindTypeSwitch = () => {
 			});
 			state.mainSelected = '';
 			renderMainCategories();
-			populateMainSelect();
-			populateSubSelect();
 		});
 	});
 	// initial
 	renderMainCategories();
 };
 
-// populate the quick main category <select>
-function populateMainSelect(){
-	const sel = document.getElementById('mainCategorySelect');
-	if (!sel) return;
-	sel.innerHTML = '';
-	const list = state.type === 'services' ? SERVICE_CATEGORIES : EVENT_CATEGORIES;
-	list.forEach((c)=>{
-		const opt = document.createElement('option');
-		opt.value = c.key; opt.textContent = c.label;
-		sel.appendChild(opt);
-	});
-	// set current
-	try{ sel.value = state.mainSelected || list[0]?.key || ''; }catch{}
-}
-
-// populate the subcategory multi-select
-function populateSubSelect(){
-	const sel = document.getElementById('subCategorySelect');
-	if (!sel) return;
-	sel.innerHTML = '';
-	const subs = getSubcategories(state.type, state.mainSelected) || [];
-	subs.forEach((s)=>{
-		const opt = document.createElement('option'); opt.value = s.key; opt.textContent = s.label; sel.appendChild(opt);
-	});
-	// mark selected ones
-	Array.from(sel.options).forEach(o=>{ o.selected = state.selected.has(o.value); });
-}
-
-// bind select change handlers
-function bindSelectHandlers(){
-	const mainSel = document.getElementById('mainCategorySelect');
-	const subSel = document.getElementById('subCategorySelect');
-	if (mainSel){ mainSel.addEventListener('change',(e)=>{ if (!ensurePremiumOrPrompt()) { e.preventDefault(); return; } state.mainSelected = e.target.value; renderSubcategories(); populateSubSelect(); }); }
-	if (subSel){ subSel.addEventListener('change',(e)=>{ if (!ensurePremiumOrPrompt()) { e.preventDefault(); return; }
-		const chosen = Array.from(e.target.selectedOptions).map(o=>o.value).slice(0,2);
-		state.selected = new Set(chosen);
-		renderSubcategories();
-	}); }
-}
+// select elements removed from UI; no-op stubs retained for backward safety
+function populateMainSelect(){}
+function populateSubSelect(){}
+function bindSelectHandlers(){}
 
 // ===== Premium gating + monthly quota handling =====
 const getMonthlyKey = () => {
@@ -561,9 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	updateMonthlyCounter();
 	initMap();
 	bindMapControls();
-	populateMainSelect();
-	populateSubSelect();
-	bindSelectHandlers();
+	// selects removed
 });
 
 // ===== Monthly notifications counter (X/25) =====

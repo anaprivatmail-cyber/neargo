@@ -588,6 +588,12 @@ document.addEventListener('DOMContentLoaded', () => {
 	bindSelectHandlers();
 });
 
+document.addEventListener('neargo:categories-ready', () => {
+  renderMainCategories();
+  populateMainSelect();
+  populateSubSelect();
+});
+
 // ===== Monthly notifications counter (X/25) =====
 async function updateMonthlyCounter(){
 	try{

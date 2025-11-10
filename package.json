@@ -9,8 +9,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "npm run build:update-version",
-    "build:update-version": "node scripts/version-assets.mjs",
+    "build": "echo \"No build step\"",
     "start": "netlify dev"
   },
   "dependencies": {

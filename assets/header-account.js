@@ -8,14 +8,13 @@
 
   const STYLE_ID = 'account-menu-styles';
   const MENU_CORE = [
-    { id: 'mi-dashboard', label: 'Moje vstopnice & kuponi', url: '/my.html', icon: '�️' },
-    { id: 'mi-rewards', label: 'Točke & nagrade', url: '/account/rewards.html', icon: '�' },
+    { id: 'mi-dashboard', label: 'Moje vstopnice & kuponi', url: '/my.html', icon: '🎟️' },
+    { id: 'mi-rewards', label: 'Točke & nagrade', url: '/account/rewards.html', icon: '🏆' },
     { id: 'mi-favourites', label: 'Najljubše', url: '/account/favorites.html', icon: '⭐' },
     { id: 'mi-notifications', label: 'Obvestila', url: '/account/notifications.html', icon: '🔔' },
     { id: 'mi-inbox', label: 'Sporočila', url: '/account/inbox.html', icon: '💬' },
     { id: 'mi-account', label: 'Profil & nastavitve', url: '/account/account.html', icon: '⚙️' }
   ];
-  const MENU_ORGANIZER = { id: 'mi-organizers', label: 'Za organizatorje', url: '/organizers.html', icon: '🛠️' };
   const DEFAULT_LOGIN_REDIRECT = '/';
 
   const state = {
@@ -30,32 +29,41 @@
     logoutNotice: false,
     focusLogin: false
   };
-  // Vstavimo inline stile preko <style> injection (originalna verzija) – popravljeno po refaktorju.
-  const STYLE_CSS = `
-  .account-menu{position:absolute;min-width:240px;max-width:320px;background:var(--card,#fff);border:1px solid var(--chipborder,#cfe1ee);border-radius:16px;box-shadow:0 18px 38px rgba(10,35,55,0.14);padding:8px;z-index:2200;font-family:inherit;color:var(--text,#0b1b2b);}
-  .account-menu[hidden]{display:none;}
-  .account-menu__header{display:flex;align-items:center;gap:12px;padding:10px 12px 12px;border-bottom:1px solid rgba(11,30,60,0.08);}
-  .account-menu__avatar{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#0bbbd6,#7de3f0);color:#082f3f;font-weight:900;font-size:18px;display:flex;align-items:center;justify-content:center;}
-  .account-menu__user{flex:1;min-width:0;}
-  .account-menu__name{font-weight:900;font-size:15px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;}
-  .account-menu__email{font-size:12px;color:var(--muted,#5b6b7b);margin-top:2px;word-break:break-all;}
-  .account-menu__meta{font-size:12px;font-weight:800;color:var(--primary,#0bbbd6);margin-top:4px;}
-  .account-menu__icon{font-size:18px;width:24px;text-align:center;flex:0 0 24px;}
-  .account-menu__label{flex:1;display:flex;align-items:center;justify-content:space-between;gap:10px;}
-  .account-menu__badge{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:rgba(11,187,214,0.15);color:var(--primary,#0bbbd6);}
-  .account-menu__notice{margin:10px 12px;padding:10px 12px;border-radius:12px;background:rgba(11,187,214,0.12);color:var(--primary,#0bbbd6);font-weight:800;font-size:13px;}
-  @media(max-width:640px){.account-menu{left:16px !important;right:16px !important;width:auto;min-width:0;}}
-  `;
 
-  // Manjkajoča funkcija (v prejšnjem refaktorju odstranjena): poskrbi, da se STYLE_CSS injecta samo enkrat.
+  const STYLE_CSS = `
+.account-menu{position:absolute;min-width:240px;max-width:320px;background:var(--card,#fff);border:1px solid var(--chipborder,#cfe1ee);border-radius:16px;box-shadow:0 18px 38px rgba(10,35,55,0.14);padding:8px;z-index:2200;font-family:inherit;color:var(--text,#0b1b2b);}
+.account-menu[hidden]{display:none;}
+.account-menu__header{display:flex;align-items:center;gap:12px;padding:10px 12px 12px;border-bottom:1px solid rgba(11,30,60,0.08);}
+.account-menu__avatar{width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#0bbbd6,#7de3f0);color:#082f3f;font-weight:900;font-size:18px;display:flex;align-items:center;justify-content:center;}
+.account-menu__user{flex:1;min-width:0;}
+.account-menu__name{font-weight:900;font-size:15px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.account-menu__email{font-size:12px;color:var(--muted,#5b6b7b);margin-top:2px;word-break:break-all;}
+.account-menu__meta{font-size:12px;font-weight:800;color:var(--primary,#0bbbd6);margin-top:4px;}
+.account-menu__meta--premium{color:#d97706;}
+.account-menu__list{display:flex;flex-direction:column;padding:6px 2px;}
+.account-menu__item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;color:inherit;text-decoration:none;font-weight:750;transition:background .12s ease,transform .12s ease;}
+.account-menu__item:hover,.account-menu__item:focus{background:rgba(11,187,214,0.12);outline:none;transform:translateX(2px);}
+.account-menu__icon{font-size:18px;width:24px;text-align:center;flex:0 0 24px;}
+.account-menu__label{flex:1;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.account-menu__badge{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:rgba(11,187,214,0.15);color:var(--primary,#0bbbd6);}
+.account-menu__footer{padding:4px;}
+.account-menu__signout{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:0;background:none;font-weight:800;color:#d64c4c;cursor:pointer;transition:background .12s ease,transform .12s ease;}
+.account-menu__signout:hover,.account-menu__signout:focus{background:rgba(214,76,76,0.12);outline:none;transform:translateX(2px);}
+.account-menu__signout--login{color:var(--primary,#0bbbd6);}
+.account-menu__signout--login:hover,.account-menu__signout--login:focus{background:rgba(11,187,214,0.12);}
+.account-menu__notice{margin:10px 12px;padding:10px 12px;border-radius:12px;background:rgba(11,187,214,0.12);color:var(--primary,#0bbbd6);font-weight:800;font-size:13px;}
+.account-menu__benefits{padding:4px 18px 12px;color:var(--muted,#5b6b7b);font-size:13px;}
+.account-menu__benefits ul{margin:0;padding-left:18px;}
+.account-menu__benefits li{margin-bottom:6px;line-height:1.3;}
+@media(max-width:640px){.account-menu{left:16px !important;right:16px !important;width:auto;min-width:0;}}
+`;
+
   function injectStyles(){
     if (document.getElementById(STYLE_ID)) return;
-    try{
-      const style = document.createElement('style');
-      style.id = STYLE_ID;
-      style.textContent = STYLE_CSS;
-      document.head.appendChild(style);
-    }catch(e){ /* ignore */ }
+    const style = document.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = STYLE_CSS;
+    document.head.appendChild(style);
   }
 
   async function getSupabase(){
@@ -155,18 +163,20 @@
   }
 
   function buildMenuItems(identity, loggedIn){
-    // Seznam naj bo vedno enak (tudi za odjavljene), klik odpre login z "next".
+    // Build the dropdown exactly as requested:
+    // - Nagrade -> /account/rewards.html
+    // - Moje -> /my.html
+    // - Predhodna obvestila -> /account/notifications.html
+    // - Nastavitve / Račun -> /account/account.html
+    // These pages already exist in the repo and are linked here.
     const base = [
-      { id: 'mi-rewards', label: 'Nagrade', url: '/account/rewards.html', icon: '🏆', badge: (identity.points!=null ? identity.points : null) },
+      { id: 'mi-rewards', label: 'Nagrade', url: '/account/rewards.html', icon: '🏆' },
       { id: 'mi-dashboard', label: 'Moje', url: '/my.html', icon: '🎟️' },
       { id: 'mi-notifications', label: 'Predhodna obvestila', url: '/account/notifications.html', icon: '🔔' },
       { id: 'mi-account', label: 'Nastavitve / Račun', url: '/account/account.html', icon: '⚙️' }
     ];
-    // "Za organizatorje" je ločen gumb v glavi in ne sodi v ta meni.
     return base;
   }
-
-  
 
   function buildMenu(identity, options = {}){
     const { logoutSuccess = false } = options;
@@ -197,12 +207,6 @@
     const nameEl = document.createElement('div');
     nameEl.className = 'account-menu__name';
     nameEl.textContent = identity.name || 'Moj račun';
-    if (identity.premium){
-      const premiumBadge = document.createElement('span');
-      premiumBadge.textContent = 'Premium';
-      premiumBadge.style.cssText='margin-left:6px;padding:2px 8px;border-radius:999px;background:#ffcf91;color:#7a3d00;font-size:11px;font-weight:800;letter-spacing:.5px;';
-      nameEl.appendChild(premiumBadge);
-    }
 
     const emailEl = document.createElement('div');
     emailEl.className = 'account-menu__email';
@@ -218,7 +222,12 @@
       userWrap.appendChild(points);
     }
 
-    // Premium meta vrstica odstranjena – badge ob imenu zadostuje.
+    if (identity.premium){
+      const premium = document.createElement('div');
+      premium.className = 'account-menu__meta account-menu__meta--premium';
+      premium.textContent = 'Premium aktivno';
+      userWrap.appendChild(premium);
+    }
 
     header.appendChild(avatar);
     header.appendChild(userWrap);
@@ -232,37 +241,45 @@
       state.focusLogin = true;
     }
 
-    // Za odjavljene ne prikazujemo marketinškega besedila – najprej pokažemo dejanske postavke menija,
-    // klik pa sproži prijavo z ustreznim "next".
+    if (!loggedIn){
+      const benefits = document.createElement('div');
+      benefits.className = 'account-menu__benefits';
+      benefits.innerHTML = '<ul><li>Prijava omogoča shranjevanje najljubših in kuponov.</li><li>Prejmite obvestila o novih dogodkih in nagradah.</li><li>Preprosto upravljajte QR skeniranja in nakupe.</li></ul>';
+      menu.appendChild(benefits);
+    }
 
     const list = document.createElement('div');
     list.className = 'account-menu__list';
-    let items = buildMenuItems(identity, loggedIn);
-
-    // Dodamo prijava/odjava kot zadnjo alinejo v isti seznam.
-    if (loggedIn){
-      items = [...items, { id:'mi-signout', label:'Odjava', url:'#signout', icon:'🚪', action:'signout' }];
-    } else {
-      items = [...items, { id:'mi-login', label:'Prijava / Registracija', url:'/login.html', icon:'🔐', action:'login' }];
-    }
-
+    const items = buildMenuItems(identity, loggedIn);
     items.forEach(item => {
       const link = document.createElement('a');
       link.id = item.id;
       link.href = item.url;
       link.className = 'account-menu__item';
       link.setAttribute('role', 'menuitem');
-      link.innerHTML = `\n        <span class=\"account-menu__icon\">${item.icon}</span>\n        <span class=\"account-menu__label\">${item.label}${item.badge ? `<span class=\"account-menu__badge\">${item.badge}</span>` : ''}</span>`;
-      if (item.action === 'signout'){
-        link.addEventListener('click', (ev)=>{ ev.preventDefault(); handleSignOut(); });
-      } else if (item.action === 'login') {
-        link.addEventListener('click', (ev)=>{ ev.preventDefault(); closeMenu(); redirectToLogin('/'); });
-      } else if (!loggedIn){
-        link.addEventListener('click', (ev)=>{ ev.preventDefault(); closeMenu(); redirectToLogin(item.url); });
-      }
+      link.innerHTML = `\n        <span class="account-menu__icon">${item.icon}</span>\n        <span class="account-menu__label">${item.label}${item.badge ? `<span class="account-menu__badge">${item.badge}</span>` : ''}</span>`;
       list.appendChild(link);
     });
     if (items.length) menu.appendChild(list);
+
+    const footer = document.createElement('div');
+    footer.className = 'account-menu__footer';
+    if (loggedIn){
+      const signout = document.createElement('button');
+      signout.type = 'button';
+      signout.className = 'account-menu__signout';
+      signout.innerHTML = '<span class="account-menu__icon">🚪</span><span class="account-menu__label">Odjava</span>';
+      signout.addEventListener('click', handleSignOut, { once: true });
+      footer.appendChild(signout);
+    }else{
+      const loginBtn = document.createElement('button');
+      loginBtn.type = 'button';
+      loginBtn.className = 'account-menu__signout account-menu__signout--login';
+      loginBtn.innerHTML = '<span class="account-menu__icon">🔐</span><span class="account-menu__label">Prijava / Registracija</span>';
+      loginBtn.addEventListener('click', function(){ closeMenu(); triggerLogin(); });
+      footer.appendChild(loginBtn);
+    }
+    menu.appendChild(footer);
 
     menu.hidden = true;
     return menu;

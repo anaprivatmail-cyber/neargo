@@ -1,29 +1,16 @@
-// version: 2025-11-09-3
+// version: 2025-11-09-1
 
-const VERSION = '2025-11-09-3';
-
-// Always take control ASAP
 self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    (async () => {
-      // Clear any old runtime caches (we don't use caching currently)
-      try {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
-      } catch {}
-      await self.clients.claim();
-      // Broadcast current version to clients so they can decide to reload
-      try {
-        const all = await self.clients.matchAll({ includeUncontrolled: true, type: 'window' });
-        for (const c of all) c.postMessage({ type: 'SW_VERSION', version: VERSION });
-      } catch {}
-    })()
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
-// Network passthrough – rely on HTTP caching headers
+// Passthrough (network)
+// Basic fetch passthrough
 self.addEventListener('fetch', () => { /* no-op */ });
 
 // In-app early notification: receive message and show system notification
@@ -50,3 +37,14 @@ self.addEventListener('notificationclick', (event) => {
     );
   }
 });
+self.addEventListener('install', () => self.skipWaiting());
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+
+// Passthrough (network)
+self.addEventListener('fetch', () => { /* no-op */ });

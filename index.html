@@ -16,10 +16,8 @@
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
   </script>
   <script src="assets/boot-utils.js"></script>
-  <script type="module" src="assets/categories.js"></script>
-  <!-- Ensure newest deployed version is always used -->
-  <script type="module" src="/assets/sw-reload.js?v=f8287c1cc1"></script>
-  <script type="module">import { initEarlyCard } from '/assets/early-card.js?v=2f4a53b7b2'; window.addEventListener('DOMContentLoaded', initEarlyCard);</script>
+  <script type="module" src="/assets/categories.js?v=20251110"></script>
+  <script type="module">import { initEarlyCard } from '/assets/early-card.js'; window.addEventListener('DOMContentLoaded', initEarlyCard);</script>
 
   <!-- Leaflet -->
   <link rel="preconnect" href="https://unpkg.com">
@@ -1220,7 +1218,7 @@ var supabaseClientPromise=null;
 function loadSupabaseClient(){
   if(window.supabase) return Promise.resolve(window.supabase);
   if(!supabaseClientPromise){
-    supabaseClientPromise = import('/assets/supabase-client.js?v=7bd893b1ab').then(function(mod){ return mod.supabase; }).catch(function(){ return null; });
+    supabaseClientPromise = import('/assets/supabase-client.js').then(function(mod){ return mod.supabase; }).catch(function(){ return null; });
   }
   return supabaseClientPromise;
 }
@@ -1393,9 +1391,9 @@ function startAutoScroll(){
 }
 var carousel=$("#carousel"); if(carousel) carousel.addEventListener("click",function(){ featuredPaused=true; setTimeout(function(){featuredPaused=false;},1500); });
 
-/* Heuristika za storitve – usklajena z enotnim virom kategorij */
-var EVENT_CATS=["","koncerti","kulinarika","kultura-umetnost","druzina-otroci","sport-tekmovanja","outdoor-narava","ucenje-skill","dom-vrt","posel-networking","ostalo"];
-var SERVICE_CATS_UI=["","lepota","nega-kozmetika","wellness","zdravje","trening","kulinarika-catering","dom-vrt","avto","druzina-otroci","poslovne","izobrazevanje","ljubljencki","ostalo"];
+/* Heuristika za storitve */
+var EVENT_CATS=["","koncerti","kultura-umetnost","druzina-otroci","kulinarika","outdoor-narava","sport-tekmovanja","ucenje-skill","posel-networking","dom-vrt","ostalo"];
+var SERVICE_CATS_UI=["","frizer","wellness","zdravje","kozmetika","fitnes","avto-moto","turizem","gospodinjske","ostalo"];
 
 function looksService(e){
   var t=((e.type||e.entryType||"") + " " + (e.category||"") + " " + (e.name||e.title||"") + " " + (e.description||"")).toLowerCase();
@@ -1895,7 +1893,9 @@ function pickerEnsureHandle(){
 })();
 
 /* ====== Service Worker ====== */
-// Registration and auto-reload handled by /assets/sw-reload.js
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){ navigator.serviceWorker.register('/sw.js').catch(function(){}); });
+}
 
 /* ====== MAP (zgornji – po potrebi) ====== */
 function initTopMap(){
@@ -2402,7 +2402,7 @@ var showPT=$("#showProviderTerms"); if(showPT) showPT.addEventListener("click",f
 var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("click",function(){ scrollToEl($("#orgPanel")); });
 
   </script>
-  <script defer src="assets/header-account.js?v=20251109b"></script>
+  <script defer src="assets/header-account.js?v=20251103"></script>
   <script src="assets/app-logic.js"></script>
   <div style="margin:2em 0">
   <h3>Test vpis / registracija (debug)</h3>

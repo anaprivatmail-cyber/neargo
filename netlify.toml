@@ -215,3 +215,7 @@
 # Run early-notify every minute to hit the precise 15-minute window
 [functions."early-notify"]
   schedule = "*/1 * * * *"
+
+# Daily reminder run at 07:00 UTC (adjust if needed for local time)
+[functions."reminder"]
+  schedule = "0 7 * * *"

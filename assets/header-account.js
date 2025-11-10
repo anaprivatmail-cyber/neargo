@@ -164,20 +164,15 @@
   }
 
   function buildMenuItems(identity, loggedIn){
-    // Build the dropdown exactly as requested:
-    // - Nagrade -> /account/rewards.html
-    // - Moje -> /my.html
-    // - Predhodna obvestila -> /account/notifications.html
-    // - Nastavitve / Račun -> /account/account.html
-    // These pages already exist in the repo and are linked here.
-    const base = [
+    // Posodobljeno: trajno odstranimo alinejo / link za organizatorje iz menija.
+    // Zahteva: naj se v spustnem meniju pri avatarju nikoli več ne pokaže "Za organizatorje".
+    // Ostanejo samo uporabniške postavke.
+    return [
       { id: 'mi-rewards', label: 'Nagrade', url: '/account/rewards.html', icon: '🏆' },
       { id: 'mi-dashboard', label: 'Moje', url: '/my.html', icon: '🎟️' },
       { id: 'mi-notifications', label: 'Predhodna obvestila', url: '/account/notifications.html', icon: '🔔' },
       { id: 'mi-account', label: 'Nastavitve / Račun', url: '/account/account.html', icon: '⚙️' }
     ];
-    if (loggedIn) return [...base, MENU_ORGANIZER];
-    return [MENU_ORGANIZER];
   }
 
   

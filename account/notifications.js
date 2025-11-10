@@ -231,6 +231,28 @@ const savePreferences = async () => {
 		if (m){ lat = parseFloat(m[1]); lon = parseFloat(m[2]); }
 	}
 
+	// Globalna normalizacija telefonske: zahtevamo mednarodno obliko (+CC …), brez vsiljene države
+	const normalizePhone = (raw) => {
+		if (!raw) return '';
+		let v = String(raw).trim();
+		// Pretvori 00 v + (E.164)
+		if (v.startsWith('00')) v = '+' + v.slice(2);
+		// Odstrani presledke in ločila, ohrani le + in števke
+		v = v.replace(/[^0-9+]/g, '');
+		// Mora se začeti z + (mednarodna koda)
+		if (!v.startsWith('+')) return '';
+		const digits = v.replace(/[^0-9]/g, '');
+		// E.164: max 15 števk (brez +), minimalno 8 za zdravo pamet
+		if (digits.length < 8 || digits.length > 15) return '';
+		return '+' + digits;
+	};
+	const rawPhone = phoneInput ? phoneInput.value.trim() : '';
+	const phoneVal = normalizePhone(rawPhone);
+	if (phoneInput) phoneInput.value = phoneVal; // posodobi vnos z normalizirano obliko
+	if (rawPhone && !phoneVal){
+		setMessage('Telefonska številka ni veljavna. Uporabi obliko +386…', 'error');
+		return;
+	}
 	const payload = {
 		email,
 		categories,
@@ -238,7 +260,7 @@ const savePreferences = async () => {
 		radius: radiusInput ? Number(radiusInput.value) || 30 : 30,
 		lat: (typeof lat === 'number') ? lat : null,
 		lon: (typeof lon === 'number') ? lon : null,
-		phone: phoneInput ? phoneInput.value.trim() : ''
+		phone: phoneVal
 	};
 
 	try {

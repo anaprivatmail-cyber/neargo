@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Predhodna obvestila – NearGo</title>
   <link rel="stylesheet" href="/assets/app.css">
-  <script type="module" src="/assets/categories.js?v=20251109"></script>
+  <script type="module" src="/assets/categories.js?v=20251110a"></script>
   <!-- Leaflet (map krog) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    body{background:linear-gradient(180deg,#e9f7ff 0%,#ffffff 70%);margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0b1b2b;-webkit-font-smoothing:antialiased}
+  :root{--gap:10px}
+  body{background:linear-gradient(180deg,#e9f7ff 0%,#ffffff 70%);margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0b1b2b;-webkit-font-smoothing:antialiased}
     a{text-decoration:none;color:inherit}
     header.slim{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:10px;padding:8px 14px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.06)}
     header.slim .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:20px;letter-spacing:-1px}
@@ -23,9 +24,9 @@
     .upgrade-box{background:#fff6f6;border:1px solid #ffd1d1;color:#7a1b1b;padding:12px 16px;border-radius:14px;font-weight:700;font-size:.95em;margin-top:12px}
   @keyframes shakeBox{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
   .upgrade-box.shake{animation:shakeBox .45s ease}
-    fieldset{border:none;margin:0;padding:0 0 10px 0}
-    legend{font-weight:800;font-size:.85em;text-transform:uppercase;letter-spacing:.5px;color:#0bbbd6;margin:0 0 6px 0}
-    .chips{display:flex;flex-wrap:wrap;gap:8px}
+  fieldset{border:none;margin:0 0 14px 0;padding:0}
+  legend{font-weight:800;font-size:.85em;text-transform:uppercase;letter-spacing:.5px;color:#0bbbd6;margin:0 0 8px 0}
+  .chips{display:flex;flex-wrap:wrap;gap:10px}
     .cat-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;background:var(--chip,#fff);border:1px solid var(--chipborder,#cfe1ee);color:var(--muted,#5b6b7b);font-weight:800;font-size:14px;line-height:1;cursor:pointer;position:relative;transition:background .2s,border .2s,transform .15s}
     .cat-chip:hover{transform:translateY(-1px);border-color:var(--primary,#0bbbd6)}
     .cat-chip img,.cat-chip .cat-emoji{width:20px;height:20px;display:block;flex-shrink:0}
@@ -33,10 +34,10 @@
     .cat-chip .cat-label{display:none;font-weight:800}
     .cat-chip.show-label .cat-label,.cat-chip.active .cat-label{display:inline}
     .subwrap{margin-top:10px;padding:10px;border:1px dashed var(--chipborder,#cfe1ee);border-radius:12px;background:#fcfeff}
-    .sel-box{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .sel-box{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
     .selected-pill{background:#0bbbd6;color:#fff;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:800;display:inline-flex;align-items:center;gap:6px}
     .selected-pill button{background:none;border:none;color:#fff;font-size:16px;cursor:pointer;line-height:1;padding:0 4px}
-    label.input{display:flex;flex-direction:column;gap:6px;font-weight:800;font-size:13px;margin-top:12px}
+  label.input{display:flex;flex-direction:column;gap:6px;font-weight:800;font-size:13px;margin-top:10px}
     input[type=text]{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--chipborder,#cfe1ee);background:#fff;font-size:15px}
     input[type=range]{width:100%;accent-color:#0bbbd6;height:28px}
     #earlyMap{height:280px;border:1px solid var(--chipborder,#cfe1ee);border-radius:14px;margin-top:10px}
@@ -77,9 +78,8 @@
   <main style="padding-top:4px">
     <div class="card" id="introCard" style="margin-top:0">
       <h1>Predhodna obvestila</h1>
-      <ul class="benefits" style="list-style:none;margin:6px 0 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.9em;font-weight:600">
-        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⏰</span><span><b>15 minut prej</b> kot ostali</span></li>
-        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🔔</span><span><b>Prvi do novih ponudb</b> in brezplačnih promo akcij</span></li>
+      <ul class="benefits" style="list-style:none;margin:6px 0 0 0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:.9em;font-weight:600">
+        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🔔</span><span><b>Zgodnji prejem obvestil</b> — <b>15 minut prej</b> in prvi do novih ponudb / promo akcij</span></li>
         <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📍</span><span><b>Personalizirano po lokaciji</b> in <b>interesih</b></span></li>
       </ul>
       <div class="muted" style="font-size:.78em;margin-top:6px;font-weight:600">Pridržujemo si pravico, da obvestila ne pošljemo, če v izbrani kategoriji v tem mesecu ni ponudb.</div>
@@ -138,7 +138,7 @@
       <fieldset>
         <legend>4. Kontakt (opcijsko)</legend>
         <label class="input" style="margin-top:0">Telefonska številka (SMS)
-          <input id="notifPhone" type="text" inputmode="tel" pattern="[0-9 +()-]{6,}" placeholder="npr. +38640111222" autocomplete="tel">
+          <input id="notifPhone" type="text" inputmode="tel" pattern="\+[0-9]{8,15}" placeholder="npr. +14155552671" autocomplete="tel">
         </label>
       </fieldset>
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
@@ -149,6 +149,6 @@
       <div id="nonPremiumInline" class="upgrade-box" style="display:none">Za aktivacijo nadgradi v <a href="/premium.html" style="color:#d64c4c;text-decoration:underline;font-weight:900">Premium</a>.</div>
     </form>
   </main>
-  <script type="module" src="/account/notifications.js?v=20251109"></script>
+  <script type="module" src="/account/notifications.js?v=20251110"></script>
 </body>
 </html>

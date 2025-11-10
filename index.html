@@ -16,7 +16,8 @@
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
   </script>
   <script src="assets/boot-utils.js"></script>
-  <script type="module" src="assets/categories.js"></script>
+  <!-- Cache bust version bump for latest categories (icons update) -->
+  <script type="module" src="assets/categories.js?v=20251110a"></script>
   <script type="module">import { initEarlyCard } from '/assets/early-card.js'; window.addEventListener('DOMContentLoaded', initEarlyCard);</script>
 
   <!-- Leaflet -->
@@ -1392,13 +1393,19 @@ function startAutoScroll(){
 var carousel=$("#carousel"); if(carousel) carousel.addEventListener("click",function(){ featuredPaused=true; setTimeout(function(){featuredPaused=false;},1500); });
 
 /* Heuristika za storitve */
-var EVENT_CATS=["","koncerti","kultura-umetnost","druzina-otroci","kulinarika","outdoor-narava","sport-tekmovanja","ucenje-skill","posel-networking","dom-vrt","ostalo"];
-var SERVICE_CATS_UI=["","frizer","wellness","zdravje","kozmetika","fitnes","avto-moto","turizem","gospodinjske","ostalo"];
+// Posodobljene (zadnja verzija) – novi ključi iz source.js
+var EVENT_CATS=["","koncerti","kulinarika","kultura-umetnost","druzina-otroci","sport-tekmovanja","outdoor-narava","ucenje-skill","dom-vrt","posel-networking","ostalo"];
+var SERVICE_CATS_UI=["","lepota","nega-kozmetika","wellness","zdravje","trening","kulinarika-catering","dom-vrt","avto","druzina-otroci","poslovne","izobrazevanje","ljubljencki","ostalo"];
 
 function looksService(e){
   var t=((e.type||e.entryType||"") + " " + (e.category||"") + " " + (e.name||e.title||"") + " " + (e.description||"")).toLowerCase();
   if((e.type||e.entryType||"") === "service") return true;
-  for(var i=0;i<SERVICE_CATS_UI.length;i++){ var c=SERVICE_CATS_UI[i]; if(c && t.indexOf(c)>-1) return true; }
+  // Synonimi novih storitev
+  var synonyms=[
+    'lepota','frizer','barber','nega','kozmetika','wellness','spa','zdravje','fizioter','psihoter','trening','fit','joga','pilates','kulinarika-catering','catering','chef','dom','vrt','avto','vozil','servis','druzina-otroci','varstvo','otroci','poslovne','racunovodstvo','pravne','marketing','izobrazevanje','mentoring','tecaj','jezikovni','ljubljencki','pets','zivali'
+  ];
+  for(var i=0;i<synonyms.length;i++){ if(t.indexOf(synonyms[i])>-1) return true; }
+  for(var j=0;j<SERVICE_CATS_UI.length;j++){ var c=SERVICE_CATS_UI[j]; if(c && t.indexOf(c)>-1) return true; }
   return false;
 }
 function looksEvent(e){ return !looksService(e); }
@@ -2402,7 +2409,7 @@ var showPT=$("#showProviderTerms"); if(showPT) showPT.addEventListener("click",f
 var closePT=$("#closeProviderTerms"); if(closePT) closePT.addEventListener("click",function(){ scrollToEl($("#orgPanel")); });
 
   </script>
-  <script defer src="assets/header-account.js?v=20251103"></script>
+  <script defer src="assets/header-account.js?v=20251110"></script>
   <script src="assets/app-logic.js"></script>
   <div style="margin:2em 0">
   <h3>Test vpis / registracija (debug)</h3>

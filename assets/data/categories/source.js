@@ -155,7 +155,7 @@ export const CATEGORY_SOURCE = {
       key: 'lepota',
       label: 'Lepota',
       emoji: '✂️',
-      icon: 'beauty.svg',
+  icon: 'mirror.svg',
       aliases: ['frizer', 'barber', 'lepota', 'salon'],
       sub: [
         { key: 'frizerji-barber', label: 'Frizerji & barber' },
@@ -318,7 +318,7 @@ export const CATEGORY_SOURCE = {
       key: 'ljubljencki',
       label: 'Ljubljenčki',
       emoji: '🐾',
-      icon: 'other.svg',
+  icon: 'paw.svg',
       aliases: ['pets', 'zivali', 'zival'],
       sub: [
         { key: 'veterinar', label: 'Veterinar' },

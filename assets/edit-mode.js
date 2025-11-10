@@ -128,6 +128,22 @@
     info.textContent = (extra? (extra+' · '):'') + sel;
   }
 
+  function ensurePanelVisible(){
+    if (!state.panel) return;
+    state.panel.style.display = 'flex';
+  }
+
+  function togglePanel(){
+    if (!state.panel) return;
+    const cur = (state.panel.style.display || 'flex');
+    state.panel.style.display = (cur === 'none') ? 'flex' : 'none';
+  }
+
+  function quickPick(){
+    const btn = state.panel && state.panel.querySelector('[data-act="pick"]');
+    if (btn) btn.click();
+  }
+
   function buildPanel(){
     const panel = document.createElement('div'); panel.className = 'ng-edit-panel';
     panel.innerHTML = `
@@ -184,16 +200,29 @@
     fab.type = 'button';
     fab.textContent = 'Edit';
     fab.title = 'Edit Mode – klik za prikaz orodij, dvojni klik za Izberi';
-    fab.addEventListener('click', () => {
-      if (!state.panel) return;
-      const cur = state.panel.style.display;
-      state.panel.style.display = (cur === 'none') ? 'flex' : 'none';
-    });
-    fab.addEventListener('dblclick', () => {
-      const btn = state.panel && state.panel.querySelector('[data-act="pick"]');
-      if (btn) btn.click();
-    });
+    fab.addEventListener('click', togglePanel);
+    fab.addEventListener('dblclick', quickPick);
     document.body.appendChild(fab);
+
+    // Keyboard shortcuts
+    // Ctrl+Shift+E => toggle panel, Ctrl+Shift+P => pick, Ctrl+Shift+S => show panel
+    document.addEventListener('keydown', (e) => {
+      if (!e || !e.shiftKey || !e.ctrlKey) return;
+      const k = (e.key||'').toUpperCase();
+      if (k === 'E'){ e.preventDefault(); togglePanel(); }
+      if (k === 'P'){ e.preventDefault(); quickPick(); }
+      if (k === 'S'){ e.preventDefault(); ensurePanelVisible(); }
+    });
+
+    // Expose tiny API for console recovery
+    try{
+      window.NG_EDIT = {
+        show: ensurePanelVisible,
+        hide: () => { if(state.panel) state.panel.style.display = 'none'; },
+        toggle: togglePanel,
+        pick: quickPick
+      };
+    }catch(_){ }
   }
 
   function boot(){ addStyle(); buildPanel(); }

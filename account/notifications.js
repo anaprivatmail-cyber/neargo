@@ -1,4 +1,4 @@
-import { getCategoryList, resolveCategoryKey, getSubcategories, EVENT_CATEGORIES, SERVICE_CATEGORIES } from '../assets/categories.js';
+import { getCategoryList, resolveCategoryKey, getSubcategories } from '../assets/categories.js';
 
 const EVENT_CATEGORIES = getCategoryList('events');
 const SERVICE_CATEGORIES = getCategoryList('services');
@@ -10,8 +10,6 @@ const SUB_LABEL_MAP = (() => {
 	const map = Object.create(null);
 	const add = (list=[]) => list.forEach(c => (Array.isArray(c.sub) ? c.sub : []).forEach(s => { if (!map[s.key]) map[s.key] = s.label; }));
 	try{ add(EVENT_CATEGORIES); add(SERVICE_CATEGORIES); }catch{}
-	try{ add(typeof EVENT_CATEGORIES === 'undefined' ? [] : EVENT_CATEGORIES); }catch{}
-	try{ add(typeof SERVICE_CATEGORIES === 'undefined' ? [] : SERVICE_CATEGORIES); }catch{}
 	return map;
 })();
 

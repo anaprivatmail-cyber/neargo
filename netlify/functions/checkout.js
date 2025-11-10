@@ -6,6 +6,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-06-
 // 2,00 € privzeto za kupon (v centih); min 0,50 € zaradi Stripe omejitve
 const COUPON_PRICE_CENTS = Math.max(50, Number(process.env.COUPON_PRICE_CENTS || 200));
 const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || process.env.URL || "").replace(/\/$/, "");
+// Premium cena v centih – konfigurabilno prek env; privzeto 500 (5,00 €)
+const PREMIUM_PRICE_CENTS = Math.max(100, Number(process.env.PREMIUM_PRICE_CENTS || 500));
 
 /** Pretvori znesek v cente, če je podan v evrih.  */
 function toCents(val) {
@@ -105,7 +107,7 @@ export const handler = async (event) => {
           {
             price_data: {
               currency: "eur",
-              unit_amount: 9900, // 99,00 € Premium
+              unit_amount: PREMIUM_PRICE_CENTS, // npr. 500 = 5,00 €
               product_data: {
                 name: "Premium NearGo",
                 description: "Premium naročnina za NearGo",
@@ -115,7 +117,7 @@ export const handler = async (event) => {
           }
         ],
         payment_intent_data: { description: "Premium NearGo" },
-        metadata: { ...metadata, email }
+        metadata: { ...metadata, email, price_cents: PREMIUM_PRICE_CENTS }
       });
       return { statusCode: 200, body: JSON.stringify({ ok: true, url: session.url }) };
     }

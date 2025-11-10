@@ -5,7 +5,23 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Predhodna obvestila – NearGo</title>
   <link rel="stylesheet" href="/assets/app.css">
-  <script src="/assets/boot-utils.js" defer></script>
+  <script src="/assets/boot-utils.js?v=20251110" defer></script>
+  <script>
+    // Fallback: če se edit način ne prikaže zaradi cache-a, ga ročno vključi.
+    (function(){
+      const url=new URL(location.href);
+      const enable = url.searchParams.get('edit')==='1' || (url.hash||'').toLowerCase().includes('edit');
+      if(!enable) return;
+      function ensure(){
+        if(window.__ng_edit_mode_loaded) return; // edit-mode.js se je že naložil
+        var s=document.createElement('script'); s.src='/assets/edit-mode.js?v=20251110'; s.defer=true; document.head.appendChild(s);
+      }
+      // poskusi po parsiranju dokumenta
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ensure, { once: true }); else ensure();
+      // in čez 1s še enkrat, če bi prvi poskus odpovedal
+      setTimeout(ensure, 1000);
+    })();
+  </script>
   <script type="module" src="/assets/categories.js?v=20251109"></script>
   <!-- Leaflet (map krog) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">

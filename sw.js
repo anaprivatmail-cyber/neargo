@@ -1,4 +1,4 @@
-// version: 2025-11-10-3 // cache bust (categories fallback purge)
+// version: 2025-11-10-4 // cache bust (categories immediate init + notifications fixes)
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -10,7 +10,6 @@ self.addEventListener('activate', (e) => {
 });
 
 // Passthrough (network)
-// Basic fetch passthrough
 self.addEventListener('fetch', () => { /* no-op */ });
 
 // In-app early notification: receive message and show system notification
@@ -37,14 +36,4 @@ self.addEventListener('notificationclick', (event) => {
     );
   }
 });
-self.addEventListener('install', () => self.skipWaiting());
-
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
-});
-
-// Passthrough (network)
-self.addEventListener('fetch', () => { /* no-op */ });
+// (Removed duplicate install/activate/fetch handlers)

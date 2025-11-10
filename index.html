@@ -17,7 +17,7 @@
   </script>
   <script src="assets/boot-utils.js"></script>
   <!-- Cache bust version bump for latest categories (icons update) -->
-  <script type="module" src="assets/categories.js?v=20251110b"></script>
+  <script type="module" src="assets/categories.js?v=20251110c"></script>
   <script type="module">import { initEarlyCard } from '/assets/early-card.js'; window.addEventListener('DOMContentLoaded', initEarlyCard);</script>
 
   <!-- Leaflet -->
@@ -699,6 +699,19 @@
           }
 
           document.addEventListener('neargo:categories-ready', init, { once: true });
+
+          // Fallback: if categories are already present (event fired before listener), render immediately
+          try {
+            if (window.NearGoCategories && (
+              (Array.isArray(window.NearGoCategories.events) && window.NearGoCategories.events.length) ||
+              (Array.isArray(window.NearGoCategories.services) && window.NearGoCategories.services.length)
+            )) {
+              init();
+            } else {
+              // Try again shortly in case module races
+              setTimeout(init, 350);
+            }
+          } catch(_){}
 
           window.NearGoRefreshSearchCategories = init;
         })();

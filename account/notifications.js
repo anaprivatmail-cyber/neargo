@@ -1,4 +1,4 @@
-import { getCategoryList, resolveCategoryKey, getSubcategories } from '../assets/categories.js';
+import { getCategoryList, resolveCategoryKey, getSubcategories } from '../assets/categories.js?v=20251110c';
 
 const EVENT_CATEGORIES = getCategoryList('events');
 const SERVICE_CATEGORIES = getCategoryList('services');
@@ -574,6 +574,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	state.selected = new Set();
 	bindTypeSwitch();
+	// If categories already published (event fired before listener attached), render immediately
+	try {
+		if (window.NearGoCategories && (
+			(Array.isArray(window.NearGoCategories.events) && window.NearGoCategories.events.length) ||
+			(Array.isArray(window.NearGoCategories.services) && window.NearGoCategories.services.length)
+		)) {
+			renderMainCategories();
+			populateMainSelect();
+			populateSubSelect();
+		}
+	} catch(_){}
 	loadPreferences();
 	updateQuotaInfo();
 	gatePremium();

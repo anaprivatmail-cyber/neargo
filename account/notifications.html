@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Predhodna obvestila – NearGo</title>
   <link rel="stylesheet" href="/assets/app.css">
-  <script type="module" src="/assets/categories.js?v=20251110b"></script>
+  <script type="module" src="/assets/categories.js?v=20251110c"></script>
   <!-- Leaflet (map krog) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -79,7 +79,7 @@
     <div class="card" id="introCard" style="margin-top:0">
       <h1>Predhodna obvestila</h1>
       <ul class="benefits" style="list-style:none;margin:6px 0 0 0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:.9em;font-weight:600">
-        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🔔</span><span><b>Zgodnji prejem obvestil</b> — <b>15 minut prej</b> in prvi do novih ponudb / promo akcij, vključno z brezplačnimi promocijskimi ponudbami</span></li>
+        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🔔</span><span><b>Zgodnji prejem obvestil</b> — <b>15 minut prej</b>, prvi do novih ponudb in promo akcij, <b>tudi brezplačnih</b>.</span></li>
         <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📍</span><span><b>Personalizirano po lokaciji</b> in <b>interesih</b></span></li>
       </ul>
       <div class="muted" style="font-size:.78em;margin-top:6px;font-weight:600">Pridržujemo si pravico, da obvestila ne pošljemo, če v izbrani kategoriji v tem mesecu ni ponudb.</div>
@@ -138,7 +138,8 @@
       <fieldset>
         <legend>4. Kontakt (opcijsko)</legend>
         <label class="input" style="margin-top:0">Telefonska številka (SMS)
-          <input id="notifPhone" type="text" inputmode="tel" pattern="\+[0-9]{8,15}" placeholder="npr. +14155552671" autocomplete="tel">
+          <input id="notifPhone" type="tel" inputmode="tel" placeholder="npr. +386 40 123 456" autocomplete="tel" aria-describedby="phoneHelp">
+          <span id="phoneHelp" class="muted" style="font-size:.78em">Mednarodni zapis (E.164): začnite z + in kodo države (npr. +386…). Presledke in znake odstranimo samodejno.</span>
         </label>
       </fieldset>
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
@@ -149,6 +150,6 @@
       <div id="nonPremiumInline" class="upgrade-box" style="display:none">Za aktivacijo nadgradi v <a href="/premium.html" style="color:#d64c4c;text-decoration:underline;font-weight:900">Premium</a>.</div>
     </form>
   </main>
-  <script type="module" src="/account/notifications.js?v=20251110"></script>
+  <script type="module" src="/account/notifications.js?v=20251110d"></script>
 </body>
 </html>

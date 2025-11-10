@@ -53,7 +53,7 @@
 			</div>
 		<form id="premiumEmailForm" style="margin-bottom:18px;">
 			<input type="email" id="premiumEmail" placeholder="Vpišite svoj email" required style="padding:10px 16px;border-radius:999px;border:1px solid #0bbbd6;font-size:1em;width:80%;max-width:320px;margin-bottom:8px;">
-			<button type="submit" id="btnBuyPremium" style="background:linear-gradient(90deg,#0bbbd6,#11a67a);color:#fff;font-weight:900;font-size:1.15em;padding:12px 34px;border:none;border-radius:999px;box-shadow:0 2px 12px rgba(11,187,214,.12);cursor:pointer;transition:background .2s;">Nadgradi v Premium</button>
+			<button type="submit" id="btnBuyPremium" style="background:linear-gradient(90deg,#0bbbd6,#11a67a);color:#fff;font-weight:900;font-size:1.15em;padding:12px 34px;border:none;border-radius:999px;box-shadow:0 2px 12px rgba(11,187,214,.12);cursor:pointer;transition:background .2s;">Nadgradi v Premium <span id="premiumPriceLabel" style="font-weight:700;background:rgba(255,255,255,.18);padding:4px 10px;border-radius:999px;margin-left:8px;font-size:.8em;">…</span></button>
 				<script>
 				document.addEventListener('DOMContentLoaded', function() {
 					var buyPremiumBtn = document.getElementById('btnBuyPremium');
@@ -106,6 +106,21 @@
 	</section>
 	<script type="module" src="assets/js/app.js"></script>
 <script>
+// Fetch public config (price) & inject label
+(async function(){
+	try{
+		const r = await fetch('/api/public-config').then(x=>x.json());
+		if(r && r.premiumPriceCents){
+			const euros = (r.premiumPriceCents/100).toFixed(2).replace('.', ',');
+			const lbl = document.getElementById('premiumPriceLabel');
+			if(lbl) lbl.textContent = euros + ' €';
+		}
+	}catch{
+		const lbl = document.getElementById('premiumPriceLabel');
+		if(lbl) lbl.textContent = '5,00 €';
+	}
+})();
+
 document.getElementById('premiumEmailForm')?.addEventListener('submit', async function(e) {
 	e.preventDefault();
 	const email = document.getElementById('premiumEmail')?.value?.trim();

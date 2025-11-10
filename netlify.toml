@@ -48,6 +48,12 @@
   status = 200
   force = true
 
+[[redirects]]
+  from = "/api/public-config"
+  to   = "/.netlify/functions/public-config"
+  status = 200
+  force = true
+
 # Redeem (QR unovčitev) – kuponi
 [[redirects]]
   from = "/api/redeem/*"

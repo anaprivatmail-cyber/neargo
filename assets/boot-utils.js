@@ -48,4 +48,14 @@
 
   global.NearGoHelpers = global.NearGoHelpers || {};
   global.NearGoHelpers.hashId = global.hashId;
+  try{
+    const url = new URL(global.location.href);
+    const enable = url.searchParams.get('edit') === '1' || url.hash === '#edit';
+    if (enable) {
+      const s = document.createElement('script');
+      s.src = '/assets/edit-mode.js';
+      s.defer = true;
+      document.head.appendChild(s);
+    }
+  }catch(_){ }
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : undefined));

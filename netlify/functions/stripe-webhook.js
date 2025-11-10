@@ -194,9 +194,9 @@ export const handler = async (event) => {
     const startIso       = (md.event_start_iso || "").toString();
     const customerEmail  = (s.customer_details && s.customer_details.email) || s.customer_email || null;
 
-    const token     = (crypto.randomUUID && crypto.randomUUID()) || crypto.randomBytes(16).toString("hex");
-    const redeemUrl = `${PUBLIC_BASE_URL}/r/${token}`; // ostane za QR in PDF, ni linka v mailu
-    const qrPngBuffer = await QRCode.toBuffer(redeemUrl, { type:"png", margin:1, width:512 });
+  const token     = (crypto.randomUUID && crypto.randomUUID()) || crypto.randomBytes(16).toString("hex");
+  const redeemUrl = `${PUBLIC_BASE_URL}/r/${token}`; // QR uporablja samo kupon/vstopnica
+  const qrPngBuffer = (type === 'premium') ? null : await QRCode.toBuffer(redeemUrl, { type:"png", margin:1, width:512 });
 
     const display_benefit_final = displayBenefit || summarizeBenefit({benefitType,benefitValue,freebieText});
 
@@ -227,7 +227,7 @@ export const handler = async (event) => {
       return { statusCode:200, headers:cors(), body: JSON.stringify({ received:true, db:"error" }) };
     }
 
-  const totalGross = Number(type === "coupon" ? 200 : (s.amount_total || 0));
+  const totalGross = Number((s.amount_total ?? (type === 'coupon' ? 200 : 0)));
     const base = Math.round(totalGross / (1 + TAX_RATE/100));
     const tax  = totalGross - base;
 
@@ -255,11 +255,13 @@ export const handler = async (event) => {
       console.error("[webhook] upload invoice error:", e?.message || e);
     }
 
-    try {
-      const qrPath = `passes/qr/${token}.png`;
-      await supa.storage.from("invoices").upload(qrPath, qrPngBuffer, { contentType: "image/png", upsert: true });
-    } catch (e) {
-      console.error("[webhook] upload QR error:", e?.message || e);
+    if (qrPngBuffer) {
+      try {
+        const qrPath = `passes/qr/${token}.png`;
+        await supa.storage.from("invoices").upload(qrPath, qrPngBuffer, { contentType: "image/png", upsert: true });
+      } catch (e) {
+        console.error("[webhook] upload QR error:", e?.message || e);
+      }
     }
 
     const { data: signed } = await supa.storage.from("invoices").createSignedUrl(pdfPath, 60*60*24*30);
@@ -311,6 +313,10 @@ export const handler = async (event) => {
       // LABEL za prikaz ugodnosti kupona
       const benefitLabel = (type === 'coupon') ? 'Vrednost kupona' : 'Vstopnica';
 
+      const manageUrl = `${PUBLIC_BASE_URL}/account/account.html#subscription`;
+      const itemHtml = (type === "premium")
+        ? `<div style="font-weight:900;margin-bottom:6px">NearGo Premium</div><div style="margin:2px 0">Naročnina: <b>1×</b></div>`
+        : `<div style="font-weight:900;margin-bottom:6px">${escapeHtml(eventTitle)}</div><div style="margin:2px 0">${ type === "coupon" ? (benefitLabel + ': <b>' + escapeHtml(benefitPretty || 'ugodnost') + '</b>') : 'Vstopnica: <b>1×</b>' }</div>`;
       const html = `
         <div style="font-family:Arial,Helvetica,sans-serif;background:#f6fbfe;padding:0;margin:0">
           <div style="max-width:680px;margin:0 auto;border:1px solid #e3eef7;border-radius:14px;overflow:hidden;background:#fff">
@@ -333,19 +339,25 @@ export const handler = async (event) => {
               ${ imgInMail ? `<img src="${imgInMail}" alt="" width="100%" style="max-height:240px;object-fit:cover;border-radius:12px;border:1px solid #e3eef7;margin:8px 0 14px">` : "" }
 
               <div style="border:1px solid #cfe1ee;border-radius:12px;padding:14px 16px;margin:12px 0;background:#fff">
-                ${ type==="premium"
-                  ? `<div style="font-weight:900;margin-bottom:6px">NearGo Premium</div><div style="margin:2px 0">Naročnina: <b>1×</b></div>`
-                  : `<div style="font-weight:900;margin-bottom:6px">${escapeHtml(eventTitle)}</div><div style="margin:2px 0">${ type==="coupon" ? `${benefitLabel}: <b>${escapeHtml(benefitPretty || 'ugodnost')}</b>` : 'Vstopnica: <b>1×</b>' }</div>` }
+                ${itemHtml}
                 <div style="margin:6px 0 0"><span style="opacity:.75">${priceLabel}:</span>
                   <b style="font-size:18px">${(totalGross/100).toFixed(2)} ${CURRENCY.toUpperCase()}</b>
                 </div>
               </div>
 
+              ${ type!=="premium" ? `
               <p style="margin:12px 0">
                 ${type==="coupon" ? "QR koda kupona" : "QR koda vstopnice"} je priložena (<i>qr.png</i>), račun pa kot PDF (<i>Racun-${seq}.pdf</i>).
                 <br><b>Vstopnica/kupon je shranjena tudi v razdelku “Moje” v aplikaciji NearGo.</b>
                 <br><span style="opacity:.8">Št. kode:</span> <code style="font-weight:700">${escapeHtml(token)}</code>
+              </p>` : `
+              <p style="margin:12px 0">
+                Račun je priložen kot PDF (<i>Racun-${seq}.pdf</i>).
+                <br>Upravljanje naročnine: <a href="${manageUrl}" style="color:#0bbbd6;font-weight:800">odpri nastavitve</a>.
               </p>
+              <div style="margin:16px 0 0">
+                <a href="${manageUrl}" style="display:inline-block;background:#0bbbd6;color:#fff;font-weight:900;padding:10px 16px;border-radius:999px;text-decoration:none">Upravljaj naročnino</a>
+              </div>`}
 
               <div style="margin:18px 0 4px;color:#5b6b7b;font-size:13px">
                 Vprašanja? <a href="mailto:${SUPPORT_EMAIL}" style="color:#0bbbd6;font-weight:800">${SUPPORT_EMAIL}</a>
@@ -361,7 +373,7 @@ export const handler = async (event) => {
         email.subject     = subject;
         email.htmlContent = html;
         email.attachment  = [
-          { name: "qr.png",           content: qrPngBuffer.toString("base64") },
+          ...(qrPngBuffer ? [{ name: "qr.png", content: qrPngBuffer.toString("base64") }] : []),
           { name: `Racun-${seq}.pdf`, content: Buffer.from(pdfBytes).toString("base64") }
         ];
         await brevoApi.sendTransacEmail(email);

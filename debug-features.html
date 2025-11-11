@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="sl">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>NearGo – Diagnostika</title>
+	<style>
+		:root{ --bg:#f6fbfe; --card:#fff; --text:#0b1b2b; --muted:#5b6b7b; --brand:#0bbbd6; --ok:#0a7c2f; --bad:#b00020; --border:#e3eef7; --shadow:0 12px 30px rgba(0,0,0,.06); }
+		*{box-sizing:border-box}
+		body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+		.wrap{max-width:900px;margin:22px auto;padding:14px}
+		.card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:16px}
+		h1{margin:6px 0 10px;font-size:22px}
+		.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+		.btn{background:var(--brand);color:#fff;border:0;border-radius:12px;padding:10px 14px;font-weight:900;cursor:pointer}
+		.btn.link{background:#fff;color:var(--text);border:1px solid var(--border)}
+		.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;font-weight:800}
+		.ok{color:var(--ok);font-weight:800}
+		.bad{color:var(--bad);font-weight:800}
+		pre{background:#f9fcff;border:1px solid var(--border);border-radius:12px;padding:12px;overflow:auto}
+		.section{margin:12px 0}
+	</style>
+	<script>
+		async function getSession(){
+			try{
+				if(!window.supabase){ const mod = await import('/assets/supabase-client.js'); window.supabase = mod.supabase; }
+				const { data } = await window.supabase.auth.getSession();
+				return data?.session || null;
+			}catch(e){ return null; }
+		}
+		async function load(){
+			const out = document.getElementById('out');
+			const envBox = document.getElementById('env');
+			const me = document.getElementById('me');
+			const mineBox = document.getElementById('mine');
+			const sess = await getSession();
+			me.textContent = sess?.user?.email ? ('Prijavljen kot: '+sess.user.email) : 'Nisi prijavljen.';
+			try{
+				const r = await fetch('/api/check-env');
+				const j = await r.json().catch(()=>({}));
+				envBox.textContent = JSON.stringify(j, null, 2);
+			}catch(e){ envBox.textContent='Napaka pri preverjanju okolja: '+(e?.message||e); }
+			document.getElementById('btnFree').onclick = issueFree;
+			document.getElementById('btnMy').onclick = loadMine;
+			async function loadMine(){
+				mineBox.textContent='Nalagam…';
+				let headers = {};
+				if(sess?.access_token) headers['Authorization']='Bearer '+sess.access_token;
+				try{
+					const r = await fetch('/api/my', { headers });
+					const j = await r.json().catch(()=>({}));
+					mineBox.textContent = JSON.stringify(j, null, 2);
+				}catch(e){ mineBox.textContent='Napaka: '+(e?.message||e); }
+			}
+			async function issueFree(){
+				const btn = document.getElementById('btnFree'); btn.disabled=true;
+				try{
+					if(!sess?.user?.email){ alert('Prijava potrebna.'); btn.disabled=false; return; }
+					const headers={'Content-Type':'application/json'};
+					if(sess?.access_token) headers['Authorization']='Bearer '+sess.access_token;
+					const body = { email: sess.user.email, event_title: 'Test kupon', display_benefit: 'Test – brezplačno' };
+					const r = await fetch('/api/free-coupon', { method:'POST', headers, body: JSON.stringify(body) });
+					const j = await r.json().catch(()=>({}));
+					out.textContent = JSON.stringify(j, null, 2);
+					if(j && j.ok){ alert('✅ Test kupon izdan. Preveri e-pošto in “Moje”.'); }
+					else { alert('❌ Napaka pri izdaji: '+(j?.error||'')); }
+				}catch(e){ alert('❌ Napaka: '+(e?.message||e)); }
+				finally{ btn.disabled=false; }
+			}
+		}
+		window.addEventListener('DOMContentLoaded', load);
+	</script>
+	<script>
+		// minimal toast (optional)
+	</script>
+</head>
+<body>
+	<div class="wrap">
+		<div class="card">
+			<h1>Diagnostika NearGo</h1>
+			<div class="section"><span id="me" class="pill">Preverjam prijavo…</span></div>
+			<div class="section">
+				<button id="btnFree" class="btn">✉ Pošlji test kupon (brezplačni)</button>
+				<button id="btnMy" class="btn link">📥 Naloži “Moje”</button>
+				<a class="btn link" href="/my.html" target="_blank" rel="noopener">Odpri “Moje”</a>
+			</div>
+			<div class="section">
+				<div class="pill">Okolje</div>
+				<pre id="env">Nalagam…</pre>
+			</div>
+			<div class="section">
+				<div class="pill">Zadnji rezultat</div>
+				<pre id="out">(prazno)</pre>
+			</div>
+			<div class="section">
+				<div class="pill">Moje (API odgovor)</div>
+				<pre id="mine">(prazno)</pre>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
+

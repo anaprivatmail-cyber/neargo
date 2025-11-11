@@ -18,7 +18,7 @@ function closePick(){ const modal=document.getElementById("pickModal"); if(modal
 export function initPicker(){
   document.getElementById("pickClose")?.addEventListener("click", closePick);
   document.getElementById("pickMinus")?.addEventListener("click",()=>{ pickRadiusKm=Math.max(1,pickRadiusKm-5); try{ pickCircle.setRadius(pickRadiusKm*1000);}catch{} updatePickLbl(); });
-  document.getElementById("pickPlus")?.addEventListener("click",()=>{ pickRadiusKm=Math.min(400,pickRadiusKm+5); try{ pickCircle.setRadius(pickRadiusKm*1000);}catch{} updatePickLbl(); });
+  document.getElementById("pickPlus")?.addEventListener("click",()=>{ pickRadiusKm=Math.min(50,pickRadiusKm+5); try{ pickCircle.setRadius(pickRadiusKm*1000);}catch{} updatePickLbl(); });
   document.getElementById("pickUseGPS")?.addEventListener("click",()=>navigator.geolocation.getCurrentPosition(p=>{
     const lat=p.coords.latitude, lon=p.coords.longitude;
     try{ pickMap.setView([lat,lon],11); pickMarker.setLatLng([lat,lon]); pickCircle.setLatLng([lat,lon]); }catch{}
@@ -26,9 +26,9 @@ export function initPicker(){
   document.getElementById("pickApply")?.addEventListener("click",()=>{
     if(!pickMarker){ closePick(); return; }
     const {lat,lng}=pickMarker.getLatLng();
-    window.GEO=`${lat.toFixed(5)},${lng.toFixed(5)}`;
+  window.GEO=`${lat.toFixed(5)},${lng.toFixed(5)}`;
     const radius=document.getElementById("radius"), radiusLbl=document.getElementById("radiusLbl");
-    if(radius && radiusLbl){ radius.value=pickRadiusKm; radiusLbl.textContent=`${pickRadiusKm} km`; }
+  if(radius && radiusLbl){ radius.value=pickRadiusKm; radiusLbl.textContent=`Polmer: ${pickRadiusKm} km (premer ${pickRadiusKm*2} km)`; }
     closePick(); try{ window.doSearch?.(0,true); }catch{}
   });
   document.getElementById("pickSearch")?.addEventListener("keydown", async (e)=>{

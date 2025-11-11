@@ -1,5 +1,6 @@
 // netlify/functions/provider-submit.js
 import { createClient } from '@supabase/supabase-js';
+import { rateLimit, tooMany } from './_guard.js';
 import crypto from 'node:crypto';
 
 const CORS = {
@@ -40,10 +41,14 @@ function escapeHtml(s){
 }
 function requireFields(p){
   const missing = [];
+  const isService = String(p.type || '').toLowerCase() === 'service';
   const need = [
     ['organizer','Ime organizatorja'],['organizerEmail','E-pošta'],['eventName','Naslov dogodka'],
-    ['venue','Lokacija (prizorišče)'],['country','Država'],['start','Začetek'],['end','Konec'],['description','Opis'],['category','Kategorija']
+    ['venue','Lokacija (prizorišče)'],['country','Država'],['description','Opis'],['category','Kategorija']
   ];
+  if (!isService){
+    need.push(['start','Začetek'], ['end','Konec']);
+  }
   if (!String(p.city || p.city2 || '').trim()) missing.push('Mesto/kraj');
   for (const [k, label] of need) if (!String(p[k] ?? '').trim()) missing.push(label);
 
@@ -89,6 +94,10 @@ export const handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
   if (event.httpMethod !== 'POST')   return json({ ok:false, error:'Method not allowed' }, 405);
 
+  // Rate limit provider submissions: 8 per 5 minutes per IP
+  const rl = await rateLimit(event, 'provider-submit', 8, 300);
+  if (rl.blocked) return tooMany(300);
+
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY){
     return json({ ok:false, error:'Manjka SUPABASE_URL ali SUPABASE_SERVICE_ROLE_KEY' }, 500);
   }
@@ -97,6 +106,86 @@ export const handler = async (event) => {
   let payload;
   try { payload = JSON.parse(event.body || '{}'); }
   catch { return json({ ok:false, error:'Neveljaven JSON body' }, 400); }
+
+  // ——— Provider plan resolve (Grow / Pro / Free) ———
+  async function resolveProviderPlan(email){
+    if (!email) return 'free';
+    try {
+      const { data: row, error: planErr } = await supabase
+        .from('provider_plans')
+        .select('plan,active_until')
+        .eq('email', email)
+        .maybeSingle();
+      if (planErr) return 'free';
+      if (row && row.plan) {
+        if (!row.active_until || new Date(row.active_until).getTime() > Date.now()) {
+          const val = String(row.plan || '').toLowerCase();
+          if (val === 'grow' || val === 'pro') return val;
+        }
+      }
+    } catch {}
+    return 'free';
+  }
+
+  // Resolve plan early (used for featured + calendar gating)
+  const providerEmail = String(payload.organizerEmail || '').trim().toLowerCase();
+  const providerPlan = await resolveProviderPlan(providerEmail);
+
+  // ——— Featured gating (Free=0, Grow=1/mo, Pro=3/mo) ———
+  const FEATURED_WINDOW_DAYS = 7;
+  const FEATURED_LIMIT = { free:0, grow:1, pro:3 };
+  const wantFeatured = !!payload.featured;
+  if (wantFeatured) {
+    const allowed = FEATURED_LIMIT[providerPlan] ?? 0;
+    if (allowed === 0) {
+      return json({ ok:false, error:'Za izpostavitev nadgradi paket (Grow ali Pro).', code:'featured_requires_plan', plan:providerPlan }, 403);
+    }
+
+    // Count current month featured usages for this provider (storage scan, limited to 1000)
+    let monthFeaturedCount = 0;
+    try {
+      const { data: files } = await supabase
+        .storage
+        .from(BUCKET)
+        .list(SUBMISSIONS_PREFIX, { limit: 1000 });
+      const now = new Date();
+      const y = now.getUTCFullYear();
+      const m = now.getUTCMonth();
+      for (const f of files || []) {
+        if (!f.name?.endsWith('.json')) continue;
+        const path = `${SUBMISSIONS_PREFIX}${f.name}`;
+        const { data: dl } = await supabase.storage.from(BUCKET).download(path);
+        if (!dl) continue;
+        try {
+          const txt = await dl.text();
+          const obj = JSON.parse(txt);
+          if (String(obj.organizerEmail || '').trim().toLowerCase() !== providerEmail) continue;
+          const featFlag = !!obj.featured || (obj.featuredUntil && Date.parse(obj.featuredUntil) > Date.now());
+            if (!featFlag) continue;
+          // Determine month bucket by featuredUntil (prefer) or createdAt
+          const refDateStr = obj.featuredUntil || obj.createdAt || null;
+          if (!refDateStr) continue;
+          const refDate = new Date(refDateStr);
+          if (refDate.getUTCFullYear() === y && refDate.getUTCMonth() === m) {
+            monthFeaturedCount += 1;
+          }
+        } catch { /* ignore broken json */ }
+      }
+    } catch {}
+    if (monthFeaturedCount >= allowed) {
+      return json({ ok:false, error:`Limit izpostavitev (${allowed}/mesec) dosežen. Nadgradi paket za več.`, code:'featured_limit_exceeded', plan:providerPlan, used:monthFeaturedCount, allowed }, 403);
+    }
+    // Attach featuredUntil window
+    payload.featuredUntil = new Date(Date.now() + FEATURED_WINDOW_DAYS*24*3600*1000).toISOString();
+  }
+
+  // ——— Calendar gating (internal NearGo calendar only for Pro) ———
+  const rawWhen = String(payload.svcWhen || payload.when || '').toLowerCase();
+  const calChoice = String(payload.calendarChoice || '').toLowerCase();
+  const wantsInternalCalendar = (rawWhen === 'calendar' && !payload.calendarUrl) || (calChoice === 'neargo');
+  if (wantsInternalCalendar && providerPlan !== 'pro') {
+    return json({ ok:false, error:'NearGo koledar je na voljo v Pro paketu.', code:'calendar_requires_pro', plan:providerPlan }, 403);
+  }
 
   if ((payload.offerType || payload.saleType) === 'coupon') {
     payload.price = 2; // prodajna cena pri nas za kupon
@@ -144,7 +233,8 @@ export const handler = async (event) => {
       source: 'provider',
       secretEditToken: crypto.randomBytes(24).toString('hex'),
       editToken,
-      statsToken
+      statsToken,
+      providerPlan
     };
 
     const uint8 = Buffer.from(JSON.stringify(bodyObj, null, 2), 'utf8');
@@ -155,17 +245,32 @@ export const handler = async (event) => {
 
     if (uploadError) return json({ ok:false, error:`Napaka pri shranjevanju v Storage: ${uploadError.message}` }, 500);
 
+    // === Če je izbran NearGo koledar (interno), ustvarimo prazen koledar za to oddajo ===
+    try{
+      if (wantsInternalCalendar) {
+        await supabase.from('provider_calendars').insert({
+          provider_email: payload.organizerEmail,
+          title: payload.eventName,
+          event_submission_key: path,
+          edit_token: editToken,
+          stats_token: statsToken
+        });
+      }
+    }catch(e){ console.warn('[provider-submit] create calendar skipped:', e?.message||e); }
+
     // === Potrditveni e-mail organizatorju (glava usklajena z nakupnim mailom) ===
     try {
       if (BREVO_API_KEY && payload.organizerEmail) {
-        const contact   = escapeHtml(payload.organizerFullName || payload.organizer || '');
-        const eventName = escapeHtml(payload.eventName || '');
+  const isService = String(payload.type||'').toLowerCase()==='service';
+  const contact   = escapeHtml(payload.organizerFullName || payload.organizer || '');
+  const eventName = escapeHtml(payload.eventName || '');
         const city      = escapeHtml(payload.city || payload.city2 || '');
         const venue     = escapeHtml(payload.venue || '');
         const category  = escapeHtml(payload.category || '');
         const start     = escapeHtml(payload.start || '');
         const end       = escapeHtml(payload.end || '');
         const offerType = String(payload.offerType || payload.saleType || 'none');
+  const featuredUntil = payload.featuredUntil ? new Date(payload.featuredUntil).toLocaleString('sl-SI') : null;
 
         // Izpis cen v e-pošti (celoten cenik, če obstaja)
         let offerLine = '';
@@ -216,15 +321,16 @@ export const handler = async (event) => {
               </div>
 
               <div style="padding:20px 22px;color:#0b1b2b">
-                <h2 style="margin:0 0 12px 0;font-size:20px;line-height:1.35">Potrditev oddaje dogodka</h2>
+                <h2 style="margin:0 0 12px 0;font-size:20px;line-height:1.35">Potrditev oddaje ${isService?'storitev':'dogodka'}</h2>
                 <p style="margin:0 0 8px">Spoštovani <b>${contact}</b>,</p>
-                <p style="margin:0 0 14px">vaša oddaja dogodka <b>${eventName}</b> je bila prejeta.</p>
+                <p style="margin:0 0 14px">vaša oddaja ${isService?'storitev':'dogodka'} <b>${eventName}</b> je bila prejeta.</p>
 
                 <div style="border:1px solid #e3eef7;border-radius:12px;padding:12px 14px;margin:10px 0;background:#f9fcff">
                   ${ venue ? `<div style="margin:2px 0"><b>Lokacija:</b> ${venue}${city?(', '+city):''}</div>` : (city?`<div style="margin:2px 0"><b>Mesto:</b> ${city}</div>`:'') }
                   ${ category ? `<div style="margin:2px 0"><b>Kategorija:</b> ${category}</div>` : '' }
                   ${ start ? `<div style="margin:2px 0"><b>Začetek:</b> ${start}</div>` : '' }
                   ${ end   ? `<div style="margin:2px 0"><b>Konec:</b> ${end}</div>`     : '' }
+                  ${ featuredUntil ? `<div style="margin:2px 0"><b>Izpostavljeno do:</b> ${featuredUntil}</div>` : '' }
                 </div>
 
                 <div style="border:1px solid #cfe1ee;border-radius:12px;padding:14px 16px;margin:12px 0;background:#fff">
@@ -270,7 +376,7 @@ export const handler = async (event) => {
 
         await sendMailBrevo({
           to: payload.organizerEmail,
-          subject: `NearGo – prijava dogodka prejeta: ${payload.eventName || ''}`,
+          subject: `NearGo – prijava ${isService?'storitev':'dogodka'} prejeta: ${payload.eventName || ''}`,
           html
         });
       }
@@ -279,7 +385,15 @@ export const handler = async (event) => {
     }
     // === konec pošiljanja e-pošte ===
 
-    return json({ ok:true, key:path, editToken, statsToken });
+    return json({
+      ok:true,
+      key:path,
+      editToken,
+      statsToken,
+      plan:providerPlan,
+      featuredUntil: payload.featuredUntil || null,
+      limits: { featuredPerMonth: (providerPlan==='grow'?1:providerPlan==='pro'?3:0) }
+    });
   }catch(e){
     console.error("[provider-submit] FATAL:", e?.message || e);
     return json({ ok:false, error:String(e?.message || e) }, 500);

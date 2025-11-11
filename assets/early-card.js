@@ -55,10 +55,16 @@ async function pollInbox(){
 }
 
 export function initEarlyCard(){
-  // Poll every 60s
-  setInterval(pollInbox, 60000);
-  // Also poll once on load
-  pollInbox();
+  // Prikazuj samo za Premium uporabnike (zgodnje obvestilo)
+  function start(){
+    if(!window.IS_PREMIUM){ return; }
+    setInterval(pollInbox, 60000);
+    pollInbox();
+  }
+  // Če IS_PREMIUM še ni nastavljen – počakaj nekaj trenutkov
+  if(typeof window.IS_PREMIUM === 'undefined'){
+    let tries=0; const iv=setInterval(()=>{ tries++; if(typeof window.IS_PREMIUM !== 'undefined'){ clearInterval(iv); start(); } else if(tries>30){ clearInterval(iv); start(); } }, 150);
+  }else{ start(); }
 }
 
 // --- Sound support -------------------------------------------------------

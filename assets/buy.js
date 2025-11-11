@@ -56,8 +56,14 @@ export function initBuy(){
         if(kind==="coupon"){
           // podpora za FREE kupon preko data-free="1"
           if (btn.dataset.free === '1') {
+            const email = (localStorage.getItem('user_email')||'').trim();
+            if (!email){
+              alert('Za brezplačni kupon je potrebna prijava (Premium).');
+              try{ location.href = '/login.html?return=' + encodeURIComponent(location.pathname); }catch{}
+              return;
+            }
             const freeBody = {
-              email: (localStorage.getItem('user_email')||'').trim(),
+              email,
               event_id: btn.dataset.eid || '',
               event_title: decodeURIComponent(btn.dataset.name||'Dogodek'),
               display_benefit: decodeURIComponent(btn.dataset.benefit||'Brezplačno')
@@ -65,6 +71,8 @@ export function initBuy(){
             const fr = await fetch('/api/free-coupon', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(freeBody) })
                        .then(r=>r.json()).catch(()=>({}));
             if(fr && fr.ok){ window._toast?.('Kupon izdan ✅', true); location.href = '/my.html#success'; }
+            else if(fr && fr.error === 'premium_required'){ alert('Brezplačni kupon je na voljo le za Premium člane.'); }
+            else if(fr && fr.error === 'rate_limit'){ alert('Dosežena dnevna omejitev brezplačnih kuponov. Poizkusite jutri.'); }
             else { alert('Napaka pri izdaji brezplačnega kupona'); }
             return; // skip stripe
           }

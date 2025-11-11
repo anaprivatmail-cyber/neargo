@@ -8,6 +8,12 @@ const COUPON_PRICE_CENTS = Math.max(50, Number(process.env.COUPON_PRICE_CENTS ||
 const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || process.env.URL || "").replace(/\/$/, "");
 // Premium cena v centih – konfigurabilno prek env; privzeto 500 (5,00 €)
 const PREMIUM_PRICE_CENTS = Math.max(100, Number(process.env.PREMIUM_PRICE_CENTS || 500));
+// Optional Stripe Price IDs for subscriptions (if set, we'll use mode=subscription)
+const PRICE_PREMIUM_MONTHLY = process.env.STRIPE_PRICE_PREMIUM_MONTHLY || '';
+const PRICE_GROW_MONTHLY    = process.env.STRIPE_PRICE_GROW_MONTHLY    || '';
+const PRICE_GROW_YEARLY     = process.env.STRIPE_PRICE_GROW_YEARLY     || '';
+const PRICE_PRO_MONTHLY     = process.env.STRIPE_PRICE_PRO_MONTHLY     || '';
+const PRICE_PRO_YEARLY      = process.env.STRIPE_PRICE_PRO_YEARLY      || '';
 
 /** Pretvori znesek v cente, če je podan v evrih.  */
 function toCents(val) {
@@ -25,7 +31,13 @@ export const handler = async (event) => {
       return { statusCode: 405, body: JSON.stringify({ ok: false, error: "Method Not Allowed" }) };
     }
 
-    const payload = JSON.parse(event.body || "{}");
+    let payload = JSON.parse(event.body || "{}");
+    // Optional: accept form POST with a single 'payload' field (from email CTA)
+    if (!payload.type && typeof event.body === 'string' && event.headers['content-type']?.includes('application/x-www-form-urlencoded')){
+      const params = new URLSearchParams(event.body);
+      const p = params.get('payload');
+      if (p) { try { payload = JSON.parse(p); } catch {} }
+    }
     const successUrl = payload.successUrl || `${PUBLIC_BASE_URL || ""}/#success`;
     const cancelUrl  = payload.cancelUrl  || `${PUBLIC_BASE_URL || ""}/#cancel`;
     const metadata   = payload.metadata || {};
@@ -73,61 +85,58 @@ export const handler = async (event) => {
       if (plan === "pro"  && interval === "monthly") { price = 3500; name = "Pro paket – mesečno"; }
       if (plan === "pro"  && interval === "yearly")  { price = 35000; name = "Pro paket – letno"; }
       if (!price) return { statusCode: 400, body: JSON.stringify({ ok: false, error: "Neveljaven paket" }) };
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        payment_method_types: ["card"],
-        customer_creation: "always",
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        line_items: [
-          {
-            price_data: {
-              currency: "eur",
-              unit_amount: price,
-              product_data: {
-                name,
-                description: name,
-              }
-            },
-            quantity: 1
-          }
-        ],
-        payment_intent_data: { description: name },
-        metadata: { ...metadata, plan, interval }
-      });
+      // If Price IDs exist for subscription, switch to subscription mode
+      const priceId = (plan === 'grow' && interval === 'monthly') ? PRICE_GROW_MONTHLY
+        : (plan === 'grow' && interval === 'yearly') ? PRICE_GROW_YEARLY
+        : (plan === 'pro'  && interval === 'monthly') ? PRICE_PRO_MONTHLY
+        : (plan === 'pro'  && interval === 'yearly') ? PRICE_PRO_YEARLY
+        : '';
+      let session;
+      if (priceId) {
+        session = await stripe.checkout.sessions.create({
+          mode: "subscription",
+          payment_method_types: ["card"],
+          customer_creation: "always",
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+          line_items: [{ price: priceId, quantity: 1 }],
+          metadata: { ...metadata, type: 'provider-plan', plan, interval }
+        });
+      } else {
+        session = await stripe.checkout.sessions.create({
+          mode: "payment",
+          payment_method_types: ["card"],
+          customer_creation: "always",
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+          line_items: [
+            {
+              price_data: {
+                currency: "eur",
+                unit_amount: price,
+                product_data: {
+                  name,
+                  description: name,
+                }
+              },
+              quantity: 1
+            }
+          ],
+          payment_intent_data: { description: name },
+          metadata: { ...metadata, type: 'provider-plan', plan, interval }
+        });
+      }
       return { statusCode: 200, body: JSON.stringify({ ok: true, url: session.url }) };
     }
 
-    // --- PREMIUM -----------------------------------------------------------
+    // --- PREMIUM (onemogočeno na Stripe – uporabi native IAP) --------------
     if ((payload.type || metadata.type) === "premium") {
-      const email = payload.email || metadata.email || "";
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        payment_method_types: ["card"],
-        customer_creation: "always",
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        line_items: [
-          {
-            price_data: {
-              currency: "eur",
-              unit_amount: PREMIUM_PRICE_CENTS, // npr. 500 = 5,00 €
-              product_data: {
-                name: "Premium NearGo",
-                description: "Premium naročnina za NearGo",
-              }
-            },
-            quantity: 1
-          }
-        ],
-        payment_intent_data: { description: "Premium NearGo" },
-        metadata: { ...metadata, email, price_cents: PREMIUM_PRICE_CENTS }
-      });
-      return { statusCode: 200, body: JSON.stringify({ ok: true, url: session.url }) };
+      // Namesto Stripe vračamo napako / usmeritev: Premium kupi v native aplikaciji (Apple/Google IAP).
+      return { statusCode: 400, body: JSON.stringify({ ok:false, error:"Premium kupi preko mobilne aplikacije (Apple/Google). Stripe je dovoljen samo za vstopnice in kupone." }) };
     }
 
     // --- V S T O P N I C E --------------------------------------------------
-    if (Array.isArray(payload.lineItems) && payload.lineItems.length) {
+  if (Array.isArray(payload.lineItems) && payload.lineItems.length) {
       // front-end pošilja amount najpogosteje v evrih → pretvorimo v cente
       const items = payload.lineItems.map((it) => ({
         price_data: {

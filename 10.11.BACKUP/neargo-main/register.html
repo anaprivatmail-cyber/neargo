@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Registracija – NearGo</title>
+  <link rel="canonical" href="/register.html">
+  <style>
+    body { font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:#f7fbfd; margin:0; }
+    .center { max-width:340px; margin:40px auto; background:#fff; border-radius:16px; box-shadow:0 4px 32px rgba(0,0,0,0.13); padding:28px 22px; }
+    .brand { display:flex;align-items:center;gap:10px;text-decoration:none;justify-content:center;margin-bottom:18px; }
+    .btn { border:none; padding:12px 18px; border-radius:14px; font-weight:900; cursor:pointer; font-size:16px; background:#0bbbd6; color:#fff; width:100%; margin-top:10px; }
+    .muted { color:#5b6b7b; font-size:15px; text-align:center; margin-bottom:18px; }
+    input { width:100%; padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #cfe1ee; font-size:15px; }
+    .error { color:#d64c4c; font-size:14px; text-align:center; margin-bottom:8px; }
+  </style>
+</head>
+<body>
+  <div class="center">
+    <a href="/" class="brand" aria-label="NearGo">
+      <svg viewBox="0 0 32 32" aria-hidden="true" style="width:38px;height:38px;">
+        <defs><radialGradient id="g1" cx="50%" cy="50%"><stop offset="0%" stop-color="#0bbbd6"/><stop offset="100%" stop-color="#7de3f0"/></radialGradient></defs>
+        <circle cx="16" cy="16" r="13" class="ring" fill="none" stroke="url(#g1)" stroke-width="2"/>
+        <circle cx="16" cy="16" r="8" class="ring" fill="none" stroke="url(#g1)" stroke-width="2" opacity=".9"/>
+        <circle cx="16" cy="16" r="3.2" class="dot pulse"/>
+      </svg>
+      <span style="font-weight:900;font-size:22px;color:#14202b;letter-spacing:-1px;">NearGo</span>
+    </a>
+    <div class="muted">Ustvari nov račun</div>
+    <form id="registerForm">
+      <input type="email" id="regEmail" placeholder="E-pošta" required>
+      <input type="password" id="regPassword" placeholder="Geslo" required>
+      <input type="password" id="regPassword2" placeholder="Ponovi geslo" required>
+      <button type="submit" class="btn">Registracija</button>
+    </form>
+    <div id="regError" class="error" style="display:none"></div>
+    <div class="muted"><a href="/organizers.html">Nazaj na prijavo</a></div>
+  </div>
+  <script>
+    document.getElementById('registerForm').addEventListener('submit', function(ev) {
+      ev.preventDefault();
+      var email = document.getElementById('regEmail').value.trim();
+      var pw1 = document.getElementById('regPassword').value;
+      var pw2 = document.getElementById('regPassword2').value;
+      var err = '';
+      if (!email || !pw1 || !pw2) err = 'Vnesite vse podatke.';
+      else if (pw1.length < 6) err = 'Geslo mora imeti vsaj 6 znakov.';
+      else if (pw1 !== pw2) err = 'Gesli se ne ujemata.';
+      if (err) {
+        document.getElementById('regError').textContent = err;
+        document.getElementById('regError').style.display = 'block';
+        return;
+      }
+      // Simulacija uspešne registracije
+      alert('Registracija uspešna!');
+      window.location.href = '/organizers.html';
+    });
+  </script>
+</body>
+</html>

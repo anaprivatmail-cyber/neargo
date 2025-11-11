@@ -1,9 +1,9 @@
-import { CATEGORY_SOURCE, EVENT_CATEGORY_SOURCE, SERVICE_CATEGORY_SOURCE } from './data/categories/index.js';
+import { CATEGORY_SOURCE } from './data/categories/source.js';
 
 const ICON_BASE = '/assets/icons';
 
-const canonicalEventCategories = EVENT_CATEGORY_SOURCE;
-const canonicalServiceCategories = SERVICE_CATEGORY_SOURCE;
+const canonicalEventCategories = CATEGORY_SOURCE.events;
+const canonicalServiceCategories = CATEGORY_SOURCE.services;
 
 const normalizeIcon = (iconName) => {
   if (!iconName) return null;
@@ -150,7 +150,6 @@ const publishToWindow = () => {
     events: { ...CATEGORY_ALIASES.events },
     services: { ...CATEGORY_ALIASES.services }
   };
-  window.NearGoCategoryUtils = utils;
   window.NearGoCategorySource = CATEGORY_SOURCE;
   if (typeof document !== 'undefined' && typeof document.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
     document.dispatchEvent(new CustomEvent('neargo:categories-ready', {

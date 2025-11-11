@@ -84,20 +84,35 @@ export const handler = async (event) => {
 
     if (error) throw new Error('Storage list error: ' + error.message);
 
-    // Prenesi in parsaj vsako .json datoteko
+    // Prenesi in parsaj vsako .json datoteko (+ zapiši path za povezavo s koledarjem)
     const raw = [];
+    const submissionPaths = [];
     for (const f of files || []) {
       if (!f.name?.toLowerCase().endsWith('.json')) continue;
       const path = `${SUBMISSIONS_DIR}/${f.name}`;
-
       const { data, error: dlErr } = await supabase.storage.from(BUCKET).download(path);
       if (dlErr) continue;
-
       try {
         const txt = await data.text();
         const obj = JSON.parse(txt);
+        obj._submission_path = path; // interno za koledar mapping
         raw.push(obj);
+        submissionPaths.push(path);
       } catch { /* ignoriraj pokvarjene zapise */ }
+    }
+
+    // Bulk lookup koledarjev (provider_calendars.event_submission_key = path)
+    let calMap = new Map();
+    if (submissionPaths.length) {
+      try {
+        const { data: cals } = await supabase
+          .from('provider_calendars')
+          .select('id,event_submission_key')
+          .in('event_submission_key', submissionPaths);
+        (cals||[]).forEach(c => calMap.set(c.event_submission_key, c.id));
+      } catch (e) {
+        console.warn('[provider-list] calendar lookup failed:', e?.message || e);
+      }
     }
 
     // Filtriraj "featured", če je zahtevano
@@ -114,7 +129,12 @@ out = out.filter(e => {
   return !Number.isNaN(end) && end >= Date.now();
 });
     // normaliziraj v format, ki ga frontend pričakuje (venue.lat/lon/address, images[])
-    out = out.map(normalizeProvider);
+    out = out.map(o => {
+      const n = normalizeProvider(o);
+      const cid = calMap.get(o._submission_path || '') || null;
+      if (cid) n.calendar_id = cid;
+      return n;
+    });
 
     // ——— STREŽNIŠKA UTRDITEV ———
     // 1) Skrij razprodane ponudbe (kuponi/vstopnice)

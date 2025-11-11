@@ -56,12 +56,15 @@
     label.input{display:flex;flex-direction:column;gap:6px;font-weight:800;font-size:13px;margin-top:12px}
     input[type=text]{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--chipborder,#cfe1ee);background:#fff;font-size:15px}
     input[type=range]{width:100%;accent-color:#0bbbd6;height:28px}
-    #earlyMap{height:280px;border:1px solid var(--chipborder,#cfe1ee);border-radius:14px;margin-top:10px}
+  #earlyMap{height:280px;border:1px solid var(--chipborder,#cfe1ee);border-radius:14px;margin-top:10px;position:relative}
+  .map-overlay{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:6px;z-index:60}
+  .map-overlay .btn.small{padding:6px 10px;font-size:12px;border-radius:10px}
     .map-tools{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
     .btn{background:var(--accent,#ff6b6b);color:#fff;border:none;padding:12px 18px;border-radius:14px;font-weight:900;cursor:pointer;font-size:15px;box-shadow:0 4px 12px rgba(255,107,107,0.25);transition:.2s}
     .btn:hover{background:#e55a5a}
-    .btn.secondary{background:#0bbbd6;box-shadow:0 4px 12px rgba(11,187,214,0.25)}
-    .btn.secondary:hover{background:#0aa5c1}
+  .btn.secondary{background:#0bbbd6;box-shadow:0 4px 12px rgba(11,187,214,0.25)}
+  .btn.secondary:hover{background:#0aa5c1}
+  .btn.secondary.active{background:#078aa1;box-shadow:0 4px 14px rgba(7,138,161,0.35);filter:brightness(1.05)}
   .btn.small{padding:8px 12px;border-radius:10px;font-size:14px}
   .type-btn{background:linear-gradient(180deg,#f7fdff,#e6fbff);color:#064c56;border:1px solid rgba(11,187,214,0.15);box-shadow:0 6px 20px rgba(11,187,214,0.06);font-weight:900}
   .type-btn.active.type-events{background:linear-gradient(180deg,#0bbbd6,#07aab8);color:#fff;border-color:transparent;box-shadow:0 8px 26px rgba(11,187,214,0.18)}
@@ -141,10 +144,15 @@
             <label class="input" style="margin-top:0">Polmer (km)
               <input id="notifRadius" type="range" min="1" max="50" step="1" value="25" aria-label="Polmer obveščanja v kilometrih" aria-describedby="radiusLbl">
             </label>
-            <div class="muted" id="radiusLbl" style="font-size:.75em;font-weight:800;margin-top:-4px">25 km (premer 50 km)</div>
+            <div class="muted" id="radiusLbl" style="font-size:.75em;font-weight:800;margin-top:-4px">Polmer: 25 km (premer 50 km)</div>
           </div>
         </div>
-        <div id="earlyMap" style="margin-top:12px" aria-label="Izbira lokacije na zemljevidu" role="application"></div>
+        <div id="earlyMap" style="margin-top:12px" aria-label="Izbira lokacije na zemljevidu" role="application">
+          <div class="map-overlay" aria-label="Kontrole zemljevida">
+            <button type="button" id="btnConfirmMap" class="btn small secondary" title="Potrdi trenutno lokacijo">Potrdi lokacijo</button>
+            <button type="button" id="btnCloseMap" class="btn small secondary" title="Skrij zemljevid">Zapri</button>
+          </div>
+        </div>
       </fieldset>
       <fieldset>
         <legend>4. Kontakt (opcijsko)</legend>

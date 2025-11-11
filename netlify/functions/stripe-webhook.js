@@ -9,6 +9,7 @@ import nodemailer from "nodemailer";
 import fs from "fs";
 import path from "path";
 import crypto from "node:crypto";
+import { getStore } from "@netlify/blobs";
 
 // ——— ENV ————————————————————————————————————————————————————————————————
 const STRIPE_SECRET_KEY     = process.env.STRIPE_SECRET_KEY;
@@ -79,6 +80,12 @@ function summarizeBenefit({ benefitType, benefitValue, freebieText }) {
   if (benefitType === "freebie" && freebieText) return `Brezplačno: ${freebieText}`;
   return "";
 }
+// Optional Stripe price IDs for subscription detection
+const PRICE_PREMIUM_MONTHLY = process.env.STRIPE_PRICE_PREMIUM_MONTHLY || '';
+const PRICE_GROW_MONTHLY    = process.env.STRIPE_PRICE_GROW_MONTHLY    || '';
+const PRICE_GROW_YEARLY     = process.env.STRIPE_PRICE_GROW_YEARLY     || '';
+const PRICE_PRO_MONTHLY     = process.env.STRIPE_PRICE_PRO_MONTHLY     || '';
+const PRICE_PRO_YEARLY      = process.env.STRIPE_PRICE_PRO_YEARLY      || '';
 // RPC atomarno številčenje računov
 async function nextInvoiceNo() {
   const year = new Date().getFullYear();
@@ -155,6 +162,28 @@ async function createInvoicePdf({ seqNo, buyer, totalGross, base, tax, paidAt, s
   return await pdf.save();
 }
 
+// Create a one-page QR PDF for tickets/coupons
+async function createQrPdf({ redeemUrl, token, title }){
+  const pdf = await PDFDocument.create();
+  pdf.registerFontkit(fontkit);
+  const page = pdf.addPage([400, 520]);
+  const { width, height } = page.getSize();
+  const margin = 24;
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  // Generate QR as data URL then embed as PNG
+  const qrPng = await QRCode.toBuffer(redeemUrl, { type: 'png', margin:1, width: 300 });
+  const qrImg = await pdf.embedPng(qrPng);
+  const qrW = 260, qrH = 260;
+  page.drawText(String(title || 'Vstopnica / Kupon'), { x: margin, y: height - margin - 24, size: 16, font: bold });
+  page.drawImage(qrImg, { x: (width-qrW)/2, y: (height/2)-qrH/2, width: qrW, height: qrH });
+  page.drawText('Koda:', { x: margin, y: margin + 34, size: 11, font });
+  page.drawText(String(token || ''), { x: margin + 40, y: margin + 34, size: 11, font: bold });
+  page.drawText('Unovči:', { x: margin, y: margin + 18, size: 11, font });
+  page.drawText(String(redeemUrl || ''), { x: margin + 48, y: margin + 18, size: 11, font });
+  return await pdf.save();
+}
+
 // ——— MAIN HANDLER ————————————————————————————————————————————————————
 export const handler = async (event) => {
   try {
@@ -175,12 +204,149 @@ export const handler = async (event) => {
       return { statusCode:200, headers:cors(), body: JSON.stringify({ received:true }) };
     }
 
+    // Handle subscription renewal invoices
+    if (stripeEvent.type === 'invoice.payment_succeeded') {
+      try{
+        const inv = stripeEvent.data.object;
+        const custEmail = inv.customer_email || inv.customer_details?.email || null;
+        const line = (inv.lines && inv.lines.data && inv.lines.data[0]) || null;
+        const priceId = line?.price?.id || '';
+        const totalGross = Number(inv.amount_paid || inv.amount_due || 0);
+        const base = Math.round(totalGross / (1 + TAX_RATE/100));
+        const tax  = totalGross - base;
+        const paidAt = new Date(inv.status_transitions?.paid_at ? inv.status_transitions.paid_at * 1000 : Date.now()).toISOString();
+
+        if (!custEmail) return { statusCode:200, headers:cors(), body: JSON.stringify({ ok:true }) };
+
+        // Determine kind based on priceId mapping
+        let kind = '';
+        let plan = '';
+        let interval = '';
+        if (priceId === PRICE_PREMIUM_MONTHLY) { kind = 'premium'; interval = 'monthly'; }
+        else if (priceId === PRICE_GROW_MONTHLY) { kind = 'provider-plan'; plan='grow'; interval='monthly'; }
+        else if (priceId === PRICE_GROW_YEARLY)  { kind = 'provider-plan'; plan='grow'; interval='yearly'; }
+        else if (priceId === PRICE_PRO_MONTHLY)  { kind = 'provider-plan'; plan='pro';  interval='monthly'; }
+        else if (priceId === PRICE_PRO_YEARLY)   { kind = 'provider-plan'; plan='pro';  interval='yearly'; }
+
+        if (kind === 'premium'){
+          // Extend premium by one interval (month)
+          try{
+            const cur = await supa.from('premium_users').select('premium_until').eq('email', custEmail).maybeSingle();
+            let start = new Date();
+            if (cur?.data?.premium_until && new Date(cur.data.premium_until).getTime() > Date.now()){
+              start = new Date(cur.data.premium_until);
+            }
+            start.setUTCMonth(start.getUTCMonth() + 1);
+            await supa.from('premium_users').upsert({ email: custEmail, premium_until: start.toISOString(), updated_at: new Date().toISOString() }, { onConflict: 'email' });
+          }catch(e){ console.error('[invoice] premium extend failed', e?.message||e); }
+          // Send renewal email with invoice
+          try{
+            const { seq, year } = await nextInvoiceNo();
+            const pdfBytes = await createInvoicePdf({ seqNo: seq, buyer: { name: '', email: custEmail }, totalGross, base, tax, paidAt, sessionId: inv.id, type: 'premium' });
+            let pdfUrl = null;
+            try{
+              const pathPdf = `invoices/${year}/${seq}.pdf`;
+              await supa.storage.from('invoices').upload(pathPdf, pdfBytes, { contentType: 'application/pdf', upsert: true });
+              const { data: signed } = await supa.storage.from('invoices').createSignedUrl(pathPdf, 60*60*24*30);
+              pdfUrl = signed?.signedUrl || null;
+            }catch(e){ console.warn('[invoice] upload renewal invoice failed', e?.message||e); }
+            await supa.from('invoices').insert({ seq_no: seq, year, customer_email: custEmail, items:[{name:'Premium NearGo (obnovitev)', qty:1, unit_price: totalGross}], currency:CURRENCY, subtotal: base, tax_rate: TAX_RATE, tax_amount: tax, total: totalGross, paid_at: paidAt, stripe_session_id: inv.id, type: 'premium', pdf_url: pdfUrl });
+            const subject = 'Premium – mesečna obnova';
+            const html = `<div style="font-family:Arial,Helvetica,sans-serif;background:#f6fbfe;padding:0;margin:0"><div style="max-width:680px;margin:0 auto;border:1px solid #e3eef7;border-radius:14px;overflow:hidden;background:#fff"><div style="padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #e3eef7;background:#fff"><div><svg width=\"36\" height=\"36\" viewBox=\"0 0 32 32\"><circle cx=\"16\" cy=\"16\" r=\"13\" fill=\"none\" stroke=\"#0b1b2b\" stroke-width=\"2\"/><circle cx=\"16\" cy=\"16\" r=\"8\" fill=\"none\" stroke=\"#0b1b2b\" stroke-width=\"2\" opacity=\"0.9\"/><circle cx=\"16\" cy=\"16\" r=\"3.2\" fill=\"#0b1b2b\"/></svg></div><div style=\"font-weight:900;font-size:20px;letter-spacing:.2px;color:#0b1b2b\">NearGo</div></div><div style="padding:20px 22px;color:#0b1b2b"><h2 style="margin:0 0 12px 0;font-size:20px">Hvala – Premium je podaljšan</h2><p>Račun je priložen kot PDF. Upravljanje: <a href="${PUBLIC_BASE_URL}/account/account.html#subscription" style="color:#0bbbd6;font-weight:800">odpri nastavitve</a>.</p></div></div></div>`;
+            const attachments = [{ name: `Racun-${seq}.pdf`, content: Buffer.from(pdfBytes).toString('base64') }];
+            if (process.env.BREVO_API_KEY) {
+              const email = new Brevo.SendSmtpEmail();
+              email.sender      = { email: FROM_EMAIL, name: FROM_NAME };
+              email.to          = [{ email: custEmail }];
+              email.subject     = subject;
+              email.htmlContent = html;
+              email.attachment  = attachments;
+              await brevoApi.sendTransacEmail(email);
+            } else {
+              const host = process.env.SMTP_HOST, port = Number(process.env.SMTP_PORT||0), user=process.env.SMTP_USER, pass=process.env.SMTP_PASS;
+              if (host && port && user && pass) {
+                const transporter = nodemailer.createTransport({ host, port, secure: port===465, auth:{ user, pass } });
+                await transporter.sendMail({ from: EMAIL_FROM, to: custEmail, subject, html, attachments: attachments.map(a=>({ filename:a.name, content: Buffer.from(a.content,'base64') })) });
+              }
+            }
+          }catch(e){ console.error('[invoice] premium renewal mail failed', e?.message||e); }
+          // Revenue-based points for premium renewal (unlimited), dedupe by invoice id
+          try{
+            if (custEmail && inv.id){
+              const adminUser = await supa.auth.admin.getUserByEmail(custEmail);
+              const uid = adminUser?.data?.user?.id || null;
+              if(uid){
+                const { data: dup } = await supa
+                  .from('rewards_ledger')
+                  .select('id')
+                  .eq('user_id', uid)
+                  .eq('reason','revenue_premium_renewal')
+                  .filter('metadata->>invoice_id','eq', inv.id)
+                  .limit(1);
+                if(!dup || !dup.length){
+                  await supa.rpc('award_revenue_points', {
+                    p_user_id: uid,
+                    p_amount_cents: totalGross,
+                    p_source: 'premium_renewal',
+                    p_metadata: JSON.stringify({ invoice_id: inv.id }),
+                    p_rate: 1
+                  });
+                }
+              }
+            }
+          }catch(e){ console.warn('[rewards] premium renewal revenue award failed', e?.message||e); }
+        } else if (kind === 'provider-plan'){
+          // Extend provider plan
+          try{
+            const days = (interval === 'yearly') ? 365 : 30;
+            const until = new Date();
+            until.setUTCDate(until.getUTCDate() + days);
+            await supa.from('provider_plans').upsert({ email: custEmail, plan, interval: interval || 'monthly', active_until: until.toISOString(), updated_at: new Date().toISOString() }, { onConflict: 'email' });
+          }catch(e){ console.error('[invoice] provider plan extend failed', e?.message||e); }
+          // Email provider with features/links
+          try{
+            const subject = plan==='pro' ? 'Pro paket – podaljšan' : 'Grow paket – podaljšan';
+            const html = `<div style="font-family:Arial,Helvetica,sans-serif;background:#f6fbfe;padding:0;margin:0"><div style="max-width:680px;margin:0 auto;border:1px solid #e3eef7;border-radius:14px;overflow:hidden;background:#fff"><div style="padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #e3eef7;background:#fff"><div><svg width=\"36\" height=\"36\" viewBox=\"0 0 32 32\"><circle cx=\"16\" cy=\"16\" r=\"13\" fill=\"none\" stroke=\"#0b1b2b\" stroke-width=\"2\"/><circle cx=\"16\" cy=\"16\" r=\"8\" fill=\"none\" stroke=\"#0b1b2b\" stroke-width=\"2\" opacity=\"0.9\"/><circle cx=\"16\" cy=\"16\" r=\"3.2\" fill=\"#0b1b2b\"/></svg></div><div style=\"font-weight:900;font-size:20px;letter-spacing:.2px;color:#0b1b2b\">NearGo</div></div><div style="padding:20px 22px;color:#0b1b2b"><h2 style="margin:0 0 12px 0;font-size:20px">Hvala – paket je podaljšan</h2><ul><li><a href="${PUBLIC_BASE_URL}/scan.html" style="color:#0bbbd6;font-weight:800">QR skener</a></li><li><a href="${PUBLIC_BASE_URL}/org-stats.html" style="color:#0bbbd6;font-weight:800">Analitika</a></li>${plan==='pro'?`<li>Pro dodatno: Koledar NearGo (na zahtevo) ter napredna analitika.</li>`:''}</ul></div></div></div>`;
+            const { seq, year } = await nextInvoiceNo();
+            const pdfBytes = await createInvoicePdf({ seqNo: seq, buyer: { name:'', email: custEmail }, totalGross, base, tax, paidAt, sessionId: inv.id, type: 'provider-plan' });
+            let attachments = [{ name: `Racun-${seq}.pdf`, content: Buffer.from(pdfBytes).toString('base64') }];
+            if (process.env.BREVO_API_KEY) {
+              const email = new Brevo.SendSmtpEmail();
+              email.sender      = { email: FROM_EMAIL, name: FROM_NAME };
+              email.to          = [{ email: custEmail }];
+              email.subject     = subject;
+              email.htmlContent = html;
+              email.attachment  = attachments;
+              await brevoApi.sendTransacEmail(email);
+            } else {
+              const host = process.env.SMTP_HOST, port = Number(process.env.SMTP_PORT||0), user=process.env.SMTP_USER, pass=process.env.SMTP_PASS;
+              if (host && port && user && pass) {
+                const transporter = nodemailer.createTransport({ host, port, secure: port===465, auth:{ user, pass } });
+                await transporter.sendMail({ from: EMAIL_FROM, to: custEmail, subject, html, attachments: attachments.map(a=>({ filename:a.name, content: Buffer.from(a.content,'base64') })) });
+              }
+            }
+          }catch(e){ console.error('[invoice] provider plan renewal email failed', e?.message||e); }
+        }
+
+      }catch(e){ console.error('[webhook] invoice handler failed', e?.message||e); }
+      return { statusCode:200, headers:cors(), body: JSON.stringify({ ok:true }) };
+    }
+
     if (stripeEvent.type !== "checkout.session.completed") {
       return { statusCode:200, headers:cors(), body: JSON.stringify({ ok:true, ignored: stripeEvent.type }) };
     }
 
     const s  = stripeEvent.data.object;
     const md = s.metadata || {};
+    // Map email -> stripe customer id (for billing portal later)
+    try{
+      const customerId = s.customer || null;
+      const custEmail  = (s.customer_details && s.customer_details.email) || s.customer_email || null;
+      if (customerId && custEmail){
+        const store = await getStore('stripe-customers');
+        await store.set(`email:${custEmail.toLowerCase()}`, customerId);
+      }
+    }catch(e){ console.warn('[webhook] store customer mapping failed', e?.message||e); }
 
   const purchaseType   = (md.type || "").toString();
   const type           = (purchaseType === "coupon") ? "coupon" : (purchaseType === "premium" ? "premium" : "ticket");
@@ -197,18 +363,20 @@ export const handler = async (event) => {
 
   const token     = (crypto.randomUUID && crypto.randomUUID()) || crypto.randomBytes(16).toString("hex");
   const redeemUrl = `${PUBLIC_BASE_URL}/r/${token}`; // QR uporablja samo kupon/vstopnica
-  const qrPngBuffer = (type === 'premium') ? null : await QRCode.toBuffer(redeemUrl, { type:"png", margin:1, width:512 });
+  const qrPngBuffer = (type === 'premium' || type==='provider-plan') ? null : await QRCode.toBuffer(redeemUrl, { type:"png", margin:1, width:512 });
 
     const display_benefit_final = displayBenefit || summarizeBenefit({benefitType,benefitValue,freebieText});
 
     const mailIntro = type === 'coupon'
       ? `Kupili ste kupon za: ${eventTitle}`
-      : (type === 'premium' ? `Kupili ste NearGo Premium` : `Kupili ste vstopnico za: ${eventTitle}`);
-    const subject = type === 'coupon' ? 'Kupon – potrdilo' : (type === 'premium' ? 'Premium – potrdilo' : 'Vstopnica – potrdilo');
+      : (type === 'premium' ? `Kupili ste NearGo Premium` : (type==='provider-plan' ? `Aktiviran paket za organizatorje` : `Kupili ste vstopnico za: ${eventTitle}`));
+    const subject = type === 'coupon' ? 'Kupon – potrdilo' : (type === 'premium' ? 'Premium – potrdilo' : (type==='provider-plan' ? 'Paket za organizatorje – potrdilo' : 'Vstopnica – potrdilo'));
 
     // vnos v tickets (z created_at za analitiko)
     const nowIso = new Date().toISOString();
-    const { error: insErr } = await supa.from("tickets").insert({
+    // Insert into tickets only for coupon/ticket/premium (premium for My overview)
+    const shouldInsertTicket = (type === 'coupon' || type === 'ticket' || type === 'premium');
+    const { error: insErr } = shouldInsertTicket ? await supa.from("tickets").insert({
       event_id: eventId,
       type,
       display_benefit: display_benefit_final,
@@ -222,7 +390,7 @@ export const handler = async (event) => {
       issued_at: nowIso,
       created_at: nowIso,
       customer_email: customerEmail
-    });
+    }) : { error: null };
     if (insErr) {
       console.error("[webhook] insert tickets error:", insErr);
       return { statusCode:200, headers:cors(), body: JSON.stringify({ received:true, db:"error" }) };
@@ -269,6 +437,12 @@ export const handler = async (event) => {
       }
     }
 
+    // QR PDF (attachment only, not stored)
+    let qrPdfBytes = null;
+    if (qrPngBuffer) {
+      try{ qrPdfBytes = await createQrPdf({ redeemUrl, token, title: eventTitle }); }catch(e){ console.warn('[webhook] qr pdf failed', e?.message||e); }
+    }
+
     let pdfUrl = null;
     if (pdfPath) {
       const { data: signed } = await supa.storage.from("invoices").createSignedUrl(pdfPath, 60*60*24*30);
@@ -291,19 +465,63 @@ export const handler = async (event) => {
       });
     }
 
-    // Premium purchase: grant premium access (default 1 year)
+    // Premium purchase: grant premium access (refactored to +1 month on one-off payment if not subscription)
     if (type === 'premium' && customerEmail) {
       try {
-        const until = new Date();
-        // assume yearly premium for now
-        until.setUTCFullYear(until.getUTCFullYear() + 1);
+        const cur = await supa.from('premium_users').select('premium_until').eq('email', customerEmail).maybeSingle();
+        let base = new Date();
+        if (cur?.data?.premium_until && new Date(cur.data.premium_until).getTime() > Date.now()) {
+          base = new Date(cur.data.premium_until);
+        }
+        base.setUTCMonth(base.getUTCMonth() + 1);
         await supa.from('premium_users').upsert(
-          { email: customerEmail, premium_until: until.toISOString(), updated_at: new Date().toISOString() },
+          { email: customerEmail, premium_until: base.toISOString(), updated_at: new Date().toISOString() },
           { onConflict: 'email' }
         );
       } catch (e) {
         console.error('[webhook] premium upsert failed:', e?.message || e);
       }
+    }
+    // Revenue-based points for purchases (coupon/ticket/premium), dedupe by session id
+    try{
+      if(customerEmail && s.id){
+        const adminUser = await supa.auth.admin.getUserByEmail(customerEmail);
+        const uid = adminUser?.data?.user?.id || null;
+        if(uid){
+          const revReason = (type==='coupon') ? 'revenue_coupon' : (type==='ticket') ? 'revenue_ticket' : (type==='premium' ? 'revenue_premium' : null);
+          if(revReason){
+            const { data: dup } = await supa
+              .from('rewards_ledger')
+              .select('id')
+              .eq('user_id', uid)
+              .eq('reason', revReason)
+              .filter('metadata->>session_id','eq', s.id)
+              .limit(1);
+            if(!dup || !dup.length){
+              await supa.rpc('award_revenue_points', {
+                p_user_id: uid,
+                p_amount_cents: totalGross,
+                p_source: revReason.replace('revenue_',''),
+                p_metadata: JSON.stringify({ session_id: s.id, event_id: eventId }),
+                p_rate: 1
+              });
+            }
+          }
+        }
+      }
+    }catch(e){ console.warn('[rewards] purchase revenue award failed', e?.message||e); }
+    // Referral premium bonus: if user has referral row not yet rewarded for premium
+    if(type==='premium' && customerEmail){
+      try{
+        const adminUser = await supa.auth.admin.getUserByEmail(customerEmail); const uid = adminUser?.data?.user?.id || null;
+        if(uid){
+          const { data: ref } = await supa.from('referrals').select('id,referrer_id,premium_rewarded').eq('referred_email', customerEmail).maybeSingle();
+          if(ref && ref.referrer_id && !ref.premium_rewarded){
+            await supa.rpc('add_points',{ p_user_id: ref.referrer_id, p_points: 100, p_reason:'referral_premium', p_metadata: JSON.stringify({ referred_email: customerEmail }) });
+            await supa.from('referrals').update({ premium_rewarded:true }).eq('id', ref.id);
+          }
+        }
+      }catch(e){ console.warn('[rewards] referral premium award failed', e?.message||e); }
     }
 
     // ——— EMAIL (profil: bel header + črn napis + tarča) ———
@@ -314,7 +532,7 @@ export const handler = async (event) => {
           <circle cx="16" cy="16" r="8"  fill="none" stroke="#0b1b2b" stroke-width="2" opacity="0.9"/>
           <circle cx="16" cy="16" r="3.2" fill="#0b1b2b"/>
         </svg>`;
-      const benefitPretty = display_benefit_final;
+  const benefitPretty = display_benefit_final;
       const whenText  = startIso ? new Date(startIso).toLocaleString() : "";
       const imgInMail = imageUrl || null;
 
@@ -326,7 +544,10 @@ export const handler = async (event) => {
       const manageUrl = `${PUBLIC_BASE_URL}/account/account.html#subscription`;
       const itemHtml = (type === "premium")
         ? `<div style="font-weight:900;margin-bottom:6px">NearGo Premium</div><div style="margin:2px 0">Naročnina: <b>1×</b></div>`
-        : `<div style="font-weight:900;margin-bottom:6px">${escapeHtml(eventTitle)}</div><div style="margin:2px 0">${ type === "coupon" ? (benefitLabel + ': <b>' + escapeHtml(benefitPretty || 'ugodnost') + '</b>') : 'Vstopnica: <b>1×</b>' }</div>`;
+        : (type === 'provider-plan'
+            ? `<div style="font-weight:900;margin-bottom:6px">Paket za organizatorje</div><div style="margin:2px 0">${escapeHtml(md.plan || '')} – ${escapeHtml(md.interval || '')}</div>`
+            : `<div style="font-weight:900;margin-bottom:6px">${escapeHtml(eventTitle)}</div><div style="margin:2px 0">${ type === "coupon" ? (benefitLabel + ': <b>' + escapeHtml(benefitPretty || 'ugodnost') + '</b>') : 'Vstopnica: <b>1×</b>' }</div>`);
+      const evUrl = md.event_url || '';
       const html = `
         <div style="font-family:Arial,Helvetica,sans-serif;background:#f6fbfe;padding:0;margin:0">
           <div style="max-width:680px;margin:0 auto;border:1px solid #e3eef7;border-radius:14px;overflow:hidden;background:#fff">
@@ -340,10 +561,11 @@ export const handler = async (event) => {
             <div style="padding:20px 22px;color:#0b1b2b">
               <h2 style="margin:0 0 12px 0;font-size:20px;line-height:1.35">${escapeHtml(mailIntro)}</h2>
 
-              ${(venueText || whenText) ? `
+              ${(venueText || whenText || evUrl) ? `
                 <div style="border:1px solid #e3eef7;border-radius:12px;padding:12px 14px;margin:10px 0;background:#f9fcff">
                   ${ venueText ? `<div style="margin:2px 0"><b>Lokacija:</b> ${escapeHtml(venueText)}</div>` : '' }
                   ${ whenText  ? `<div style="margin:2px 0"><b>Termin:</b> ${escapeHtml(whenText)}</div>` : '' }
+                  ${ evUrl     ? `<div style=\"margin:2px 0\"><b>Povezava:</b> <a href=\"${evUrl}\" style=\"color:#0bbbd6;font-weight:800\">odpri</a></div>` : '' }
                 </div>` : ''}
 
               ${ imgInMail ? `<img src="${imgInMail}" alt="" width="100%" style="max-height:240px;object-fit:cover;border-radius:12px;border:1px solid #e3eef7;margin:8px 0 14px">` : "" }
@@ -355,19 +577,35 @@ export const handler = async (event) => {
                 </div>
               </div>
 
-              ${ type!=="premium" ? `
+              ${ (type!=="premium" && type!=="provider-plan") ? `
               <p style="margin:12px 0">
                 ${type==="coupon" ? "QR koda kupona" : "QR koda vstopnice"} je priložena (<i>qr.png</i>)${ shouldInvoice ? `, račun pa kot PDF (<i>Racun-${seq}.pdf</i>).` : "."}
                 <br><b>Vstopnica/kupon je shranjena tudi v razdelku “Moje” v aplikaciji NearGo.</b>
+                <br>Hiter dostop: <a href="${PUBLIC_BASE_URL}/my.html" style="color:#0bbbd6;font-weight:800">Moje</a>
                 <br><span style="opacity:.8">Št. kode:</span> <code style="font-weight:700">${escapeHtml(token)}</code>
               </p>` : `
-              <p style="margin:12px 0">
+              ${(type==='premium')?`<p style="margin:12px 0">
                 Račun je priložen kot PDF (<i>Racun-${seq}.pdf</i>).
                 <br>Upravljanje naročnine: <a href="${manageUrl}" style="color:#0bbbd6;font-weight:800">odpri nastavitve</a>.
-              </p>
+              </p>`:''}
               <div style="margin:16px 0 0">
-                <a href="${manageUrl}" style="display:inline-block;background:#0bbbd6;color:#fff;font-weight:900;padding:10px 16px;border-radius:999px;text-decoration:none">Upravljaj naročnino</a>
+                ${ type==='premium' ? `<a href="${manageUrl}" style="display:inline-block;background:#0bbbd6;color:#fff;font-weight:900;padding:10px 16px;border-radius:999px;text-decoration:none">Upravljaj naročnino</a>` : ''}
               </div>`}
+
+              ${ type==="premium" ? `
+              <div style="margin:18px 0 4px;font-size:13px;line-height:1.5;color:#0b1b2b;background:#f9fcff;padding:12px 14px;border:1px solid #e3eef7;border-radius:12px">
+                <b>Preklic / odjava:</b> Premium lahko prekineš kadarkoli – dostop ostane aktiven do izteka obdobja.
+                <br>Če si nadgradil preko Stripe (spletni nakup), preklic izvedeš v razdelku Nastavitve/Račun.
+                <br>Če si kupil preko Google Play ali Apple Store aplikacije, naročnino upravljaš v trgovini:
+                <br><a href="https://play.google.com/store/account/subscriptions" style="color:#0bbbd6;font-weight:700">Google Play naročnine</a> • <a href="https://support.apple.com/sl-si/HT202039" style="color:#0bbbd6;font-weight:700">Apple navodila za preklic</a>
+              </div>` : '' }
+              ${ type==="provider-plan" ? `
+              <div style="margin:18px 0 4px;font-size:13px;line-height:1.5;color:#0b1b2b;background:#f9fcff;padding:12px 14px;border:1px solid #e3eef7;border-radius:12px">
+                <b>Dostop za organizatorje:</b>
+                <br>• QR skener: <a href="${PUBLIC_BASE_URL}/scan.html" style="color:#0bbbd6;font-weight:700">odpri</a>
+                <br>• Analitika: <a href="${PUBLIC_BASE_URL}/org-stats.html" style="color:#0bbbd6;font-weight:700">odpri</a>
+                ${ (md.plan==='pro') ? '<br>• Pro dodatno: Koledar NearGo in napredna analitika (na zahtevo).' : '' }
+              </div>` : '' }
 
               <div style="margin:18px 0 4px;color:#5b6b7b;font-size:13px">
                 Vprašanja? <a href="mailto:${SUPPORT_EMAIL}" style="color:#0bbbd6;font-weight:800">${SUPPORT_EMAIL}</a>
@@ -378,7 +616,8 @@ export const handler = async (event) => {
 
       try {
         const attachments = [
-          ...(qrPngBuffer ? [{ name: "qr.png", content: qrPngBuffer.toString("base64") }] : [])
+          ...(qrPngBuffer ? [{ name: "qr.png", content: qrPngBuffer.toString("base64") }] : []),
+          ...(qrPdfBytes ? [{ name: "qr.pdf", content: Buffer.from(qrPdfBytes).toString('base64') }] : [])
         ];
         if (shouldInvoice && pdfBytes) attachments.push({ name: `Racun-${seq}.pdf`, content: Buffer.from(pdfBytes).toString("base64") });
 
@@ -394,7 +633,7 @@ export const handler = async (event) => {
           const host = process.env.SMTP_HOST, port = Number(process.env.SMTP_PORT||0), user=process.env.SMTP_USER, pass=process.env.SMTP_PASS;
           if (host && port && user && pass) {
             const transporter = nodemailer.createTransport({ host, port, secure: port===465, auth:{ user, pass } });
-            await transporter.sendMail({ from: EMAIL_FROM, to: customerEmail, subject, html });
+            await transporter.sendMail({ from: EMAIL_FROM, to: customerEmail, subject, html, attachments: attachments.map(a=>({ filename:a.name, content: Buffer.from(a.content,'base64') })) });
           } else {
             console.warn('[webhook] No email provider configured (Brevo/SMTP)');
           }

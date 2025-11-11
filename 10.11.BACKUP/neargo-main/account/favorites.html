@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Moje – Najljubše</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <style>.wrap{max-width:900px;margin:20px auto;padding:14px}.card{background:#fff;border:1px solid #e6eef7;padding:14px;border-radius:12px}</style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="card">
+      <h1>Najljubše</h1>
+      <div id="favList">Nalagam...</div>
+    </div>
+  </main>
+  <script>
+    document.addEventListener('DOMContentLoaded', async ()=>{
+      const em = localStorage.getItem('user_email')||'';
+      if(!em){ document.getElementById('favList').textContent='Prijavite se za prikaz najljubših.'; return; }
+      try{
+        const r = await fetch('/.netlify/functions/my?email='+encodeURIComponent(em));
+        const data = await r.json();
+        document.getElementById('favList').textContent = 'Funkcija za najljubše še ni implementirana, prikažemo vaše vstopnice kot demo.';
+      }catch(e){ document.getElementById('favList').textContent='Napaka pri nalaganju.'; }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Uredi ponudbo – NearGo</title>
+  <script type="module" src="/assets/categories.js"></script>
+  <style>
+    :root{ --bg:#f6fbfe; --card:#fff; --text:#0b1b2b; --muted:#5b6b7b; --border:#e3eef7; --brand:#0bbbd6; --shadow:0 12px 30px rgba(0,0,0,.06);}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    .wrap{max-width:980px;margin:22px auto;padding:14px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:16px}
+    h1{margin:6px 0 10px;font-size:22px}
+    label{display:block;margin:10px 0 6px;font-weight:800}
+    input,textarea,select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);font:15px/1.4}
+    textarea{min-height:120px}
+    .row{display:grid;gap:10px;grid-template-columns:1fr}
+    @media(min-width:700px){ .row-2{grid-template-columns:1fr 1fr} .row-3{grid-template-columns:1fr 1fr 1fr} }
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .btn{background:var(--brand);color:#fff;border:0;border-radius:12px;padding:10px 14px;font-weight:900;cursor:pointer}
+    .btn.link{background:#fff;color:var(--text);border:1px solid var(--border)}
+    .muted{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Uredi dogodek</h1>
+      <div id="msg" class="muted"></div>
+
+      <div class="row row-3">
+        <div>
+          <label>Naslov</label>
+          <input id="eventName">
+        </div>
+        <div>
+          <label>Prizorišče</label>
+          <input id="venue">
+        </div>
+        <div>
+          <label>Mesto/kraj</label>
+          <input id="city">
+        </div>
+      </div>
+
+      <div class="row row-3">
+        <div>
+          <label>Začetek</label>
+          <input id="start" type="datetime-local">
+        </div>
+        <div>
+          <label>Konec</label>
+          <input id="end" type="datetime-local">
+        </div>
+        <div>
+          <label>Kategorija</label>
+          <div id="editCategoryChips" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"></div>
+          <input type="hidden" id="category">
+          <script>
+          (function(){
+            let wrapEl = null;
+            let inputEl = null;
+            let cache = [];
+
+            const normalizeList = (list) => {
+              if (!Array.isArray(list)) return [];
+              return list
+                .filter((cat) => cat && cat.key)
+                .map((cat) => ({
+                  key: cat.key,
+                  label: cat.label || cat.key,
+                  emoji: cat.emoji || '✨'
+                }));
+            };
+
+            const getCanonicalList = () => {
+              const published = window.NearGoCategories;
+              if (published && Array.isArray(published.events) && published.events.length) {
+                return normalizeList(published.events);
+              }
+              const bootstrap = window.NearGoCategoryBootstrap;
+              if (bootstrap && Array.isArray(bootstrap.events) && bootstrap.events.length) {
+                return normalizeList(bootstrap.events);
+              }
+              const source = window.NearGoCategorySource;
+              if (source && Array.isArray(source.events) && source.events.length) {
+                return normalizeList(source.events);
+              }
+              return [];
+            };
+
+            const toggleLabel = (chip, show) => {
+              const label = chip.querySelector('.cat-label');
+              if (!label) return;
+              if (show) {
+                label.style.display = 'inline';
+              } else if (!chip.classList.contains('active')) {
+                label.style.display = 'none';
+              }
+            };
+
+            const setActive = (key) => {
+              if (!wrapEl || !inputEl) return;
+              const buttons = Array.from(wrapEl.querySelectorAll('.cat'));
+              let found = false;
+              buttons.forEach((btn) => {
+                const match = btn.dataset.cat === key;
+                btn.classList.toggle('active', match);
+                toggleLabel(btn, match);
+                if (match) found = true;
+              });
+              if (!found && buttons.length) {
+                buttons[0].classList.add('active');
+                toggleLabel(buttons[0], true);
+                inputEl.value = buttons[0].dataset.cat;
+                return;
+              }
+              if (found) inputEl.value = key;
+            };
+
+            window.NearGoEditCategoryChips = {
+              setActive
+            };
+
+            const buildChip = (cat) => {
+              const chip = document.createElement('button');
+              chip.className = 'chip cat';
+              chip.type = 'button';
+              chip.dataset.cat = cat.key;
+
+              const iconSpan = document.createElement('span');
+              iconSpan.className = 'cat-icon';
+              iconSpan.textContent = cat.emoji || '✨';
+
+              const labelSpan = document.createElement('span');
+              labelSpan.className = 'cat-label';
+              labelSpan.textContent = cat.label || cat.key;
+              labelSpan.style.display = 'none';
+
+              chip.append(iconSpan, labelSpan);
+
+              chip.addEventListener('mouseenter', () => toggleLabel(chip, true));
+              chip.addEventListener('mouseleave', () => toggleLabel(chip, false));
+              chip.addEventListener('touchstart', () => toggleLabel(chip, true));
+              chip.addEventListener('touchend', () => toggleLabel(chip, false));
+              chip.addEventListener('click', () => setActive(cat.key));
+
+              return chip;
+            };
+
+            const render = (cats) => {
+              if (!wrapEl || !inputEl) return;
+              wrapEl.innerHTML = '';
+              cache = normalizeList(cats && cats.length ? cats : getCanonicalList());
+              cache.forEach((cat) => {
+                wrapEl.appendChild(buildChip(cat));
+              });
+              const current = inputEl.value || (cache[0] && cache[0].key) || '';
+              setActive(current);
+            };
+
+            const init = () => {
+              wrapEl = document.getElementById('editCategoryChips');
+              inputEl = document.getElementById('category');
+              if (!wrapEl || !inputEl) return;
+              render(getCanonicalList());
+            };
+
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', init, { once: true });
+            } else {
+              init();
+            }
+
+            document.addEventListener('neargo:categories-ready', () => {
+              render(getCanonicalList());
+            }, { once: true });
+          })();
+          </script>
+        </div>
+      </div>
+
+      <div class="row row-2">
+        <div>
+          <label>Povezava (več info / zunanji nakup)</label>
+          <input id="url">
+        </div>
+        <div>
+          <label>Tip ponudbe</label>
+          <select id="offerType">
+            <option value="none">(brez plačila)</option>
+            <option value="ticket">Vstopnice (NearGo)</option>
+            <option value="coupon">Kupon (NearGo)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row row-2">
+        <div>
+          <label>Cena (glavna)</label>
+          <input id="price" type="number" step="0.01" min="0">
+        </div>
+        <div>
+          <label>Izpostavi (7 dni)</label>
+          <select id="featured"><option value="false">Ne</option><option value="true">Da</option></select>
+        </div>
+      </div>
+
+      <div>
+        <label>Opis</label>
+        <textarea id="description" maxlength="800"></textarea>
+        <div class="muted" id="descCount">0 / 800</div>
+      </div>
+
+      <div class="actions">
+        <button id="save" class="btn">Shrani spremembe</button>
+        <a id="back" class="btn link" href="/">Nazaj na domov</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const msg = $("#msg");
+    const qs = new URLSearchParams(location.search);
+    const token = qs.get("token")||"";
+    const key   = qs.get("key")||""; // opcijsko: če pride v linku, je hitrejše
+
+    if(!token){ msg.textContent="Manjka edit token."; }
+
+    // števec opis
+    const ta=$("#description"), dc=$("#descCount");
+    const upd=()=>{ const n=(ta.value||"").length; dc.textContent=`${n} / 800`; if(n>800) ta.value=ta.value.slice(0,800); };
+    ["input","change"].forEach(ev=>ta.addEventListener(ev,upd));
+
+    // naloži
+    (async function load(){
+      try{
+        const url = "/.netlify/functions/provider-edit?action=load&token="+encodeURIComponent(token)+(key?("&key="+encodeURIComponent(key)):"");
+        const r = await fetch(url);
+        const data = await r.json().catch(()=>({}));
+        if(!r.ok || !data.ok){ msg.textContent = data.error || "Napaka pri nalaganju."; return; }
+
+  const e = data.item||{};
+        $("#eventName").value = e.eventName||"";
+        $("#venue").value     = e.venue||"";
+        $("#city").value      = e.city||e.city2||"";
+        $("#start").value     = e.start ? new Date(e.start).toISOString().slice(0,16) : "";
+        $("#end").value       = e.end   ? new Date(e.end).toISOString().slice(0,16)   : "";
+        $("#category").value  = e.category||"";
+  window.NearGoEditCategoryChips?.setActive(e.category || "");
+        $("#url").value       = e.url||"";
+        $("#offerType").value = e.offerType||e.saleType||"none";
+        $("#price").value     = (e.price!=null? e.price : "");
+        $("#featured").value  = String(!!e.featured);
+        $("#description").value = e.description||"";
+        upd();
+      }catch(e){
+        msg.textContent="Napaka pri nalaganju.";
+      }
+    })();
+
+    // shrani
+    $("#save").onclick = async ()=>{
+      const body = {
+        token, key,
+        updates:{
+          eventName: $("#eventName").value.trim(),
+          venue:     $("#venue").value.trim(),
+          city:      $("#city").value.trim(),
+          start:     $("#start").value ? new Date($("#start").value).toISOString() : null,
+          end:       $("#end").value   ? new Date($("#end").value).toISOString()   : null,
+          category:  $("#category").value,
+          url:       $("#url").value.trim(),
+          offerType: $("#offerType").value,
+          price:     $("#price").value === "" ? null : Number($("#price").value),
+          featured:  $("#featured").value === "true",
+          description: $("#description").value.trim()
+        }
+      };
+      msg.textContent="Shranjujem…";
+      try{
+        const r = await fetch("/.netlify/functions/provider-edit", { method:"POST", headers:{ "content-type":"application/json" }, body:JSON.stringify(body) });
+        const data = await r.json().catch(()=>({}));
+        if(!r.ok || !data.ok){ msg.textContent = "Napaka: "+(data.error||""); return; }
+        msg.textContent="✅ Shranjeno.";
+      }catch(e){ msg.textContent="Napaka pri shranjevanju."; }
+    };
+  </script>
+</body>
+</html>

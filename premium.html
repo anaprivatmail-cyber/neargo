@@ -1,162 +1,181 @@
 <!DOCTYPE html>
 <html lang="sl">
 <head>
-	<meta charset="UTF-8">
-	<title>Premium uporabnik</title>
-	<link rel="stylesheet" href="assets/app.css">
-	<script src="assets/boot-utils.js"></script>
-	<script type="module" src="assets/categories.js"></script>
+  <meta charset="UTF-8">
+  <title>Premium NearGo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="assets/app.css">
+  <script src="assets/boot-utils.js"></script>
+  <script type="module" src="assets/categories.js"></script>
 </head>
 <body>
-	<header style="background:linear-gradient(90deg,#e9f7ff 60%,#0bbbd6 100%);padding:18px 0 10px 0;box-shadow:0 2px 12px rgba(11,187,214,.08);margin-bottom:18px;">
-		<div style="max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;">
-			<a href="/" style="font-size:1.7em;font-weight:900;color:#0bbbd6;text-decoration:none;letter-spacing:-1px;">NearGo</a>
-					<nav>
-						<a href="/my.html" style="font-weight:700;color:#111;margin-right:18px;">Moje</a>
-						<a href="/premium.html" style="font-weight:700;color:#0bbbd6;">Premium</a>
-					</nav>
-		</div>
-	</header>
+  <header style="background:linear-gradient(90deg,#e9f7ff 55%,#0bbbd6 100%);padding:14px 0 10px;box-shadow:0 2px 12px rgba(11,187,214,.08);margin-bottom:10px;">
+    <div style="max-width:940px;margin:0 auto;display:flex;align-items:center;gap:22px;padding:0 18px;">
+      <a href="/" style="font-size:1.7em;font-weight:900;color:#0bbbd6;text-decoration:none;letter-spacing:-1px;">NearGo</a>
+      <nav class="nav" style="display:flex;align-items:center;gap:12px;margin-left:auto;">
+        <a href="/my.html" class="pill" style="font-weight:700;color:#0b1b2b;">Moje</a>
+        <a href="/premium.html" class="pill" style="font-weight:700;color:#0bbbd6;">Premium</a>
+      </nav>
+    </div>
+  </header>
 
-		<div class="card" style="max-width:540px;margin:38px auto 28px auto;padding:38px 28px;text-align:center;box-shadow:0 8px 32px rgba(11,187,214,.12);border-radius:24px;background:linear-gradient(120deg,#e9f7ff 60%,#f6fff9 100%);">
-			<img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Premium" style="width:72px;height:72px;margin-bottom:18px;filter:drop-shadow(0 2px 8px #0bbbd6);">
-		<h1 style="font-size:2.3em;margin-bottom:12px;color:#0bbbd6;letter-spacing:-1px;">Premium NearGo</h1>
-		<div style="font-size:1.15em;margin-bottom:18px;color:#111;font-weight:600;">Več kot samo dogodki – odklenite izkušnjo, ki jo želite!</div>
-		<ul style="text-align:left;max-width:340px;margin:0 auto 22px auto;font-size:1.08em;line-height:1.7;color:#0b1b2b;">
-			<li><b style="color:#0bbbd6">Predčasna obvestila</b> o novih dogodkih in storitvah</li>
-			<li><b style="color:#0bbbd6">Ekskluzivne ponudbe</b> in popusti</li>
-			<li><b style="color:#0bbbd6">Napredni filtri</b> in iskanje</li>
-			<li><b style="color:#0bbbd6">Brez oglasov</b> in hitrejša uporaba</li>
-			<li><b style="color:#0bbbd6">VIP podpora</b> in presenečenja</li>
-			<li id="premiumMore" style="color:#11a67a;font-weight:700;">... in še več inovativnih funkcij!</li>
-		</ul>
-			<div style="margin:18px 0 10px 0;">
-				<span style="display:inline-block;background:#0bbbd6;color:#fff;padding:8px 18px;border-radius:999px;font-weight:900;font-size:1.1em;box-shadow:0 2px 12px rgba(11,187,214,.10);">Premium = več svobode, več ugodnosti</span>
-			</div>
+  <!-- HERO / BENEFITS -->
+  <div style="max-width:440px;margin:24px auto 18px;padding:30px 26px 32px;background:linear-gradient(120deg,#e9f7ff 60%,#f6fff9 100%);border-radius:28px;box-shadow:0 8px 34px rgba(11,187,214,.16);text-align:center;">
+    <img src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png" alt="Premium ikona" style="width:70px;height:70px;margin-bottom:18px;filter:drop-shadow(0 2px 8px rgba(11,187,214,.45));">
+    <h1 style="font-size:2em;margin:0 0 6px;color:#0bbbd6;letter-spacing:-0.5px;">Premium NearGo</h1>
+    <p style="margin:0 0 18px;font-weight:650;color:#0b1b2b;font-size:1.05em;">Hitrejši dostop do novih dogodkov in več ugodnosti pri kuponih.</p>
+    <ul style="text-align:left;margin:0 auto 22px;padding:0;list-style:none;max-width:320px;font-size:0.98em;line-height:1.55;">
+      <li style="display:flex;gap:8px;margin-bottom:10px;"><span>⏰</span><span><b style="color:#0bbbd6">15 min predčasna obvestila</b> pred javno objavo dogodkov.</span></li>
+      <li style="display:flex;gap:8px;margin-bottom:10px;"><span>🎟️</span><span><b style="color:#0bbbd6">Kuponi brez 2 € provizije</b> (navadni uporabnik plača 2 €).</span></li>
+      <li style="display:flex;gap:8px;margin-bottom:10px;"><span>🔔</span><span>Personalizirane <b style="color:#0bbbd6">predhodne kategorije</b> (izbira spodaj).</span></li>
+      <li style="display:flex;gap:8px;margin-bottom:10px;"><span>💬</span><span><b style="color:#0bbbd6">Prioritetna pomoč & povratne informacije</b>.</span></li>
+      <li style="display:flex;gap:8px;margin-bottom:4px;"><span>🏆</span><span>Nagrade & občasni brezplačni kupon presenečenja.</span></li>
+    </ul>
+    <div id="premiumActionWrap">
+      <button id="btnBuyPremium" class="btn" style="background:linear-gradient(90deg,#0bbbd6,#11a67a);color:#fff;font-weight:900;font-size:1.05em;padding:12px 30px;border:none;border-radius:999px;cursor:pointer;box-shadow:0 4px 18px rgba(11,187,214,.30);">
+        Aktiviraj Premium <span id="premiumPriceLabel" style="display:inline-block;margin-left:8px;font-weight:800;background:rgba(255,255,255,.18);padding:4px 10px;border-radius:999px;font-size:0.8em;">…</span>
+      </button>
+  <div id="premiumStatus" role="status" aria-live="polite" style="display:none;margin-top:10px;font-weight:800;color:#11a67a;">Premium aktivno 🎉 <span id="premiumUntil" style="font-weight:600;color:#0b1b2b;font-size:0.85em;margin-left:6px;"></span></div>
+      <div id="premiumLoginNeeded" style="display:none;margin-top:10px;font-weight:700;color:#d64c4c;">Za nakup se prijavite.</div>
+  <div id="premiumManage" style="display:none;margin-top:8px;font-size:12px;color:#0b1b2b;">Upravljanje naročnine na <a href="/account/account.html#subscription" style="color:#0bbbd6;font-weight:700;">računu</a>.</div>
+    </div>
+    <div style="margin-top:14px;font-size:12px;color:#5b6b7b;">Mesečna naročnina – prekineš lahko kadarkoli.</div>
+    <div style="margin-top:8px;font-size:12px;color:#5b6b7b;">Navadni kupon: 2,00 € provizije • Premium kupon: 0,00 €</div>
+  </div>
 
-			<div style="margin:24px 0 10px 0;text-align:left;">
-				<table style="width:100%;border-collapse:collapse;font-size:1em;">
-					<thead>
-						<tr style="background:#e9f7ff;color:#0bbbd6;font-weight:900;">
-							<th style="padding:8px 0;border-bottom:2px solid #0bbbd6;">Navadni</th>
-							<th style="padding:8px 0;border-bottom:2px solid #0bbbd6;">Premium</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr><td style="padding:8px 0;">Omejeni filtri</td><td style="padding:8px 0;">Napredni filtri</td></tr>
-						<tr><td style="padding:8px 0;">Občasni popusti</td><td style="padding:8px 0;">Ekskluzivne ponudbe</td></tr>
-						<tr><td style="padding:8px 0;">Obvestila z zamikom</td><td style="padding:8px 0;">Predčasna obvestila</td></tr>
-						<tr><td style="padding:8px 0;">Oglasi</td><td style="padding:8px 0;">Brez oglasov</td></tr>
-						<tr><td style="padding:8px 0;">Standardna podpora</td><td style="padding:8px 0;">VIP podpora</td></tr>
-					</tbody>
-				</table>
-			</div>
-		<form id="premiumEmailForm" style="margin-bottom:18px;">
-			<input type="email" id="premiumEmail" placeholder="Vpišite svoj email" required style="padding:10px 16px;border-radius:999px;border:1px solid #0bbbd6;font-size:1em;width:80%;max-width:320px;margin-bottom:8px;">
-			<button type="submit" id="btnBuyPremium" style="background:linear-gradient(90deg,#0bbbd6,#11a67a);color:#fff;font-weight:900;font-size:1.15em;padding:12px 34px;border:none;border-radius:999px;box-shadow:0 2px 12px rgba(11,187,214,.12);cursor:pointer;transition:background .2s;">Nadgradi v Premium <span id="premiumPriceLabel" style="font-weight:700;background:rgba(255,255,255,.18);padding:4px 10px;border-radius:999px;margin-left:8px;font-size:.8em;">…</span></button>
-				<script>
-				document.addEventListener('DOMContentLoaded', function() {
-					var buyPremiumBtn = document.getElementById('btnBuyPremium');
-					if (buyPremiumBtn) {
-						buyPremiumBtn.onclick = function(e) {
-							var loggedIn = !!localStorage.getItem('user_email') || !!localStorage.getItem('user_token');
-							if (!loggedIn) {
-								window.location.href = '/login.html?redirect=premium';
-								e.preventDefault();
-								return false;
-							}
-						};
-					}
-				});
-				</script>
-		</form>
-		<div id="premiumEmailConfirmation" style="display:none;color:#11a67a;font-weight:700;margin-bottom:8px;"></div>
-		<script>
-		function isMobileStore() {
-			const ua = navigator.userAgent || navigator.vendor || window.opera;
-			// Google Play WebView
-			if (/Android/.test(ua) && (/wv/.test(ua) || /Version\/\d+\.\d+/.test(ua))) return true;
-			// iOS App Store WebView
-			if (/iPhone|iPad|iPod/.test(ua) && /AppleWebKit/.test(ua) && !/Safari/.test(ua)) return true;
-			// Capacitor/Cordova/ReactNative
-			if (window.Capacitor || window.cordova || window.ReactNativeWebView) return true;
-			return false;
-		}
-		document.addEventListener('DOMContentLoaded', function() {
-			if (isMobileStore()) {
-				document.getElementById('premiumEmailForm').style.display = 'none';
-				document.getElementById('premiumEmailConfirmation').style.display = 'block';
-				document.getElementById('premiumEmailConfirmation').textContent = 'Nakup Premium v mobilni aplikaciji poteka preko Google Play ali Apple Store.';
-				document.getElementById('premiumEmailConfirmation').style.color = '#d64c4c';
-			}
-		});
-		</script>
-	</div>
+  <!-- EARLY NOTIFY CONFIG (shown only if Premium) -->
+  <section id="earlyNotifySection" style="max-width:460px;margin:0 auto 32px;display:none;">
+    <h2 style="margin:0 0 10px;font-size:1.25em;letter-spacing:-0.5px;color:#0b1b2b;">Moje predčasne kategorije</h2>
+    <p style="margin:0 0 12px;font-size:0.9em;color:#5b6b7b;">Izberite kaj vas zanima. Obvestila prejmete približno <b>15 minut</b> pred odprtjem javnosti.</p>
+    <form id="earlyNotifyForm" style="background:var(--card,#fff);padding:16px 14px;border:1px solid var(--chipborder,#cfe1ee);border-radius:18px;">
+      <div id="earlyNotifyCategoryList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
+      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;">Lokacija (kraj):
+        <input type="text" name="location" id="earlyNotifyLocation" placeholder="npr. Ljubljana" style="margin-top:4px;width:100%;padding:8px 12px;border:1px solid var(--chipborder,#cfe1ee);border-radius:12px;">
+      </label>
+      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;">Radij (km):
+        <input type="number" name="radius" id="earlyNotifyRadius" min="1" max="400" value="30" style="margin-top:4px;width:100%;padding:8px 12px;border:1px solid var(--chipborder,#cfe1ee);border-radius:12px;max-width:120px;">
+      </label>
+      <button type="submit" class="btn mini" style="margin-top:4px;">Shrani nastavitve</button>
+      <div id="earlyNotifyConfirmation" style="display:none;color:#11a67a;font-weight:700;margin-top:10px;font-size:13px;"></div>
+    </form>
+  </section>
 
-	<section id="earlyNotifySection" style="max-width:500px;margin:0 auto 24px auto;">
-		<h2>Predčasna obvestila</h2>
-		<p>Izberite kategorije ali tipe ponudb, za katere želite prejemati predčasna obvestila:</p>
-		<form id="earlyNotifyForm">
-			<div id="earlyNotifyCategoryList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;"></div>
-			<label style="margin-top:10px;display:block;">Lokacija (kraj): <input type="text" name="location" id="earlyNotifyLocation" placeholder="npr. Ljubljana"></label>
-			<label style="margin-top:6px;display:block;">Radij (km): <input type="number" name="radius" id="earlyNotifyRadius" min="1" max="400" value="30" style="width:80px;"></label>
-			<button type="submit" style="margin-top:14px;">Shrani nastavitve</button>
-		</form>
-		<div id="earlyNotifyConfirmation" style="display:none; color:green; margin-top:10px;"></div>
-	</section>
-	<script type="module" src="assets/js/app.js"></script>
-<script>
-// Fetch public config (price) & inject label
-(async function(){
-	try{
-		const r = await fetch('/api/public-config').then(x=>x.json());
-		if(r && r.premiumPriceCents){
-			const euros = (r.premiumPriceCents/100).toFixed(2).replace('.', ',');
-			const lbl = document.getElementById('premiumPriceLabel');
-			if(lbl) lbl.textContent = euros + ' €';
-		}
-	}catch{
-		const lbl = document.getElementById('premiumPriceLabel');
-		if(lbl) lbl.textContent = '5,00 €';
-	}
-})();
+  <!-- FAQ / INFO -->
+  <section style="max-width:460px;margin:0 auto 60px;font-size:0.85em;color:#5b6b7b;line-height:1.5;">
+    <h2 style="font-size:1.15em;margin:0 0 8px;color:#0b1b2b;">Pogosta vprašanja</h2>
+    <details style="margin-bottom:10px;">
+      <summary style="cursor:pointer;font-weight:700;color:#0b1b2b;">Kako prejmem obvestila prej?</summary>
+      <div style="margin-top:6px;">Po aktivaciji izbereš kategorije zgoraj. Obvestilo pošljemo ~15 minut pred javnim zagonom.</div>
+    </details>
+    <details style="margin-bottom:10px;">
+      <summary style="cursor:pointer;font-weight:700;color:#0b1b2b;">Kaj pomeni brez provizije za kupon?</summary>
+      <div style="margin-top:6px;">Navadni uporabnik plača 2 € za kupon. Premium uporabnik dobi kupon brez te provizije – prihrani vsakič.</div>
+    </details>
+    <details style="margin-bottom:10px;">
+      <summary style="cursor:pointer;font-weight:700;color:#0b1b2b;">Ali lahko prekličem?</summary>
+      <div style="margin-top:6px;">Da. Naročnino lahko prekineš kadarkoli. Dostop ostane aktiven do konca plačanega obdobja.</div>
+    </details>
+  </section>
 
-document.getElementById('premiumEmailForm')?.addEventListener('submit', async function(e) {
-	e.preventDefault();
-	const email = document.getElementById('premiumEmail')?.value?.trim();
-	const confirmation = document.getElementById('premiumEmailConfirmation');
-	if (!email) {
-		confirmation.textContent = 'Vpišite email.';
-		confirmation.style.display = 'block';
-		confirmation.style.color = 'red';
-		return;
-	}
-	// Stripe Checkout za Premium
-	try {
-		const payload = {
-			type: 'premium',
-			email,
-			successUrl: `${location.origin}/premium.html#success`,
-			cancelUrl: `${location.origin}/premium.html#cancel`
-		};
-		const r = await fetch('/api/checkout', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(payload)
-		}).then(x => x.json());
-			if (r && r.ok && r.url) {
-				location.href = r.url;
-			} else {
-				confirmation.textContent = 'Nakup Premium ni uspel.';
-				confirmation.style.display = 'block';
-				confirmation.style.color = 'red';
-			}
-	} catch {
-			confirmation.textContent = 'Nakup Premium ni uspel.';
-		confirmation.style.display = 'block';
-		confirmation.style.color = 'red';
-	}
-});
-</script>
+  <script type="module" src="assets/js/app.js"></script>
+  <script>
+  // Dinamična cena
+  (async function(){
+    try {
+      const r = await fetch('/api/public-config').then(x=>x.json());
+      if(r && r.premiumPriceCents){
+        const euros = (r.premiumPriceCents/100).toFixed(2).replace('.', ',');
+        const lbl = document.getElementById('premiumPriceLabel');
+        if(lbl) lbl.textContent = euros + ' €';
+      }
+    } catch(e){
+      const lbl = document.getElementById('premiumPriceLabel');
+      if(lbl) lbl.textContent = '5,00 €';
+    }
+  })();
+
+  function isLoggedIn(){
+    return !!localStorage.getItem('user_email') || !!localStorage.getItem('user_token');
+  }
+
+  async function fetchPremiumMeta(){
+    const email = localStorage.getItem('user_email');
+    if(!email) return null;
+    try{
+      const r = await fetch(`/api/my?email=${encodeURIComponent(email)}`).then(x=>x.json());
+      if(r && r.ok){
+        if(r.premium){ window.IS_PREMIUM = true; }
+        return { premium: !!r.premium, until: r.premium_until };
+      }
+    }catch(e){}
+    return null;
+  }
+
+  function fmtDate(d){
+    try{ if(!d) return ''; const dt = new Date(d); if(!dt || isNaN(dt.getTime())) return ''; return dt.toLocaleDateString('sl-SI', { day:'2-digit', month:'2-digit', year:'numeric'}); }catch{return ''}
+  }
+
+  async function updatePremiumUI(){
+    const wrap = document.getElementById('premiumActionWrap');
+    const btn = document.getElementById('btnBuyPremium');
+    const loginMsg = document.getElementById('premiumLoginNeeded');
+    const status = document.getElementById('premiumStatus');
+    const early = document.getElementById('earlyNotifySection');
+    const manage = document.getElementById('premiumManage');
+    const untilEl = document.getElementById('premiumUntil');
+    // If we don't yet know premium flag, attempt to fetch once (cheap)
+    if(typeof window.IS_PREMIUM === 'undefined' || window.IS_PREMIUM === false){
+      const meta = await fetchPremiumMeta();
+      if(meta && meta.premium){
+        window.IS_PREMIUM = true;
+        if(untilEl && meta.until){ untilEl.textContent = '(do ' + fmtDate(meta.until) + ')'; }
+      } else if(untilEl) { untilEl.textContent=''; }
+    }
+    const active = (typeof window.IS_PREMIUM !== 'undefined' && window.IS_PREMIUM === true);
+    if(active){
+      if(btn) btn.style.display = 'none';
+      if(status){ status.style.display = 'block'; }
+      if(loginMsg) loginMsg.style.display = 'none';
+      if(early) early.style.display = 'block';
+      if(manage) manage.style.display = 'block';
+    } else {
+      if(early) early.style.display = 'none';
+      if(isLoggedIn()){
+        if(btn) btn.style.display = 'inline-block';
+        if(loginMsg) loginMsg.style.display = 'none';
+        if(manage) manage.style.display = 'none';
+      } else {
+        if(btn) btn.style.display = 'none';
+        if(loginMsg) loginMsg.style.display = 'block';
+        if(manage) manage.style.display = 'none';
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    updatePremiumUI();
+    const btn = document.getElementById('btnBuyPremium');
+    if(btn){
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if(!isLoggedIn()){
+          window.location.href = '/login.html?next=/premium.html';
+          return;
+        }
+        btn.disabled = true; btn.textContent = 'Poteka …';
+        try{
+          const payload = { type: 'premium', successUrl: `${location.origin}/premium.html#success`, cancelUrl: `${location.origin}/premium.html#cancel` };
+          const r = await fetch('/api/checkout',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }).then(x=>x.json());
+          if(r && r.ok && r.url){ location.href = r.url; return; }
+          alert('Nakup ni uspel. Poskusite znova.');
+        }catch(err){ alert('Napaka pri nakupu.'); }
+        btn.disabled = false; btn.textContent = 'Aktiviraj Premium';
+      });
+    }
+  });
+  // Refresh after potential async global update (e.g. after login redirect)
+  setTimeout(()=>updatePremiumUI(), 1400);
+  setTimeout(()=>updatePremiumUI(), 4000);
+  </script>
 </body>
 </html>

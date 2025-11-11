@@ -9,7 +9,7 @@ const CORS = { 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Methods'
 const ok = (b)=>({ statusCode:200, headers:{ 'content-type':'application/json', ...CORS }, body: JSON.stringify(b) });
 const bad = (m,s=400)=>({ statusCode:s, headers:{ 'content-type':'application/json', ...CORS }, body: JSON.stringify({ ok:false, error:m }) });
 
-const MONTHLY_CAP = 300; // points per user per calendar month
+const MONTHLY_CAP = 300; // points per user per calendar month (soft actions only)
 
 export const handler = async (event) => {
   try{
@@ -48,15 +48,19 @@ export const handler = async (event) => {
         return bad('unknown_action');
     }
 
-    // Monthly cap check
-    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
-    const { data: rows2, error: rowsErr } = await supa.from('rewards_ledger').select('points').gte('created_at', monthStart.toISOString()).eq('user_id', user_id);
-    if (rowsErr) console.warn('monthly_sum_err', rowsErr.message);
-    const currentMonthTotal = (rows2 || []).reduce((s,r)=>s + (r.points||0), 0);
-    if (currentMonthTotal >= MONTHLY_CAP) return ok({ ok:false, skipped:'monthly_cap_reached' });
-    if (currentMonthTotal + points > MONTHLY_CAP) {
-      points = Math.max(0, MONTHLY_CAP - currentMonthTotal);
-      if (points === 0) return ok({ ok:false, skipped:'monthly_cap_reached' });
+    // Monthly cap check (applies only to soft actions; revenue_* and referral_premium are uncapped)
+    const isRevenue = action.startsWith('revenue_');
+    const isUncapped = isRevenue || action === 'referral_premium';
+    if (!isUncapped) {
+      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+      const { data: rows2, error: rowsErr } = await supa.from('rewards_ledger').select('points').gte('created_at', monthStart.toISOString()).eq('user_id', user_id);
+      if (rowsErr) console.warn('monthly_sum_err', rowsErr.message);
+      const currentMonthTotal = (rows2 || []).reduce((s,r)=>s + (r.points||0), 0);
+      if (currentMonthTotal >= MONTHLY_CAP) return ok({ ok:false, skipped:'monthly_cap_reached' });
+      if (currentMonthTotal + points > MONTHLY_CAP) {
+        points = Math.max(0, MONTHLY_CAP - currentMonthTotal);
+        if (points === 0) return ok({ ok:false, skipped:'monthly_cap_reached' });
+      }
     }
 
     // Cooldown per item: check rewards_ledger for same reason and same item_id within cooldownDays

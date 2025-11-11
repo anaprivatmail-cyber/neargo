@@ -1,0 +1,36 @@
+{
+  "name": "neargo",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "echo \"No build step\"",
+    "start": "netlify dev"
+  },
+  "dependencies": {
+    "@getbrevo/brevo": "^2.5.0",
+    "@netlify/blobs": "^6.5.0",
+    "@netlify/functions": "^2.7.0",
+    "@pdf-lib/fontkit": "^1.1.1",
+    "@supabase/supabase-js": "^2.45.0",
+    "busboy": "^1.6.0",
+    "nodemailer": "^6.10.1",
+    "pdf-lib": "^1.17.1",
+    "pg": "^8.11.3",
+    "qrcode": "^1.5.4",
+    "stripe": "^12.18.0",
+    "twilio": "^5.10.4",
+    "uuid": "^9.0.1"
+  },
+  "description": "Important setup steps for rewards & Supabase",
+  "devDependencies": {
+    "playwright": "^1.56.1"
+  },
+  "keywords": [],
+  "author": ""
+}

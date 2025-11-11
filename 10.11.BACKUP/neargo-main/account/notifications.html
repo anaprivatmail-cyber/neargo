@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Predhodna obvestila – NearGo</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <script src="/assets/boot-utils.js?v=20251110" defer></script>
+  <script>
+    // Fallback: če se edit način ne prikaže zaradi cache-a, ga ročno vključi.
+    (function(){
+      const url=new URL(location.href);
+      const enable = url.searchParams.get('edit')==='1' || (url.hash||'').toLowerCase().includes('edit');
+      if(!enable) return;
+      function ensure(){
+        if(window.__ng_edit_mode_loaded) return; // edit-mode.js se je že naložil
+        var s=document.createElement('script'); s.src='/assets/edit-mode.js?v=20251110'; s.defer=true; document.head.appendChild(s);
+      }
+      // poskusi po parsiranju dokumenta
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', ensure, { once: true }); else ensure();
+      // in čez 1s še enkrat, če bi prvi poskus odpovedal
+      setTimeout(ensure, 1000);
+    })();
+  </script>
+  <script type="module" src="/assets/categories.js?v=20251109"></script>
+  <!-- Leaflet (map krog) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body{background:linear-gradient(180deg,#e9f7ff 0%,#ffffff 70%);margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0b1b2b;-webkit-font-smoothing:antialiased}
+    a{text-decoration:none;color:inherit}
+    header.slim{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:10px;padding:8px 14px;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+    header.slim .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:20px;letter-spacing:-1px}
+    header.slim svg{width:30px;height:30px}
+  main{max-width:900px;margin:0 auto;padding:8px 14px 40px}
+  .card{background:#fff;border:1px solid var(--chipborder,#cfe1ee);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.06);margin-top:12px}
+    h1{font-size:1.55em;margin:0 0 4px 0;font-weight:900;letter-spacing:-0.5px}
+    .muted{color:var(--muted,#5b6b7b)}
+    .benefit{background:#e6fbf5;border:1px solid #baf0df;padding:10px 14px;border-radius:14px;font-weight:700;color:#05614d;font-size:.95em;margin-top:10px}
+    .upgrade-box{background:#fff6f6;border:1px solid #ffd1d1;color:#7a1b1b;padding:12px 16px;border-radius:14px;font-weight:700;font-size:.95em;margin-top:12px}
+  @keyframes shakeBox{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+  .upgrade-box.shake{animation:shakeBox .45s ease}
+    fieldset{border:none;margin:0;padding:0 0 10px 0}
+    legend{font-weight:800;font-size:.85em;text-transform:uppercase;letter-spacing:.5px;color:#0bbbd6;margin:0 0 6px 0}
+    .chips{display:flex;flex-wrap:wrap;gap:8px}
+    .cat-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;background:var(--chip,#fff);border:1px solid var(--chipborder,#cfe1ee);color:var(--muted,#5b6b7b);font-weight:800;font-size:14px;line-height:1;cursor:pointer;position:relative;transition:background .2s,border .2s,transform .15s}
+    .cat-chip:hover{transform:translateY(-1px);border-color:var(--primary,#0bbbd6)}
+    .cat-chip img,.cat-chip .cat-emoji{width:20px;height:20px;display:block;flex-shrink:0}
+    .cat-chip.active{background:var(--primary,#0bbbd6);color:#fff;border-color:transparent}
+    .cat-chip .cat-label{display:none;font-weight:800}
+    .cat-chip.show-label .cat-label,.cat-chip.active .cat-label{display:inline}
+    .subwrap{margin-top:10px;padding:10px;border:1px dashed var(--chipborder,#cfe1ee);border-radius:12px;background:#fcfeff}
+    .sel-box{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+    .selected-pill{background:#0bbbd6;color:#fff;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:800;display:inline-flex;align-items:center;gap:6px}
+    .selected-pill button{background:none;border:none;color:#fff;font-size:16px;cursor:pointer;line-height:1;padding:0 4px}
+    label.input{display:flex;flex-direction:column;gap:6px;font-weight:800;font-size:13px;margin-top:12px}
+    input[type=text]{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--chipborder,#cfe1ee);background:#fff;font-size:15px}
+    input[type=range]{width:100%;accent-color:#0bbbd6;height:28px}
+    #earlyMap{height:280px;border:1px solid var(--chipborder,#cfe1ee);border-radius:14px;margin-top:10px}
+    .map-tools{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+    .btn{background:var(--accent,#ff6b6b);color:#fff;border:none;padding:12px 18px;border-radius:14px;font-weight:900;cursor:pointer;font-size:15px;box-shadow:0 4px 12px rgba(255,107,107,0.25);transition:.2s}
+    .btn:hover{background:#e55a5a}
+    .btn.secondary{background:#0bbbd6;box-shadow:0 4px 12px rgba(11,187,214,0.25)}
+    .btn.secondary:hover{background:#0aa5c1}
+  .btn.small{padding:8px 12px;border-radius:10px;font-size:14px}
+  .type-btn{background:linear-gradient(180deg,#f7fdff,#e6fbff);color:#064c56;border:1px solid rgba(11,187,214,0.15);box-shadow:0 6px 20px rgba(11,187,214,0.06);font-weight:900}
+  .type-btn.active.type-events{background:linear-gradient(180deg,#0bbbd6,#07aab8);color:#fff;border-color:transparent;box-shadow:0 8px 26px rgba(11,187,214,0.18)}
+  .type-btn.active.type-services{background:linear-gradient(180deg,#ff7b7b,#ff5b5b);color:#fff;border-color:transparent;box-shadow:0 8px 26px rgba(255,107,107,0.18)}
+  .btn.secondary.active{background:#0aa5c1}
+    .quota{font-size:.8em;font-weight:800;margin-top:6px;color:#0bbbd6}
+    .disabled-note{color:#d64c4c;font-weight:800;font-size:.8em;margin-top:6px}
+  select{font-size:15px}
+  @media (max-width: 420px){
+    #typeToggle{gap:8px}
+    #mainCategorySelect,#subCategorySelect{min-width:unset;width:100%}
+  }
+    @media(min-width:768px){#earlyMap{height:340px}}
+    @media (min-width: 768px){ body{max-width:390px;margin:0 auto;box-shadow:0 0 20px rgba(0,0,0,.1);} }
+  </style>
+</head>
+<body>
+  <header class="slim">
+    <a href="/" class="brand" aria-label="Domov">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <defs><radialGradient id="g1n" cx="50%" cy="50%"><stop offset="0%" stop-color="#0bbbd6"/><stop offset="100%" stop-color="#7de3f0"/></radialGradient></defs>
+        <circle cx="16" cy="16" r="13" fill="none" stroke="url(#g1n)" stroke-width="2" />
+        <circle cx="16" cy="16" r="8" fill="none" stroke="url(#g1n)" stroke-width="2" opacity=".9" />
+        <circle cx="16" cy="16" r="3.2" class="pulse" />
+      </svg>
+      <span>NearGo</span>
+    </a>
+  <div style="flex:1"></div>
+  </header>
+  <main style="padding-top:0">
+    <div class="card" id="introCard" style="margin-top:0">
+      <h1>Predhodna obvestila</h1>
+      <ul class="benefits" style="list-style:none;margin:6px 0 0 0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.9em;font-weight:600">
+        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⏰</span><span><b>15 minut prej</b> kot ostali</span></li>
+        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">🔔</span><span><b>Prvi do novih ponudb</b> in brezplačnih promo akcij</span></li>
+        <li style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">📍</span><span><b>Personalizirano po lokaciji</b> in <b>interesih</b></span></li>
+      </ul>
+      <div class="muted" style="font-size:.78em;margin-top:6px;font-weight:600">Pridržujemo si pravico, da obvestila ne pošljemo, če v izbrani kategoriji v tem mesecu ni ponudb.</div>
+    </div>
+
+  <form id="notifyForm" class="card" aria-labelledby="introCard" style="margin-top:8px">
+      <div id="quotaLine" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:-4px 0 10px 0">
+        <div id="quotaInfo" class="quota" style="margin-top:0">Preostale menjave: <span id="quotaNumber">5</span></div>
+        <div id="monthlyNotifCount" class="quota" style="display:none;margin-top:0">Obvestila ta mesec: …</div>
+        <div id="premiumCycle" class="muted" style="font-size:.7em;display:none">Premium začetek: <span id="premiumStartDate">—</span></div>
+      </div>
+      <fieldset>
+        <legend>1. Tip ponudb</legend>
+        <div id="typeToggle" style="display:flex;gap:12px;flex-wrap:wrap">
+          <button type="button" data-value="events" class="btn small type-btn type-events active">Dogodki</button>
+          <button type="button" data-value="services" class="btn small type-btn type-services" style="background:linear-gradient(180deg,#bfeef6,#8fd8e6);color:#064c56">Storitve</button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>2. Kategorija</legend>
+        <div style="display:flex;gap:12px;flex-direction:column">
+          <div id="mainCats" class="chips" role="group" aria-label="Glavne kategorije"></div>
+          <div id="subWrap" class="subwrap" style="display:none">
+            <div id="subCats" class="chips" style="margin-top:8px"></div>
+            <div id="selectedWrap" class="sel-box" aria-live="polite" role="status"></div>
+          </div>
+          <div class="muted" style="font-size:.75em">Izberite največ 2 podkategoriji.</div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>3. Lokacija</legend>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <button type="button" class="btn secondary small" id="btnMapPick">Zemljevid</button>
+          <button type="button" class="btn secondary small" id="btnUseGPS">Moja lokacija</button>
+          <button type="button" class="btn secondary small" id="btnResetLoc">Počisti</button>
+        </div>
+        <label class="input" style="margin-top:0">Mesto / kraj
+          <input id="notifLocation" type="text" placeholder="npr. Ljubljana" autocomplete="off">
+        </label>
+        <div class="map-tools">
+          <div style="flex:1;min-width:120px">
+            <label class="input" style="margin-top:0">Polmer (km)
+              <input id="notifRadius" type="range" min="1" max="50" step="1" value="25" aria-label="Polmer obveščanja v kilometrih" aria-describedby="radiusLbl">
+            </label>
+            <div class="muted" id="radiusLbl" style="font-size:.75em;font-weight:800;margin-top:-4px">25 km (premer 50 km)</div>
+          </div>
+        </div>
+        <div id="earlyMap" style="margin-top:12px" aria-label="Izbira lokacije na zemljevidu" role="application"></div>
+      </fieldset>
+      <fieldset>
+        <legend>4. Kontakt (opcijsko)</legend>
+        <label class="input" style="margin-top:0">Telefonska številka (SMS)
+          <input id="notifPhone" type="text" inputmode="tel" pattern="[0-9 +()-]{6,}" placeholder="npr. +38640111222" autocomplete="tel">
+        </label>
+      </fieldset>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <button id="saveNotify" class="btn" type="submit">Shrani nastavitve</button>
+        <button id="btnClear" class="btn secondary" type="button">Ponastavi</button>
+      </div>
+      <div id="notifyMsg" class="muted" style="margin-top:8px" role="status" aria-live="polite"></div>
+      <div id="nonPremiumInline" class="upgrade-box" style="display:none">Za aktivacijo nadgradi v <a href="/premium.html" style="color:#d64c4c;text-decoration:underline;font-weight:900">Premium</a>.</div>
+    </form>
+  </main>
+  <script type="module" src="/account/notifications.js?v=20251109"></script>
+</body>
+</html>

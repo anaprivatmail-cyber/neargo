@@ -1,3 +1,28 @@
+// Lightweight booking UI utilities for NearGo internal calendars
+export async function fetchSlots(calendarId){
+  const r = await fetch(`/api/calendar-slots?calendar_id=${encodeURIComponent(calendarId)}`).then(x=>x.json()).catch(()=>({ok:false}));
+  return (r && r.ok) ? (r.slots||[]) : [];
+}
+
+export async function reserveSlot({ slotId, email, eventId, eventTitle, benefit }){
+  const res = await fetch('/api/calendar-reserve', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ slot_id: slotId, email, event_id: eventId, event_title: eventTitle, display_benefit: benefit }) }).then(x=>x.json()).catch(()=>({ok:false}));
+  return res;
+}
+
+export function renderSlotsInline(node, slots, onPick){
+  if (!node) return;
+  const upcoming = slots.filter(s => s.status==='free');
+  if (!upcoming.length){ node.innerHTML = '<div class="muted">Ni prostih terminov.</div>'; return; }
+  const fmt = new Intl.DateTimeFormat('sl-SI', { dateStyle:'medium', timeStyle:'short' });
+  node.innerHTML = '';
+  upcoming.slice(0,20).forEach(s=>{
+    const b = document.createElement('button');
+    b.className = 'btn mini';
+    b.textContent = fmt.format(new Date(s.start_time));
+    b.addEventListener('click', ()=> onPick && onPick(s));
+    node.appendChild(b);
+  });
+}
   // ===== Predogled dogodka/storitve =====
   const btnPreview = document.getElementById('btnPreviewEvent');
   const previewModal = document.getElementById('previewModal');
@@ -174,11 +199,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
   function clearMarkers(arr){ try{arr.forEach(m=>m.remove());}catch{} }
+  function ensureLiveMarkerStyles(){
+    if(document.getElementById('liveMarkerStyles')) return;
+    const st=document.createElement('style'); st.id='liveMarkerStyles';
+    st.textContent=`.mk{width:16px;height:16px;border-radius:50%;background:#ff6b6b;border:2px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.15)}
+    .mk-live{background:#2ecc71;animation:pulseLive 1.8s infinite}
+    @keyframes pulseLive{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}`;
+    document.head.appendChild(st);
+  }
+  function isLive(e){
+    try{
+      const now=Date.now();
+      const startMs=new Date(e.start).getTime(); if(!isFinite(startMs)) return false;
+      const endMs=isFinite(new Date(e.end).getTime())?new Date(e.end).getTime():startMs+2*3600_000;
+      return (startMs <= now && now <= endMs) || (startMs > now && (startMs - now) <= 2*3600_000);
+    }catch{return false;}
+  }
   function setMarkersOn(map, items){
+    ensureLiveMarkerStyles();
+    const liveIcon=L.divIcon({className:'live-outer', html:'<div class="mk mk-live"></div>', iconSize:[16,16]});
+    const normalIcon=L.divIcon({className:'normal-outer', html:'<div class="mk"></div>', iconSize:[16,16]});
     const ms=[]; items.forEach(e=>{
       const lat=e.venue?.lat, lon=e.venue?.lon;
       if(Number.isFinite(+lat)&&Number.isFinite(+lon)){
-        const m=L.marker([+lat,+lon]).addTo(map);
+        const m=L.marker([+lat,+lon], { icon: isLive(e)?liveIcon:normalIcon }).addTo(map);
   const id=_hashId(e);
         m.bindPopup(`<a href="#${id}">${(e.name||"Dogodek").slice(0,80)}</a>`);
         ms.push(m);

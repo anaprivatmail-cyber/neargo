@@ -1,0 +1,22 @@
+REMINDER: Mobilna aplikacija NearGo – OAuth, Bundle ID, Team ID, SHA-1
+
+1. Ko boš prenašala projekt iz GitHuba v orodje za gradnjo mobilne aplikacije (Expo, React Native CLI, Xcode):
+   - Določi in vnesi Bundle ID (priporočeno: com.getneargo.app)
+   - Bundle ID vpiši v konfiguracijsko datoteko (app.json, Info.plist, ...)
+
+2. Ko bo Apple Developer enrollment potrjen:
+   - Prijavi se v Apple Developer portal
+   - Poišči in shrani Team ID (Membership sekcija)
+   - Uporabi Team ID pri ustvarjanju iOS OAuth clienta v Google Cloud Console
+
+3. Ko boš gradila Android aplikacijo:
+   - Pridobi SHA-1 podpis iz keystore (debug ali production)
+   - SHA-1 vpiši v Google Cloud Console pri ustvarjanju Android OAuth clienta
+
+4. Ko boš pripravljena na objavo v App Store:
+   - Pridobi App Store ID (ko bo aplikacija objavljena)
+   - Dodaj App Store ID v Google Cloud Console (iOS OAuth client)
+
+5. OAuth ključe (Client ID, Client Secret) shrani varno (geslovnik, password manager, secrets/ mapa izven javnega repozitorija)
+
+Če potrebuješ navodila za posamezen korak, poglej to datoteko ali vprašaj Copilot!

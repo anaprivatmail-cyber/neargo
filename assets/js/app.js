@@ -48,26 +48,83 @@ const getCanonicalCategories = (type = 'events') => {
   return [];
 };
 
+// ===== Global search selections (multi-select) =====
+const searchSelectedCats = new Set(); // category keys
+const searchSelectedSubs = new Set(); // subcategory keys
+
+function renderSearchSelectionsSummary() {
+  const hostId = 'searchSelectionsSummary';
+  let host = document.getElementById(hostId);
+  if (!host) {
+    const after = document.getElementById('searchSubcategoryWrap') || document.getElementById('cats');
+    host = document.createElement('div');
+    host.id = hostId;
+    host.style.margin = '8px 0 4px 0';
+    host.style.display = 'flex';
+    host.style.flexWrap = 'wrap';
+    host.style.gap = '6px';
+    after?.insertAdjacentElement('afterend', host);
+  }
+  if (!host) return;
+  host.innerHTML = '';
+  const cats = Array.from(searchSelectedCats);
+  const subs = Array.from(searchSelectedSubs);
+  const addChip = (label, kind) => {
+    const chip = document.createElement('span');
+    chip.className = 'value-chip';
+    chip.textContent = label;
+    chip.title = kind;
+    chip.style.cursor = 'default';
+    host.appendChild(chip);
+  };
+  if (cats.length) {
+    const title = document.createElement('div');
+    title.textContent = 'Izbrane kategorije:';
+    title.style.fontSize = '12px';
+    title.style.color = 'var(--muted)';
+    title.style.width = '100%';
+    host.appendChild(title);
+    const all = (window.NearGoCategories?.events || []).concat(window.NearGoCategories?.services || []);
+    cats.forEach(k => {
+      const obj = all.find(c => c.key === k);
+      addChip(obj?.label || k, 'kategorija');
+    });
+  }
+  if (subs.length) {
+    const title = document.createElement('div');
+    title.textContent = 'Izbrane podkategorije:';
+    title.style.fontSize = '12px';
+    title.style.color = 'var(--muted)';
+    title.style.width = '100%';
+    title.style.marginTop = '4px';
+    host.appendChild(title);
+    const allCats = (window.NearGoCategories?.events || []).concat(window.NearGoCategories?.services || []);
+    const allSubs = allCats.flatMap(c => (c.sub || []).map(s => ({ ...s, _parent: c.key })));
+    subs.forEach(sk => {
+      const obj = allSubs.find(s => s.key === sk);
+      addChip(obj?.label || sk, 'podkategorija');
+    });
+  }
+}
+
 // ===== Early-notify renderer (populate premium.html) =====
 const buildEarlyNotifyCategoryList = (selectedKeys = []) => {
   const container = document.getElementById('earlyNotifyCategoryList');
   if (!container) return;
   const selectedSet = new Set(Array.isArray(selectedKeys) ? selectedKeys : []);
   container.innerHTML = '';
-
+  // Early-notify must operate on SUBCATEGORIES with a limit of 2 at a time
   const sections = [
     { title: 'Dogodki', type: 'events' },
     { title: 'Storitve', type: 'services' }
   ];
-
+  // Render subcategory checkboxes grouped by category
   sections.forEach(({ title, type }) => {
     const list = getCanonicalCategories(type);
     if (!Array.isArray(list) || !list.length) return;
-
     const section = document.createElement('section');
     section.className = 'early-notify-section';
     section.style.marginBottom = '18px';
-
     const heading = document.createElement('h3');
     heading.textContent = title;
     heading.className = 'early-notify-title';
@@ -75,111 +132,59 @@ const buildEarlyNotifyCategoryList = (selectedKeys = []) => {
     heading.style.fontSize = '1.05em';
     heading.style.fontWeight = '800';
     section.appendChild(heading);
-
     const itemsWrap = document.createElement('div');
     itemsWrap.className = 'early-notify-grid';
     itemsWrap.style.display = 'flex';
-    itemsWrap.style.flexWrap = 'wrap';
-    itemsWrap.style.gap = '10px';
-
+    itemsWrap.style.flexDirection = 'column';
+    itemsWrap.style.gap = '12px';
     list.forEach((cat) => {
-      if (!cat?.key) return;
-      const item = document.createElement('div');
-      item.className = 'early-notify-item';
-  item.style.display = 'flex';
-  item.style.flexDirection = 'column';
-  item.style.gap = '6px';
-
-      const label = document.createElement('label');
-      label.className = 'cat-chip early-cat';
-      label.dataset.cat = cat.key;
-      label.setAttribute('aria-pressed', 'false');
-      label.style.position = 'relative';
-      label.style.display = 'inline-flex';
-      label.style.alignItems = 'center';
-      label.style.gap = '8px';
-      label.style.cursor = 'pointer';
-
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.name = 'categories';
-      input.value = cat.key;
-      input.style.position = 'absolute';
-      input.style.opacity = '0';
-      input.style.pointerEvents = 'none';
-      input.style.width = '1px';
-      input.style.height = '1px';
-
-      const setChipState = (checked) => {
-        if (checked) {
-          label.classList.add('active');
-          label.setAttribute('aria-pressed', 'true');
-          toggleChipLabel(label, true);
-        } else {
-          label.classList.remove('active');
-          label.setAttribute('aria-pressed', 'false');
-          toggleChipLabel(label, false);
-        }
-      };
-
-      input.addEventListener('change', () => {
-        setChipState(input.checked);
-      });
-
-      label.addEventListener('mouseenter', () => toggleChipLabel(label, true));
-      label.addEventListener('mouseleave', () => toggleChipLabel(label, false));
-      label.addEventListener('focus', () => toggleChipLabel(label, true));
-      label.addEventListener('blur', () => toggleChipLabel(label, false));
-      label.addEventListener('touchstart', () => toggleChipLabel(label, true), { passive: true });
-      label.addEventListener('touchend', () => toggleChipLabel(label, false));
-
-      if (cat.icon) {
-        const img = document.createElement('img');
-        img.src = cat.icon;
-        img.alt = '';
-        img.loading = 'lazy';
-        label.appendChild(img);
-      } else {
-        const emoji = document.createElement('span');
-        emoji.className = 'cat-emoji';
-        emoji.setAttribute('aria-hidden', 'true');
-        emoji.textContent = cat.emoji || '🏷️';
-        label.appendChild(emoji);
-      }
-
-      const text = document.createElement('span');
-      text.className = 'cat-label';
-      text.textContent = cat.label || cat.key;
-      label.appendChild(text);
-
-      if (selectedSet.has(cat.key)) {
-        input.checked = true;
-      }
-      setChipState(input.checked);
-
-      label.appendChild(input);
-      item.appendChild(label);
-
-      if (Array.isArray(cat.sub) && cat.sub.length) {
-        const subList = document.createElement('ul');
-        subList.className = 'early-subcategories';
-        subList.style.margin = '0 0 0 26px';
-        subList.style.padding = '0';
-        subList.style.listStyle = 'disc';
-        subList.style.color = 'var(--muted, #555)';
-        subList.style.fontSize = '13px';
-        cat.sub.forEach((sub) => {
-          if (!sub?.label) return;
-          const li = document.createElement('li');
-          li.textContent = sub.label;
-          subList.appendChild(li);
+      const catBlock = document.createElement('div');
+      catBlock.style.display = 'flex';
+      catBlock.style.flexDirection = 'column';
+      const catRow = document.createElement('div');
+      catRow.className = 'cat-chip';
+      catRow.style.display = 'inline-flex';
+      catRow.style.alignItems = 'center';
+      catRow.style.gap = '8px';
+      if (cat.icon) { const img = document.createElement('img'); img.src = cat.icon; img.alt = ''; img.loading = 'lazy'; catRow.appendChild(img); }
+      else { const emoji = document.createElement('span'); emoji.className = 'cat-emoji'; emoji.textContent = cat.emoji || '🏷️'; catRow.appendChild(emoji); }
+      const titleSpan = document.createElement('span'); titleSpan.className = 'cat-label'; titleSpan.textContent = cat.label || cat.key; catRow.appendChild(titleSpan);
+      catBlock.appendChild(catRow);
+      const subsWrap = document.createElement('div');
+      subsWrap.style.display = 'flex'; subsWrap.style.flexWrap = 'wrap'; subsWrap.style.gap = '8px'; subsWrap.style.margin = '6px 0 0 26px';
+      (cat.sub || []).forEach(sub => {
+        const label = document.createElement('label');
+        label.className = 'cat-chip early-cat';
+        label.style.cursor = 'pointer';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.value = sub.key; cb.style.display = 'none';
+        const span = document.createElement('span'); span.className = 'cat-label'; span.textContent = sub.label; label.appendChild(span);
+        const enforce = () => {
+          // Max 2 checked globally
+          const currentChecked = container.querySelectorAll('input[type="checkbox"][value][data-early-sub]:checked').length;
+          if (!cb.checked && currentChecked >= 2) {
+            // trying to check a third
+            window._toast?.('Izberi največ dve podkategoriji za predhodna obvestila.', false);
+            return false;
+          }
+          return true;
+        };
+        label.addEventListener('click', (e) => {
+          e.preventDefault();
+          const next = !cb.checked;
+          if (next && !enforce()) return;
+          cb.checked = next;
+          label.classList.toggle('active', next);
+          if (next) selectedSet.add(sub.key); else selectedSet.delete(sub.key);
         });
-        item.appendChild(subList);
-      }
-
-      itemsWrap.appendChild(item);
+        cb.dataset.earlySub = '1';
+        if (selectedSet.has(sub.key)) { cb.checked = true; label.classList.add('active'); }
+        label.appendChild(cb);
+        subsWrap.appendChild(label);
+      });
+      catBlock.appendChild(subsWrap);
+      itemsWrap.appendChild(catBlock);
     });
-
     section.appendChild(itemsWrap);
     container.appendChild(section);
   });
@@ -283,8 +288,23 @@ document.addEventListener("DOMContentLoaded", function() {
         return;
       }
       e.preventDefault();
-      const checked = Array.from(form.querySelectorAll("input[type=checkbox]:checked"))
-        .map(cb => cb.value);
+      // Collect selected SUBCATEGORY keys (limit enforced in UI to 2)
+      const checked = Array.from(form.querySelectorAll('#earlyNotifyCategoryList input[type=checkbox][data-early-sub]:checked')).map(cb => cb.value);
+      // Monthly changes limit: 5 per month
+      try {
+        const monthKey = new Date().toISOString().slice(0,7); // YYYY-MM
+        const quotaRaw = localStorage.getItem('ng_early_notify_changes') || '{}';
+        const quota = JSON.parse(quotaRaw);
+        const prevState = JSON.parse(localStorage.getItem('ng_early_notify_categories') || '{}');
+        const prevCats = Array.isArray(prevState?.categories) ? prevState.categories : [];
+        const changed = JSON.stringify([...prevCats].sort()) !== JSON.stringify([...checked].sort());
+        const used = Number(quota[monthKey] || 0);
+        if (changed && used >= 5) {
+          window._toast?.('Ta mesec lahko spremeniš izbor največ 5×.', false);
+          return;
+        }
+        if (changed) { quota[monthKey] = used + 1; localStorage.setItem('ng_early_notify_changes', JSON.stringify(quota)); }
+      } catch {}
       const location = document.getElementById("earlyNotifyLocation")?.value?.trim() || "";
       const radius = Number(document.getElementById("earlyNotifyRadius")?.value || 30);
       localStorage.setItem("ng_early_notify_categories", JSON.stringify({categories: checked, location, radius}));
@@ -360,31 +380,33 @@ function renderCategoryChips() {
   if (!wrap) return;
   const subWrap = document.getElementById('searchSubcategoryWrap');
   const subSelect = document.getElementById('searchSubcategory');
-  let activeKey = wrap.dataset.selectedCat || '';
+  // Multi-select: use Sets for categories and subcategories
+  let initialSelected = [];
+  try { initialSelected = JSON.parse(wrap.dataset.selectedCats || '[]'); } catch {}
+  if (Array.isArray(initialSelected)) initialSelected.forEach(k => searchSelectedCats.add(k));
 
   const apply = (categories) => {
     wrap.innerHTML = '';
     if (!Array.isArray(categories) || !categories.length) return;
-
-    const setActive = (key, opts = {}) => {
+    const toggleCat = (key, btn, opts = {}) => {
       const { silent } = opts;
-      const nextBtn = key ? wrap.querySelector(`[data-cat="${key}"]`) : null;
-      const fallbackBtn = wrap.querySelector('.cat-chip');
-      const target = nextBtn || fallbackBtn;
-      if (!target) return;
-
-      wrap.querySelectorAll('.cat-chip').forEach((btn) => {
+      if (searchSelectedCats.has(key)) {
+        searchSelectedCats.delete(key);
         btn.classList.remove('active');
         btn.setAttribute('aria-pressed', 'false');
         toggleChipLabel(btn, false);
-      });
-      target.classList.add('active');
-      target.setAttribute('aria-pressed', 'true');
-      toggleChipLabel(target, true);
-      activeKey = target.dataset.cat || '';
-      wrap.dataset.selectedCat = activeKey;
-      if (subSelect) populateSubcategories(activeKey);
-      if (!silent) doSearch(0);
+      } else {
+        searchSelectedCats.add(key);
+        btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
+        toggleChipLabel(btn, true);
+      }
+      wrap.dataset.selectedCats = JSON.stringify(Array.from(searchSelectedCats));
+      populateSubcategories();
+      renderSearchSelectionsSummary();
+      if (!silent) {
+        doSearch(0);
+      }
     };
 
     categories.forEach((cat) => {
@@ -410,47 +432,76 @@ function renderCategoryChips() {
       btn.addEventListener('touchend', () => toggleChipLabel(btn, false));
       btn.addEventListener('click', () => {
         subSelect?.removeAttribute('data-selected-sub');
-        setActive(cat.key);
+        toggleCat(cat.key, btn);
       });
       wrap.appendChild(btn);
     });
-
-    const initialKey = activeKey && categories.some((cat) => cat.key === activeKey)
-      ? activeKey
-      : categories[0].key;
-    setActive(initialKey, { silent: true });
+    // Initialize: select the first category if none selected
+    if (searchSelectedCats.size === 0 && categories.length) {
+      const first = categories[0].key;
+      const btn = wrap.querySelector(`[data-cat="${first}"]`);
+      if (btn) toggleCat(first, btn, { silent: true });
+    } else {
+      // Reflect initial selections visually
+      searchSelectedCats.forEach(k => {
+        const btn = wrap.querySelector(`[data-cat="${k}"]`);
+        if (btn) { btn.classList.add('active'); btn.setAttribute('aria-pressed','true'); toggleChipLabel(btn, true); }
+      });
+      populateSubcategories();
+      renderSearchSelectionsSummary();
+    }
   };
 
-  const populateSubcategories = (key) => {
-    if (!subSelect) return;
+  const populateSubcategories = () => {
+    if (!subWrap) return;
+    // Create a chips grid for multi-select subcategories
+    let multiWrap = document.getElementById('searchSubcategories');
+    if (!multiWrap) {
+      multiWrap = document.createElement('div');
+      multiWrap.id = 'searchSubcategories';
+      multiWrap.style.display = 'flex';
+      multiWrap.style.flexWrap = 'wrap';
+      multiWrap.style.gap = '8px';
+      subWrap.appendChild(multiWrap);
+    }
+    multiWrap.innerHTML = '';
     const utils = window.NearGoCategoryUtils;
-    let subs = utils?.getSubcategories('events', key) || [];
-    if (!subs.length) {
-      const fallbackCat = getCanonicalCategories('events').find((cat) => cat.key === key);
-      subs = fallbackCat && Array.isArray(fallbackCat.sub) ? fallbackCat.sub : [];
-    }
-    subSelect.innerHTML = '';
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Podkategorija (neobvezno)';
-    subSelect.appendChild(placeholder);
-    subs.forEach((sub) => {
-      const option = document.createElement('option');
-      option.value = sub.key;
-      option.textContent = sub.label;
-      subSelect.appendChild(option);
+    // Union subcategories for all selected categories (default events type)
+    const catsData = getCategoriesForType('events');
+    const subsUnion = [];
+    const seen = new Set();
+    Array.from(searchSelectedCats).forEach(key => {
+      let subs = utils?.getSubcategories('events', key) || [];
+      if (!subs.length) {
+        const fallbackCat = catsData.find((cat) => cat.key === key);
+        subs = fallbackCat && Array.isArray(fallbackCat.sub) ? fallbackCat.sub : [];
+      }
+      subs.forEach(s => { if (!seen.has(s.key)) { seen.add(s.key); subsUnion.push(s); } });
     });
-    const hasSubs = subs.length > 0;
+    const hasSubs = subsUnion.length > 0;
     if (subWrap) subWrap.style.display = hasSubs ? 'block' : 'none';
-    subSelect.disabled = !hasSubs;
-    if (!hasSubs) {
-      subSelect.value = '';
-      subSelect.dataset.selectedSub = '';
-    } else if (subSelect.dataset.selectedSub) {
-      const wanted = subSelect.dataset.selectedSub;
-      const hasWanted = Array.from(subSelect.options).some((opt) => opt.value === wanted);
-      subSelect.value = hasWanted ? wanted : '';
-    }
+    if (!hasSubs) return;
+    subsUnion.forEach(sub => {
+      const label = document.createElement('label');
+      label.className = 'cat-chip';
+      label.style.cursor = 'pointer';
+      const span = document.createElement('span'); span.className = 'cat-label'; span.textContent = sub.label; label.appendChild(span);
+      const checked = searchSelectedSubs.has(sub.key);
+      if (checked) label.classList.add('active');
+      label.addEventListener('click', (e) => {
+        e.preventDefault();
+        const next = !searchSelectedSubs.has(sub.key);
+        if (next) {
+          searchSelectedSubs.add(sub.key);
+        } else {
+          searchSelectedSubs.delete(sub.key);
+        }
+        label.classList.toggle('active', next);
+        renderSearchSelectionsSummary();
+        doSearch(0);
+      });
+      multiWrap.appendChild(label);
+    });
   };
 
   withCategories((data) => {
@@ -463,9 +514,15 @@ function renderCategoryChips() {
 
 document.addEventListener('DOMContentLoaded', () => {
   renderCategoryChips();
+  // legacy select still supported if present (will act as single-sub filter)
   document.getElementById('searchSubcategory')?.addEventListener('change', () => {
     const select = document.getElementById('searchSubcategory');
-    if (select) select.dataset.selectedSub = select.value || '';
+    if (select) {
+      select.dataset.selectedSub = select.value || '';
+      searchSelectedSubs.clear();
+      if (select.value) searchSelectedSubs.add(select.value);
+    }
+    renderSearchSelectionsSummary();
     doSearch(0);
   });
 });
@@ -658,30 +715,37 @@ async function doSearch(page=0, byGeo=false){
 
   const qVal = $("#q")?.value.trim() || "";
   const cityVal = $("#city")?.value.trim() || "";
-  const catVal = document.querySelector('#cats .cat-chip.active')?.dataset.cat || '';
-  const subVal = document.getElementById('searchSubcategory')?.value || '';
+  // Multi-select categories/subcategories
+  const catVals = Array.from(document.querySelectorAll('#cats .cat-chip.active')).map(b=>b.dataset.cat).filter(Boolean);
+  const subVals = Array.from(searchSelectedSubs);
+  const legacySub = document.getElementById('searchSubcategory')?.value || '';
+  if (legacySub) { if (!searchSelectedSubs.has(legacySub)) subVals.push(legacySub); }
   const radiusVal = $("#radius")?.value || 30;
 
   const params = { q:qVal, radiuskm:radiusVal, page, size:20 };
   if (byGeo && GEO) params.latlon = GEO;
   else if (cityVal) params.city = cityVal;
   else if (GEO) params.latlon = GEO;
-  if (subVal) params.subcategory = subVal;
+  // keep subcategory filtering client-side for multi-select; don't send single subcategory param
+  // send server-side multi filters (comma-separated)
+  if (catVals.length) params.categories = catVals.join(',');
+  if (subVals.length) params.subcategories = subVals.join(',');
+  try{ lastSearchParams = { ...params }; }catch{}
 
   let data=null;
   try{ const r=await fetch(`/api/search?${qs(params)}`); data=await r.json(); }catch{}
   const items=(data && data.ok && data.results)||[];
   updateLiveBanner(items);
 
-  let filtered = catVal ? items.filter(e=>(e.category||"")===catVal) : items;
-  if (subVal) {
-    const target = String(subVal).toLowerCase();
+  let filtered = (catVals.length>0) ? items.filter(e=> catVals.includes(e.category||"")) : items;
+  if (subVals.length>0) {
+    const targets = new Set(subVals.map(v=>String(v).toLowerCase()));
     filtered = filtered.filter((item) => {
       const raw = item?.subcategory || item?.subCategory || item?.subcategoryKey || '';
-      if (raw) return String(raw).toLowerCase() === target;
-      const tags = Array.isArray(item?.tags) ? item.tags.map((tag) => String(tag).toLowerCase()) : [];
-      if (tags.length) return tags.includes(target);
-      return true;
+      if (raw) return targets.has(String(raw).toLowerCase());
+      const tags = Array.isArray(item?.tags) ? item.tags.map((tag)=>String(tag).toLowerCase()) : [];
+      if (tags.length) return tags.some(t=>targets.has(t));
+      return false;
     });
   }
   const box=$("#results"); if(!box) return;
@@ -779,8 +843,16 @@ $("#btnSubmitEvent")?.addEventListener("click", async ()=>{
     eventName:$("#eventName")?.value.trim(),
     offerType: $("#offerType")?.value,
     price:$("#price")?.value?Number($("#price").value):null,
-    description:$("#desc")?.value.trim()
+    description:$("#desc")?.value.trim(),
+    category: document.getElementById('category')?.value || '',
+    subcategory: document.getElementById('formSubcategory')?.value || ''
   };
+
+  if (!payload.category){
+    window._toast?.('Izberi kategorijo.', false);
+    return;
+  }
+  // enforce only one subcategory (UI already single-select); if none selected it's optional
 
   if (payload.offerType==="coupon"){
     payload.price=2;
@@ -852,19 +924,51 @@ async function refreshEventsRealtime() {
     const data = await r.json();
     const items = (data && data.ok && data.results) || [];
     updateLiveBanner(items);
-    // Osveži prikaz dogodkov (po potrebi re-call doSearch ali custom render)
-    // ...
+    // reapply current multi-filters and re-render silently
+    const catVals = Array.from(document.querySelectorAll('#cats .cat-chip.active')).map(b=>b.dataset.cat).filter(Boolean);
+    const subVals = Array.from(searchSelectedSubs);
+    let filtered = (catVals.length>0) ? items.filter(e=> catVals.includes(e.category||"")) : items;
+    if (subVals.length>0) {
+      const targets = new Set(subVals.map(v=>String(v).toLowerCase()));
+      filtered = filtered.filter((item) => {
+        const raw = item?.subcategory || item?.subCategory || item?.subcategoryKey || '';
+        if (raw) return targets.has(String(raw).toLowerCase());
+        const tags = Array.isArray(item?.tags) ? item.tags.map((tag)=>String(tag).toLowerCase()) : [];
+        if (tags.length) return tags.some(t=>targets.has(t));
+        return false;
+      });
+    }
+    const box=$("#results"); if(!box) return;
+    box.innerHTML="";
+    const now = Date.now();
+    filtered.forEach(e=>{
+      const img=(e.images&&e.images[0])||"https://picsum.photos/600/400";
+      const isCoupon = e.offerType==="coupon";
+      const showBuy  = isCoupon || (e.offerType==="ticket" && Number(e.price)>0);
+      const priceToShow = isCoupon ? 2 : (e.price||0);
+      const isLive = e.start && e.end && (now >= new Date(e.start).getTime() && now <= new Date(e.end).getTime());
+      const card=el("div","card");
+      card.innerHTML=`
+        <b>${e.name||"Dogodek"}</b>
+        ${isLive ? `<span class="badge live">🟢 V teku</span>` : ""}
+        ${ showBuy ? `
+          <div class="buy">
+            <span class="price">${euro(priceToShow)}</span>
+            <button class="btn mini"
+              data-act="buy"
+              data-kind="${e.offerType}"
+              data-name="${encodeURIComponent(e.name||'Dogodek')}"
+              data-benefit="${encodeURIComponent(e.couponDesc || e.display_benefit || '')}"
+              data-price="${priceToShow}">Kupi ${isCoupon?'kupon':'vstopnico'}</button>
+          </div>
+          ${isCoupon && (e.couponDesc || e.display_benefit) ? `<div class="muted">Kupon: ${e.couponDesc || e.display_benefit} (vnovči se pri ponudniku)</div>` : ``}
+        ` : ``}`;
+      box.appendChild(card);
+    });
+    attachMiniActions();
   } catch {}
 }
 
-// Shrani zadnje parametre ob iskanju
-async function doSearch(page=0, byGeo=false){
-  // ...existing code...
-  const params = { q:qVal, radiuskm:radiusVal, page, size:20 };
-  // ...existing code...
-  lastSearchParams = params;
-  // ...existing code...
-}
   // ===== Ikone kategorij v obrazcu za dodajanje =====
   function renderFormCategoryIcons() {
     const entryType = document.getElementById('entryType');
@@ -872,6 +976,15 @@ async function doSearch(page=0, byGeo=false){
     const sel = document.getElementById('category');
     const subWrap = document.getElementById('formSubcategoryWrap');
     const subSelect = document.getElementById('formSubcategory');
+    // selection summary
+    let chosenBox = document.getElementById('formSubSelSummary');
+    if (!chosenBox) {
+      chosenBox = document.createElement('div');
+      chosenBox.id = 'formSubSelSummary';
+      chosenBox.style.marginTop = '6px';
+      chosenBox.style.color = 'var(--muted)';
+      subWrap?.appendChild(chosenBox);
+    }
     if (!catsContainer || !sel) return;
     catsContainer.innerHTML = '';
     sel.style.display = 'none';
@@ -908,10 +1021,13 @@ async function doSearch(page=0, byGeo=false){
         subSelect.disabled = !hasSubs;
         if (!hasSubs) {
           subSelect.value = '';
+          chosenBox.textContent = '';
         } else if (subSelect.dataset.selectedSub) {
           const wanted = subSelect.dataset.selectedSub;
           const exists = Array.from(subSelect.options).some((opt) => opt.value === wanted);
           subSelect.value = exists ? wanted : '';
+          const lab = Array.from(subSelect.options).find(o=>o.value===subSelect.value)?.textContent || '';
+          chosenBox.textContent = subSelect.value ? `Izbrana podkategorija: ${lab}` : '';
         }
       };
 
@@ -974,7 +1090,7 @@ async function doSearch(page=0, byGeo=false){
           defaultBtn.classList.add('active', 'show-label');
           defaultBtn.setAttribute('aria-pressed', 'true');
           sel.value = defaultBtn.dataset.cat;
-          if (subSelect) populateSubs(defaultBtn.dataset.cat);
+          if (subSelect) { populateSubs(defaultBtn.dataset.cat); chosenBox.textContent = ''; }
         }
       }
     };

@@ -1,4 +1,5 @@
 const CORS={ 'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Allow-Methods':'POST, OPTIONS' };
+const MIN_PUBLISH_DELAY_MINUTES = parseInt(process.env.MIN_PUBLISH_DELAY_MINUTES || '15', 10);
 exports.handler=async(event)=>{
   if(event.httpMethod==='OPTIONS')return{statusCode:204,headers:CORS};
   if(event.httpMethod!=='POST')return{statusCode:405,headers:CORS,body:'Method Not Allowed'};
@@ -68,6 +69,18 @@ exports.handler=async(event)=>{
     } catch(e){
       console.error('[provider-submit] Supabase upsert failed', e.message||e);
     }
+    const now = new Date();
+    const minPublishAt = new Date(now.getTime() + MIN_PUBLISH_DELAY_MINUTES * 60 * 1000);
+    item.publish_at = new Date(Math.max(new Date(item.start).getTime(), minPublishAt.getTime())).toISOString();
+
+    // Trigger early-notify-offer immediately after submission
+    try {
+      const notifyUrl = `${process.env.NETLIFY_FUNCTIONS_URL}/early-notify-offer?id=${item.id}`;
+      await fetch(notifyUrl, { method: 'POST' });
+    } catch (e) {
+      console.warn('[provider-submit] Failed to trigger early-notify-offer:', e.message);
+    }
+
     return json({ok:true,result:item});
   }catch(err){ return json({ok:false,error:String(err?.message||err)},500); }
   function json(body,status=200){ return {statusCode:status,headers:CORS,body:JSON.stringify(body)}; }

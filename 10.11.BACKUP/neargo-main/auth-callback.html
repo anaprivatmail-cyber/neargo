@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>NearGo – Prijava…</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 28px; }
+    .box { max-width: 520px; margin: 0 auto; border:1px solid #eee; border-radius:12px; padding:18px; }
+    .muted{ color:#667; }
+  </style>
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    const SUPABASE_URL = "https://wqdfteajjcrzcniotvhh.supabase.co";
+    const SUPABASE_ANON_KEY =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndxZGZ0ZWFqamNyemNuaW90dmhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzNTU3MDMsImV4cCI6MjA3MTkzMTcwM30.0EFgeCpHcsSxsYQ2wZIQerLKXcAlvJjVNuQ0nJB2VFc";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    (async function run() {
+      const href = window.location.href;
+      const url  = new URL(href);
+
+      // 1) PKCE: ?code=...
+      const code = url.searchParams.get("code");
+      if (code) {
+        try { await supabase.auth.exchangeCodeForSession(href); }
+        catch(e){ console.warn("exchangeCodeForSession:", e?.message||e); }
+        finally { return go(); }
+      }
+
+      // 2) Hash: #access_token=...&refresh_token=...
+      if (url.hash && (url.hash.includes("access_token") || url.hash.includes("provider_token"))) {
+        const h = new URLSearchParams(url.hash.slice(1));
+        const access_token  = h.get("access_token")  || h.get("provider_token");
+        const refresh_token = h.get("refresh_token");
+        if (access_token && refresh_token) {
+          try { await supabase.auth.setSession({ access_token, refresh_token }); }
+          catch(e){ console.warn("setSession:", e?.message||e); }
+          finally { return go(); }
+        }
+      }
+
+      // 3) token_hash: ?token_hash=...&type=signup|magiclink|recovery|email_change
+      const token_hash = url.searchParams.get("token_hash");
+      const type = url.searchParams.get("type");
+      if (token_hash && type) {
+        try { 
+          await supabase.auth.verifyOtp({ type, token_hash });
+          if (type === 'recovery') {
+            // Za recovery, odpri form za novo geslo
+            showPasswordResetForm();
+            return;
+          }
+        }
+        catch(e){ console.warn("verifyOtp:", e?.message||e); }
+        finally { 
+          if (type !== 'recovery') return go(); 
+        }
+      }
+
+      // Če ni nič od naštetega → pojdi vseeno naprej (lahko je bila seja že postavljena).
+      go();
+
+      function showPasswordResetForm() {
+        document.body.innerHTML = `
+          <div class="box">
+            <h2>Reset Your Password</h2>
+            <form id="resetForm">
+              <input type="password" id="newPassword" placeholder="New Password" required style="width:100%;padding:10px;margin:10px 0;border:1px solid #ccc;border-radius:4px;">
+              <button type="submit" style="width:100%;padding:10px;background:#00bcd4;color:#fff;border:none;border-radius:4px;">Update Password</button>
+            </form>
+            <div id="resetMessage" style="margin-top:10px;"></div>
+          </div>
+        `;
+        document.getElementById('resetForm').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const newPassword = document.getElementById('newPassword').value;
+          const messageDiv = document.getElementById('resetMessage');
+          try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) throw error;
+            messageDiv.textContent = 'Password updated successfully! Redirecting...';
+            messageDiv.style.color = 'green';
+            setTimeout(() => go(), 2000);
+          } catch (error) {
+            messageDiv.textContent = 'Error: ' + error.message;
+            messageDiv.style.color = 'red';
+          }
+        });
+      }
+
+      function go(){
+        // Po postavitvi seje očisti URL in preusmeri na checker
+        const target = `${url.origin}/checker.html`;
+        window.location.replace(target);
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="box">
+    <h2>Prijavljam …</h2>
+    <p class="muted">Prosim počakaj trenutek, nalagamo prijavo.</p>
+  </div>
+</body>
+</html>

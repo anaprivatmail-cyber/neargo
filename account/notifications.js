@@ -72,7 +72,8 @@ const setMessage = (text = '', tone = 'info') => {
 	msg.style.color = tone === 'error' ? '#d64c4c' : '#0bbbd6';
 };
 
-const handleCategoryToggle = (key, checked) => {
+// Extend handleCategoryToggle to support keyboard toggle logic
+function handleCategoryToggle(key, checked) {
 	if (checked) {
 		if (state.selected.has(key)) return;
 		if (state.selected.size >= 2) {
@@ -90,7 +91,16 @@ const handleCategoryToggle = (key, checked) => {
 	} else {
 		setMessage('');
 	}
-};
+	const chip = document.querySelector(`#cats input[type="checkbox"][value="${key}"]`);
+	chip.addEventListener('keydown', (event) => {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			chip.click();
+		}
+	});
+	// Ensure aria-pressed updates correctly
+	chip.setAttribute('aria-pressed', checked);
+}
 
 // Build main categories (events/services) chips
 const renderMainCategories = () => {
@@ -376,7 +386,7 @@ function bindMapControls(){
 	const lbl = document.getElementById('radiusLbl');
 	const gps = document.getElementById('btnUseGPS');
 	const reset = document.getElementById('btnResetLoc');
-	const upd = () => { if(lbl) lbl.textContent = `${getRadius()} km`; try{ state.circle?.setRadius(getRadius()*1000); handleRadiusHandle(); }catch{} };
+	const upd = () => { if(lbl) { const r = getRadius(); lbl.textContent = `Polmer: ${r} km (premer ${r*2} km)`; } try{ state.circle?.setRadius(getRadius()*1000); handleRadiusHandle(); }catch{} };
 	['input','change','pointerup','touchend'].forEach((ev)=> radius?.addEventListener(ev, (e)=>{ if(!ensurePremiumOrPrompt()) { e.preventDefault(); return; } upd(); }));
 	upd();
 	gps?.addEventListener('click', ()=>{
@@ -394,7 +404,22 @@ function bindMapControls(){
 	reset?.addEventListener('click', ()=>{
 		try{ state.map.setView([46.05,14.51],7); state.marker.setLatLng([46.05,14.51]); state.circle.setLatLng([46.05,14.51]); }catch{}
 		const loc = document.getElementById('notifLocation'); if(loc) loc.value='';
-		const r = document.getElementById('notifRadius'); if(r){ r.value=25; lbl.textContent='25 km (premer 50 km)'; try{ state.circle?.setRadius(25*1000); handleRadiusHandle(); }catch{} }
+		const r = document.getElementById('notifRadius'); if(r){ r.value=25; if(lbl){ lbl.textContent='Polmer: 25 km (premer 50 km)'; } try{ state.circle?.setRadius(25*1000); handleRadiusHandle(); }catch{} }
+		try{ gps?.classList.remove('active'); }catch{}
+	});
+
+	// Map overlay buttons (confirm/close)
+	const btnConfirm = document.getElementById('btnConfirmMap');
+	const btnClose = document.getElementById('btnCloseMap');
+	btnConfirm?.addEventListener('click', ()=>{
+		if (!ensurePremiumOrPrompt()) return;
+		// Simply show toast message that current marker is saved on submit
+		setMessage('Lokacija potrjena. Ne pozabi shraniti nastavitev.', 'info');
+		try{ document.getElementById('earlyMap')?.scrollIntoView({behavior:'smooth', block:'center'}); }catch{}
+	});
+	btnClose?.addEventListener('click', ()=>{
+		// collapse map visibility by scrolling away
+		try{ document.getElementById('notifyForm')?.scrollIntoView({behavior:'smooth', block:'start'}); }catch{}
 	});
 }
 
@@ -413,7 +438,7 @@ function handleRadiusHandle(){
 				const rInput = document.getElementById('notifRadius');
 				if (rInput){ rInput.value = Math.round(distKm); }
 				state.circle.setRadius(distKm*1000);
-				const lbl = document.getElementById('radiusLbl'); if(lbl) lbl.textContent = `${Math.round(distKm)} km`;
+				const lbl = document.getElementById('radiusLbl'); if(lbl) { const rk=Math.round(distKm); lbl.textContent = `Polmer: ${rk} km (premer ${rk*2} km)`; }
 				// reposition handle exactly on circle edge toward drag point
 				const bearing = Math.atan2(pt.lat - center.lat, pt.lng - center.lng);
 				const factor = distKm / (center.distanceTo(pt)/1000 || 1);
@@ -484,11 +509,14 @@ async function refreshPremiumFlag(){
 function updatePremiumCycle(untilIso){
 	try{
 		if (!untilIso) return;
-		const d = new Date(untilIso);
-		if(Number.isNaN(d.getTime())) return;
+		const endDate = new Date(untilIso);
+		if(Number.isNaN(endDate.getTime())) return;
+		// Approximate start as 1 month before end, preserving day when possible
+		const startDate = new Date(endDate);
+		startDate.setMonth(startDate.getMonth() - 1);
 		const startSpan = document.getElementById('premiumStartDate');
 		const cycleBox = document.getElementById('premiumCycle');
-		if(startSpan) startSpan.textContent = d.toLocaleDateString('sl-SI');
+		if(startSpan) startSpan.textContent = `${startDate.toLocaleDateString('sl-SI')} – ${endDate.toLocaleDateString('sl-SI')}`;
 		if(cycleBox) cycleBox.style.display = 'block';
 	}catch{}
 }

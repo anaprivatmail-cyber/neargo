@@ -167,6 +167,13 @@
   status = 200
   force = true
 
+# Who am I (diagnostics)
+[[redirects]]
+  from = "/api/whoami"
+  to   = "/.netlify/functions/whoami"
+  status = 200
+  force = true
+
 # ===== Static asset caching =====
 [[headers]]
   for = "/*.html"

@@ -21,9 +21,10 @@
 		.section{margin:12px 0}
 	</style>
 	<script>
+		const __VER = '2025-11-11-1'; // cache-bust za assets
 		async function getSession(){
 			try{
-				if(!window.supabase){ const mod = await import('/assets/supabase-client.js'); window.supabase = mod.supabase; }
+				if(!window.supabase){ const mod = await import('/assets/supabase-client.js?v='+encodeURIComponent(__VER)); window.supabase = mod.supabase; }
 				const { data } = await window.supabase.auth.getSession();
 				return data?.session || null;
 			}catch(e){ return null; }
@@ -32,9 +33,29 @@
 			const out = document.getElementById('out');
 			const envBox = document.getElementById('env');
 			const me = document.getElementById('me');
+			const authDiag = document.getElementById('authDiag');
 			const mineBox = document.getElementById('mine');
 			const sess = await getSession();
 			me.textContent = sess?.user?.email ? ('Prijavljen kot: '+sess.user.email) : 'Nisi prijavljen.';
+			if(window.supabase){
+				try{
+					const userRes = await window.supabase.auth.getUser();
+					const user = userRes?.data?.user || null;
+					const diag = {
+						client: !!window.supabase,
+						session: !!sess,
+						userId: user?.id || null,
+						email: user?.email || sess?.user?.email || null,
+						tokenLast8: sess?.access_token ? sess.access_token.slice(-8) : null,
+						storedEmail: localStorage.getItem('user_email') || null,
+						storedAccess: (localStorage.getItem('user_token')||'').slice(0,16) ? (localStorage.getItem('user_token')||'').slice(-8) : null,
+						storageKeys: Object.keys(localStorage).filter(k=>/^user_/.test(k))
+					};
+					authDiag.textContent = JSON.stringify(diag, null, 2);
+				}catch(e){ authDiag.textContent = 'Napaka pri auth diagnostiki: '+(e.message||e); }
+			}else{
+				authDiag.textContent = 'Supabase client NI naložen (CDN blokiran?).';
+			}
 			try{
 				const r = await fetch('/api/check-env');
 				const j = await r.json().catch(()=>({}));
@@ -42,10 +63,45 @@
 			}catch(e){ envBox.textContent='Napaka pri preverjanju okolja: '+(e?.message||e); }
 			document.getElementById('btnFree').onclick = issueFree;
 			document.getElementById('btnMy').onclick = loadMine;
+			document.getElementById('btnRefreshAuth').onclick = async ()=>{
+				const s = await getSession();
+				me.textContent = s?.user?.email ? ('Prijavljen kot: '+s.user.email) : 'Nisi prijavljen.';
+				if(window.supabase && window.supabase.auth?.getSession){
+					try{
+						const userRes = await window.supabase.auth.getUser();
+						const user = userRes?.data?.user || null;
+						const diag = {
+							client: !!window.supabase,
+							session: !!s,
+							userId: user?.id || null,
+							email: user?.email || s?.user?.email || null,
+							tokenLast8: s?.access_token ? s.access_token.slice(-8) : null,
+							storedEmail: localStorage.getItem('user_email') || null,
+							storedAccess: (localStorage.getItem('user_token')||'').slice(0,16) ? (localStorage.getItem('user_token')||'').slice(-8) : null,
+							storageKeys: Object.keys(localStorage).filter(k=>/^user_/.test(k))
+						};
+						authDiag.textContent = JSON.stringify(diag, null, 2);
+					}catch(e){ authDiag.textContent = 'Napaka pri auth diagnostiki: '+(e.message||e); }
+				}
+			};
+			document.getElementById('btnWho').onclick = async ()=>{
+				const who = document.getElementById('whoDiag');
+				who.textContent = 'Kličem…';
+				const cur = await getSession();
+				if(!cur?.access_token){ who.textContent = 'Ni seje – prijava potrebna.'; return; }
+				try{
+					const r = await fetch('/api/whoami', {
+						method:'GET', headers: { 'Authorization': 'Bearer '+cur.access_token }
+					});
+					const j = await r.json().catch(()=>({}));
+					who.textContent = JSON.stringify(j, null, 2);
+				}catch(e){ who.textContent = 'Napaka: '+(e?.message||e); }
+			};
 			async function loadMine(){
 				mineBox.textContent='Nalagam…';
 				let headers = {};
-				if(sess?.access_token) headers['Authorization']='Bearer '+sess.access_token;
+				const cur = await getSession();
+				if(cur?.access_token) headers['Authorization']='Bearer '+cur.access_token;
 				try{
 					const r = await fetch('/api/my', { headers });
 					const j = await r.json().catch(()=>({}));
@@ -55,10 +111,11 @@
 			async function issueFree(){
 				const btn = document.getElementById('btnFree'); btn.disabled=true;
 				try{
-					if(!sess?.user?.email){ alert('Prijava potrebna.'); btn.disabled=false; return; }
+					const cur = await getSession();
+					if(!cur?.user?.email){ alert('Prijava potrebna.'); btn.disabled=false; return; }
 					const headers={'Content-Type':'application/json'};
-					if(sess?.access_token) headers['Authorization']='Bearer '+sess.access_token;
-					const body = { email: sess.user.email, event_title: 'Test kupon', display_benefit: 'Test – brezplačno' };
+					if(cur?.access_token) headers['Authorization']='Bearer '+cur.access_token;
+					const body = { email: cur.user.email, event_title: 'Test kupon', display_benefit: 'Test – brezplačno' };
 					const r = await fetch('/api/free-coupon', { method:'POST', headers, body: JSON.stringify(body) });
 					const j = await r.json().catch(()=>({}));
 					out.textContent = JSON.stringify(j, null, 2);
@@ -82,11 +139,21 @@
 			<div class="section">
 				<button id="btnFree" class="btn">✉ Pošlji test kupon (brezplačni)</button>
 				<button id="btnMy" class="btn link">📥 Naloži “Moje”</button>
+				<button id="btnRefreshAuth" class="btn link">🔄 Osveži prijavo</button>
+				<button id="btnWho" class="btn link">🆔 Strežnik “whoami”</button>
 				<a class="btn link" href="/my.html" target="_blank" rel="noopener">Odpri “Moje”</a>
 			</div>
 			<div class="section">
 				<div class="pill">Okolje</div>
 				<pre id="env">Nalagam…</pre>
+			</div>
+			<div class="section">
+				<div class="pill">Prijava (diag)</div>
+				<pre id="authDiag">Nalagam…</pre>
+			</div>
+			<div class="section">
+				<div class="pill">Whoami (strežnik)</div>
+				<pre id="whoDiag">(prazno)</pre>
 			</div>
 			<div class="section">
 				<div class="pill">Zadnji rezultat</div>

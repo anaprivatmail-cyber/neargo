@@ -143,6 +143,15 @@
 				<button id="btnWho" class="btn link">🆔 Strežnik “whoami”</button>
 				<a class="btn link" href="/my.html" target="_blank" rel="noopener">Odpri “Moje”</a>
 			</div>
+      <div class="section">
+        <div class="pill">E-pošta – test</div>
+        <div class="row" style="margin:8px 0">
+          <input id="emailTestTo" placeholder="email prejemnika" style="padding:8px 12px;border-radius:10px;border:1px solid var(--border);min-width:240px">
+          <button id="btnEmailDiag" class="btn link">🔎 Preveri nastavitve</button>
+          <button id="btnEmailSend" class="btn">📧 Pošlji test</button>
+        </div>
+        <pre id="emailTestOut">(prazno)</pre>
+      </div>
 			<div class="section">
 				<div class="pill">Okolje</div>
 				<pre id="env">Nalagam…</pre>
@@ -165,6 +174,31 @@
 			</div>
 		</div>
 	</div>
+
+	<script>
+	// Email test handlers
+	(function(){
+		function show(out, obj){ out.textContent = typeof obj==='string'?obj:JSON.stringify(obj,null,2); }
+		const out = document.getElementById('emailTestOut');
+		const toEl = document.getElementById('emailTestTo');
+		const btnDiag = document.getElementById('btnEmailDiag');
+		const btnSend = document.getElementById('btnEmailSend');
+		if(btnDiag){ btnDiag.onclick = async function(){
+			try{ const r = await fetch('/api/test-email'); const j = await r.json().catch(()=>({})); show(out, j); }
+			catch(e){ show(out, 'Napaka pri diagnostiki: '+(e?.message||e)); }
+		}; }
+		if(btnSend){ btnSend.onclick = async function(){
+			const to = (toEl && toEl.value || '').trim(); if(!to){ alert('Vnesi email prejemnika.'); return; }
+			btnSend.disabled=true; try{
+				const r = await fetch('/api/test-email?send=1&to='+encodeURIComponent(to));
+				const j = await r.json().catch(()=>({})); show(out, j);
+				if(j && j.ok){ alert('✅ Testno sporočilo poslano (provider: '+(j.provider||'?')+').'); }
+				else { alert('❌ Pošiljanje ni uspelo: '+(j?.error||'')); }
+			}catch(e){ show(out, 'Napaka: '+(e?.message||e)); }
+			finally{ btnSend.disabled=false; }
+		}; }
+	})();
+	</script>
 </body>
 </html>
 

@@ -1,86 +1,86 @@
-// /netlify/functions/test-email.js
-// ESM (ker imaš "type":"module")
+// netlify/functions/test-email.js
+// Public diagnostics + test for email sending. No login required.
+// GET /api/test-email?to=<email>&send=1 (send optional)
+// Returns details about configured provider (Brevo/SMTP) and error messages if any.
 
-import nodemailer from 'nodemailer';
+import * as Brevo from "@getbrevo/brevo";
+import nodemailer from "nodemailer";
+
+const CORS = { "Access-Control-Allow-Origin":"*", "Access-Control-Allow-Methods":"GET,OPTIONS", "Access-Control-Allow-Headers":"Content-Type" };
+const json = (s,b)=>({ statusCode:s, headers:{ "content-type":"application/json", ...CORS }, body: JSON.stringify(b) });
+
+function getProviderInfo(){
+  const hasBrevo = !!process.env.BREVO_API_KEY;
+  const smtp = {
+    host: process.env.SMTP_HOST || null,
+    port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : null,
+    user: process.env.SMTP_USER || null,
+    pass: process.env.SMTP_PASS ? "***" : null
+  };
+  const hasSmtp = !!(smtp.host && smtp.port && smtp.user && process.env.SMTP_PASS);
+  const from = process.env.EMAIL_FROM || "NearGo <info@getneargo.com>";
+  const support = process.env.SUPPORT_EMAIL || "info@getneargo.com";
+  const provider = hasBrevo ? "brevo" : (hasSmtp ? "smtp" : "none");
+  return { provider, hasBrevo, smtp, from, support };
+}
+
+async function sendViaBrevo({ to, subject, html, attachments=[] }){
+  const api = new Brevo.TransactionalEmailsApi();
+  api.setApiKey(Brevo.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
+  const FROM = process.env.EMAIL_FROM || "NearGo <info@getneargo.com>";
+  const FROM_EMAIL = (FROM.match(/<([^>]+)>/) || [null, FROM])[1];
+  const FROM_NAME  = FROM.replace(/\s*<[^>]+>\s*$/, "") || "NearGo";
+  const m = new Brevo.SendSmtpEmail();
+  m.sender = { email: FROM_EMAIL, name: FROM_NAME };
+  m.to = [{ email: to }];
+  m.subject = subject;
+  m.htmlContent = html;
+  if (attachments && attachments.length) m.attachment = attachments;
+  const res = await api.sendTransacEmail(m);
+  return { ok:true, id: res?.messageId || null };
+}
+
+async function sendViaSmtp({ to, subject, html }){
+  const FROM = process.env.EMAIL_FROM || "NearGo <info@getneargo.com>";
+  const host=process.env.SMTP_HOST, port=Number(process.env.SMTP_PORT||0), user=process.env.SMTP_USER, pass=process.env.SMTP_PASS;
+  const transporter = nodemailer.createTransport({ host, port, secure: port===465, auth:{ user, pass } });
+  await transporter.verify().catch(()=>{});
+  const info = await transporter.sendMail({ from: FROM, to, subject, html });
+  return { ok:true, id: info?.messageId || null };
+}
 
 export const handler = async (event) => {
-  // CORS za test iz brskalnika (lahko pustiš)
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 204,
-      headers: cors(),
-      body: '',
-    };
-  }
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers: cors(),
-      body: 'Method Not Allowed',
-    };
-  }
+  try{
+    if (event.httpMethod === 'OPTIONS') return { statusCode:204, headers:CORS, body:'' };
+    if (event.httpMethod !== 'GET') return json(405, { ok:false, error:'use_get' });
 
-  try {
-    const {
-      to,
-      subject = 'NearGo: test pošte',
-      html = '<p>To je testno sporočilo iz Netlify Functions.</p>',
-    } = JSON.parse(event.body || '{}');
+    const cfg = getProviderInfo();
+    const qs = event.queryStringParameters || {};
+    const to = (qs.to || '').trim();
+    const send = (qs.send === '1' || qs.send === 'true');
 
-    if (!to) {
-      return json(400, { ok: false, error: 'Manjka polje "to" (prejemnik).' });
+    if (!send) {
+      return json(200, { ok:true, mode:'diagnostics', ...cfg });
     }
 
-    // Preveri okoljske spremenljivke
-    const {
-      SMTP_HOST,
-      SMTP_PORT,
-      SMTP_USER,
-      SMTP_PASS,
-      EMAIL_FROM, // ti imaš to ime
-    } = process.env;
+    if (!to) return json(400, { ok:false, error:'missing_to' });
 
-    const missing = [];
-    if (!SMTP_HOST) missing.push('SMTP_HOST');
-    if (!SMTP_PORT) missing.push('SMTP_PORT');
-    if (!SMTP_USER) missing.push('SMTP_USER');
-    if (!SMTP_PASS) missing.push('SMTP_PASS');
-    if (!EMAIL_FROM) missing.push('EMAIL_FROM');
-
-    if (missing.length) {
-      return json(500, { ok: false, error: 'Manjkajo env spremenljivke: ' + missing.join(', ') });
+    if (cfg.provider === 'none') {
+      return json(200, { ok:false, provider:'none', error:'No email provider configured (BREVO_API_KEY or SMTP_* missing).' });
     }
 
-    // Transporter (465 = implicit TLS)
-    const transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: Number(SMTP_PORT),
-      secure: Number(SMTP_PORT) === 465, // true za 465
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-    });
+    const subject = 'NearGo – test e-pošte';
+    const html = '<p>Pozdravljeni! To je testno sporočilo iz NearGo.</p><p>Če to vidite, pošiljanje deluje.</p>';
 
-    const info = await transporter.sendMail({
-      from: EMAIL_FROM,
-      to,
-      subject,
-      html,
-    });
-
-    return json(200, { ok: true, messageId: info.messageId });
-  } catch (err) {
-    console.error(err);
-    return json(500, { ok: false, error: String(err?.message || err) });
+    try{
+      const result = cfg.provider === 'brevo'
+        ? await sendViaBrevo({ to, subject, html })
+        : await sendViaSmtp({ to, subject, html });
+      return json(200, { ok:true, provider: cfg.provider, result });
+    }catch(e){
+      return json(200, { ok:false, provider: cfg.provider, error: e?.message || String(e) });
+    }
+  }catch(e){
+    return json(500, { ok:false, error: e?.message || String(e) });
   }
 };
-
-// helpers
-function cors() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-}
-function json(status, obj) {
-  return { statusCode: status, headers: { 'content-type': 'application/json', ...cors() }, body: JSON.stringify(obj) };
-}

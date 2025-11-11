@@ -181,6 +181,13 @@
   status = 200
   force = true
 
+# Email diagnostics and test endpoint (no login required)
+[[redirects]]
+  from = "/api/test-email"
+  to   = "/.netlify/functions/test-email"
+  status = 200
+  force = true
+
 # ===== Static asset caching =====
 [[headers]]
   for = "/*.html"

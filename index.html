@@ -652,7 +652,10 @@
               chip.dataset.cat = cat.key;
               chip.setAttribute('aria-label', cat.label || cat.key);
               chip.setAttribute('aria-pressed', 'false');
-              var iconHtml = cat.icon ? '<img src="'+cat.icon+'" alt="" loading="lazy">' : '<span class="cat-emoji" aria-hidden="true">'+(cat.emoji || '🏷️')+'</span>';
+              // Prefer emoji (zahteva) in uporabi ikono le kot rezervni prikaz
+              var iconHtml = (cat.emoji && String(cat.emoji).trim())
+                ? '<span class="cat-emoji" aria-hidden="true">'+cat.emoji+'</span>'
+                : (cat.icon ? '<img src="'+cat.icon+'" alt="" loading="lazy">' : '<span class="cat-emoji" aria-hidden="true">🏷️</span>');
               chip.innerHTML = iconHtml + '<span class="cat-label">'+(cat.label || cat.key)+'</span>';
               chip.addEventListener('mouseenter', function(){ toggleLabel(chip, true); });
               chip.addEventListener('mouseleave', function(){ toggleLabel(chip, false); });

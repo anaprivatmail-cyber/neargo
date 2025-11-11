@@ -60,42 +60,11 @@ export const handler = async (event) => {
     const displayBenefit = body.display_benefit || body.benefit || body.freebie_text || "Brezplačno";
     if (!email) return bad("missing_email");
 
-    // --- PREMIUM VALIDATION -------------------------------------------------
-    // Free coupon issuance must not bypass Premium gating if configured.
-    // Strategy: user is Premium if premium_users has future premium_until OR has a 'premium' ticket.
-    const REQUIRE_PREMIUM_FREE_COUPON = process.env.REQUIRE_PREMIUM_FREE_COUPON === '0' ? false : true; // default ON
-    let isPremium = false;
-    if (REQUIRE_PREMIUM_FREE_COUPON){
-      try {
-        const { data: pu } = await supa.from('premium_users').select('premium_until').eq('email', email).maybeSingle();
-        if (pu?.premium_until && new Date(pu.premium_until).getTime() > Date.now()) isPremium = true;
-      } catch {}
-      if (!isPremium){
-        try { const { count } = await supa.from('tickets').select('*',{head:true,count:'exact'}).eq('customer_email', email).eq('type','premium'); isPremium = (count||0) > 0; } catch {}
-      }
-      if (!isPremium) return bad('premium_required');
-    }
-
-    // --- RATE LIMIT (simple) ------------------------------------------------
-    // Prevent abuse: max 5 free coupons per 24h per email.
-    const MAX_PER_24H = Number(process.env.FREE_COUPON_MAX_24H || 5);
-    try {
-      const sinceIso = new Date(Date.now() - 24*60*60*1000).toISOString();
-      const { count: recentCount } = await supa
-        .from('tickets')
-        .select('*',{head:true,count:'exact'})
-        .eq('customer_email', email)
-        .eq('type','coupon')
-        .gte('issued_at', sinceIso)
-        .is('stripe_checkout_session_id', null); // free coupons only
-      if ((recentCount||0) >= MAX_PER_24H) return bad('rate_limit');
-    } catch {}
-
     // generate token
     const token = (globalThis.crypto?.randomUUID?.() || null) || Math.random().toString(36).slice(2)+Date.now().toString(36);
     const nowIso = new Date().toISOString();
 
-    // insert ticket row (FREE coupon)
+    // insert ticket row
     const { error: insErr } = await supa.from("tickets").insert({
       event_id: eventId,
       type: "coupon",
@@ -139,7 +108,7 @@ export const handler = async (event) => {
       attachments: [{ name: "qr.png", content: qrPngBuffer.toString("base64") }]
     });
 
-    return ok({ ok:true, token, premium: isPremium });
+    return ok({ ok:true, token });
   }catch(e){
     return bad(String(e?.message || e), 500);
   }

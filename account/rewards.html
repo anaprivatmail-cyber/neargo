@@ -12,11 +12,6 @@
     <div class="card">
       <h1>Nagrade</h1>
       <div id="balance" style="margin-bottom:12px;">Nalagam stanje točk...</div>
-      <div style="margin:8px 0 18px">
-        <label style="font-weight:600;display:block;margin-bottom:6px">Napredek do Premium (500 točk)</label>
-        <input id="pointsSlider" type="range" min="0" max="500" value="0" style="width:100%">
-        <div style="display:flex;justify-content:space-between;font-size:12px;opacity:.75"><span>0</span><span>250</span><span>500</span></div>
-      </div>
       <section id="convert">
         <h2>Pretvori točke v kredite</h2>
         <label>Točke <input id="convertPoints" type="number" min="1" value="100"></label>
@@ -26,19 +21,9 @@
       <hr>
       <section id="redeem">
         <h2>Unovči</h2>
-        <div style="display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
-          <div class="card" style="padding:10px;border:1px solid #e6eef7;border-radius:10px">
-            <div style="font-weight:700">Premium mesec</div>
-            <div style="font-size:12px;opacity:.75">500 točk → +1 mesec dostopa</div>
-            <button data-reward="premium_month" class="btn mini" style="margin-top:6px">Unovči</button>
-          </div>
-          <div class="card" style="padding:10px;border:1px solid #e6eef7;border-radius:10px">
-            <div style="font-weight:700">Brezplačen kupon</div>
-            <div style="font-size:12px;opacity:.75">300 točk → kupon iz posebne ponudbe</div>
-            <button data-reward="free_coupon_generic" class="btn mini" style="margin-top:6px">Unovči</button>
-          </div>
-        </div>
-        <div id="redeemMsg" class="muted" style="margin-top:8px"></div>
+        <select id="redeemType"><option value="flash">Flash kupon (100 točk)</option><option value="premium">Premium mesec (500 točk)</option></select>
+        <div style="margin-top:8px;"><button id="btnRedeem" class="btn">Unovči</button></div>
+        <div id="redeemMsg" class="muted"></div>
       </section>
       <hr>
       <section id="history">
@@ -48,7 +33,6 @@
       <hr>
       <section id="referral">
         <h2>Povabi prijatelje</h2>
-        <div style="margin-bottom:6px;font-size:13px;opacity:.8">Za registracijo prijatelja: +50 točk. Ob njegovem prvem Premium nakupu: +100 točk.</div>
         <input id="refLink" readonly value="Pridobivam ..." style="width:70%">
         <button id="copyRef" class="btn mini">Kopiraj</button>
         <div id="refMsg" class="muted"></div>
@@ -58,23 +42,13 @@
   <script>
     document.addEventListener('DOMContentLoaded', ()=>{
       const em = localStorage.getItem('user_email')||'';
-      if(!em){ document.getElementById('balance').textContent = 'Najprej se prijavi (zgoraj).'; return; }
       async function load(){
+        if(!em) return;
         try{
-          const h = await fetch('/.netlify/functions/rewards-history?email='+encodeURIComponent(em)).then(r=>r.json());
-          if(h && h.ok){
-            document.getElementById('historyList').innerHTML = (h.rows||[]).map(x=>`<div style="padding:2px 0">${x.created_at||x.inserted_at}: ${x.reason||x.type} (${x.points} točk)</div>`).join('') || 'Ni zgodovine.';
-          }
-        }catch(e){ console.warn(e); }
-        // points balance via /api/my
-        try{
-          const m = await fetch('/.netlify/functions/my?email='+encodeURIComponent(em)).then(r=>r.json());
-          if(m && m.ok){
-            const bal = Number(m.points_balance||0);
-            document.getElementById('balance').textContent = `Stanje: ${bal} točk`;
-            const slider = document.getElementById('pointsSlider');
-            slider.value = Math.min(500, bal);
-            slider.style.background = `linear-gradient(to right,#0bbbd6 0%,#0bbbd6 ${(Math.min(bal,500)/5)}%,#e6eef7 ${(Math.min(bal,500)/5)}%,#e6eef7 100%)`;
+          const r = await fetch('/.netlify/functions/rewards-history?email='+encodeURIComponent(em));
+          const data = await r.json();
+          if(data && data.ok){
+            document.getElementById('historyList').innerHTML = (data.rows||[]).map(x=>`<div>${x.inserted_at}: ${x.type} (${x.points} točk)</div>`).join('') || 'Ni zgodovine.';
           }
         }catch(e){ console.warn(e); }
       }
@@ -86,31 +60,15 @@
         document.getElementById('convertMsg').textContent = r && r.ok ? 'Pretvorjeno.' : 'Napaka pri pretvorbi.';
       };
 
-      // Reward item buttons
-      document.querySelectorAll('[data-reward]').forEach(btn=>{
-        btn.addEventListener('click', async ()=>{
-          const code = btn.getAttribute('data-reward');
-          btn.disabled = true;
-          try{
-            const r = await fetch('/.netlify/functions/rewards-premium-redeem',{ // premium special case
-              method:'POST',headers:{'Content-Type':'application/json'},body: JSON.stringify({ email: em })
-            }).then(x=>x.json());
-            if(code !== 'premium_month'){
-              // generic reward item redeem endpoint (not yet specialized) reuse legacy for coupon
-              const rr = await fetch('/.netlify/functions/rewards-redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ email: em, reward_code: code, points: code==='free_coupon_generic'?300:0 })}).then(x=>x.json());
-              document.getElementById('redeemMsg').textContent = (r.ok || rr.ok) ? 'Unovčeno.' : (rr.error || r.error || 'Napaka.');
-            } else {
-              document.getElementById('redeemMsg').textContent = r.ok ? 'Premium mesec dodan.' : (r.error || 'Napaka.');
-            }
-          }catch(e){ document.getElementById('redeemMsg').textContent = 'Napaka pri unovčenju.'; }
-          btn.disabled = false;
-          load();
-        });
-      });
+      document.getElementById('btnRedeem').onclick = async ()=>{
+        const type = document.getElementById('redeemType').value;
+        const r = await fetch('/.netlify/functions/rewards-redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,type})}).then(x=>x.json());
+        document.getElementById('redeemMsg').textContent = r && r.ok ? 'Unovčeno.' : (r?.error || 'Napaka pri unovčenju.');
+      };
 
       document.getElementById('copyRef').onclick = ()=>{ const inp = document.getElementById('refLink'); inp.select(); document.execCommand('copy'); document.getElementById('refMsg').textContent='Kopirano.'; };
       // load referral link
-      (async ()=>{ try{ const r = await fetch('/.netlify/functions/rewards-referral-link?email='+encodeURIComponent(em)).then(x=>x.json()); if(r && r.ok) document.getElementById('refLink').value = r.link || ''; }catch(e){} })();
+      (async ()=>{ try{ const r = await fetch('/.netlify/functions/referral?email='+encodeURIComponent(em)).then(x=>x.json()); if(r && r.ok) document.getElementById('refLink').value = r.link || ''; }catch(e){} })();
     });
   </script>
 </body>

@@ -142,7 +142,6 @@
   <script type="module" src="assets/categories.js"></script>
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-    import { NG_PLAN_FEATURES } from '/assets/provider-plan.js';
 
     const url = window.SUPABASE_URL || localStorage.getItem('SUPABASE_URL');
     const anon = window.SUPABASE_ANON_KEY || localStorage.getItem('SUPABASE_ANON_KEY');
@@ -433,7 +432,6 @@
             <span>Izpostavi (7 dni)</span>
           </label>
           <div class="note" id="featuredHint" hidden></div>
-          <div class="note" id="featuredUsage" style="font-size:12px; color:var(--muted)" hidden>Izpostavitve ta mesec: …</div>
         </div>
 
         <div class="row mt-gap">
@@ -508,11 +506,10 @@
         const upsellIntro = document.getElementById("upsellIntro");
         const calendarUpsell = document.querySelector('#svcCalendarHelp [data-plan="upsell"]');
         const calendarProNote = document.querySelector('#svcCalendarHelp [data-plan="pro"]');
-        const features = NG_PLAN_FEATURES?.[normalized] || NG_PLAN_FEATURES?.free || { featuredPerMonth: 0 };
 
         if (upsellIntro){
           if (normalized === "grow"){
-            upsellIntro.textContent = `Na Grow paketu imate QR skener, analitiko in ${features.featuredPerMonth} izpostavitev na mesec. Pro doda NearGo koledar, napredna poročila in ${NG_PLAN_FEATURES.pro.featuredPerMonth} izpostavitve na mesec.`;
+            upsellIntro.textContent = "Na Grow paketu imate QR skener, analitiko in 1 izpostavitev na mesec. Pro doda NearGo koledar, napredna poročila in 3 izpostavitve na mesec.";
             upsellIntro.hidden = false;
           } else if (normalized === "pro"){
             upsellIntro.hidden = true;
@@ -548,10 +545,10 @@
 
         if (featuredHint){
           if (normalized === "free"){
-            featuredHint.innerHTML = `Za izpostavitve nadgradite na Grow (${NG_PLAN_FEATURES.grow.featuredPerMonth} izpostavitev / mesec) ali Pro (${NG_PLAN_FEATURES.pro.featuredPerMonth} izpostavitve / mesec). <button type="button" class="link-btn" data-plan-link="featured">Prikaži pakete</button>`;
+            featuredHint.innerHTML = 'Za izpostavitve nadgradite na Grow (1 izpostavitev / mesec) ali Pro (3 izpostavitve / mesec). <button type="button" class="link-btn" data-plan-link="featured">Prikaži pakete</button>';
             featuredHint.hidden = false;
           } else if (normalized === "grow"){
-            featuredHint.textContent = `Grow vključuje ${features.featuredPerMonth} izpostavitev na mesec (7 dni). Pro prinaša ${NG_PLAN_FEATURES.pro.featuredPerMonth} izpostavitve ter napredni NearGo koledar.`;
+            featuredHint.textContent = "Grow vključuje 1 izpostavitev na mesec (7 dni). Pro prinaša 3 izpostavitve ter napredni NearGo koledar.";
             featuredHint.hidden = false;
           } else {
             featuredHint.textContent = "";
@@ -568,8 +565,6 @@
         if (hintWrap){
           hintWrap.dataset.plan = normalized;
         }
-
-        updateFeaturedUsage();
 
         try {
           localStorage.setItem("ng_provider_plan", normalized);
@@ -1030,10 +1025,6 @@
             const target = ev.target;
             if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement){
               scheduleDraftSave();
-              // Refresh featured usage if organizer email changes
-              if (target.id === 'orgEmail'){
-                try { updateFeaturedUsage(); } catch {}
-              }
             }
           };
           formRoot.addEventListener('input', draftListener, true);
@@ -1057,42 +1048,11 @@
               handlePlanRedirect('featured');
               return;
             }
-            // For Grow/Pro show timely reminder about monthly limits (server enforces)
-            const feats = NG_PLAN_FEATURES?.[currentPlan];
-            if (feats && typeof feats.featuredPerMonth === 'number'){
-              showToast(`Opomba: paket ${currentPlan.toUpperCase()} vključuje ${feats.featuredPerMonth} izpostavitev na mesec (7 dni).`, true);
-            }
-            updateFeaturedUsage();
           } else {
             featured.dataset.pending = '';
           }
           scheduleDraftSave();
         });
-
-        async function updateFeaturedUsage(){
-          const usageNode = document.getElementById('featuredUsage');
-          const checkbox = document.getElementById('featured');
-          if (!usageNode) return;
-          const email = (document.getElementById('orgEmail')?.value || '').trim().toLowerCase() || localStorage.getItem('user_email');
-          if (!email){ usageNode.hidden = true; return; }
-          try {
-            usageNode.hidden = false;
-            usageNode.textContent = 'Izpostavitve ta mesec: nalagam…';
-            const r = await fetch(`/api/provider-featured-usage?email=${encodeURIComponent(email)}`).then(x=>x.json()).catch(()=>null);
-            if (!r || !r.ok){ usageNode.textContent = 'Izpostavitve ta mesec: napaka'; return; }
-            usageNode.textContent = `Izpostavitve ta mesec: ${r.used}/${r.allowed}`;
-            if (checkbox){
-              if (r.used >= r.allowed){
-                checkbox.checked = false;
-                checkbox.disabled = true;
-                checkbox.title = 'Limit izpostavitev dosežen';
-              } else {
-                checkbox.disabled = false;
-                checkbox.title = '';
-              }
-            }
-          } catch (e){ usageNode.textContent = 'Izpostavitve ta mesec: napaka'; }
-        }
 
         function showChipLabel(node, show){
           if (!(node instanceof HTMLElement)) return;
@@ -1780,26 +1740,6 @@
                 resetForm(true);
               }, 1500);
             } else {
-              const code = response && response.code ? String(response.code) : "";
-              if (code === "featured_requires_plan"){
-                // uncheck and redirect to plans
-                if (featured) featured.checked = false;
-                handlePlanRedirect('featured');
-                return;
-              }
-              if (code === "featured_limit_exceeded"){
-                if (featured) featured.checked = false;
-                showToast(response.error || 'Dosežen mesečni limit izpostavitev.', false);
-                if (orgMsg){ orgMsg.textContent = response.error || ''; orgMsg.style.color = 'var(--bad)'; }
-                return;
-              }
-              if (code === "calendar_requires_pro"){
-                // fallback away from internal calendar
-                const fallbackMode = lastSvcWhenValue && lastSvcWhenValue !== 'neargo' ? lastSvcWhenValue : (document.querySelector('input[name="svcWhen"][value="external"]') ? 'external' : 'call');
-                setSvcWhenValue(fallbackMode);
-                handlePlanRedirect('calendar');
-                return;
-              }
               if (orgMsg){
                 orgMsg.textContent = response && response.error ? response.error : "Oddaja ni uspela.";
                 orgMsg.style.color = "var(--bad)";

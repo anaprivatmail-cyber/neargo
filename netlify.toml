@@ -17,12 +17,6 @@
   force = true
 
 [[redirects]]
-  from = "/api/provider-featured-usage"
-  to   = "/.netlify/functions/provider-featured-usage"
-  status = 200
-  force = true
-
-[[redirects]]
   from = "/api/provider-upload"
   to   = "/.netlify/functions/provider-upload"
   status = 200
@@ -31,12 +25,6 @@
 [[redirects]]
   from = "/api/provider-list"
   to   = "/.netlify/functions/provider-list"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/api/provider-ratings"
-  to   = "/.netlify/functions/provider-ratings-get"
   status = 200
   force = true
 
@@ -173,42 +161,6 @@
   status = 200
   force = true
 
-[[redirects]]
-  from = "/api/iap-verify"
-  to   = "/.netlify/functions/iap-verify"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/api/premium-cancel"
-  to   = "/.netlify/functions/premium-cancel"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/api/billing-portal"
-  to   = "/.netlify/functions/billing-portal"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/api/calendar-slots"
-  to   = "/.netlify/functions/calendar-slots"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/api/calendar-reserve"
-  to   = "/.netlify/functions/calendar-reserve"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/api/calendar-cancel"
-  to   = "/.netlify/functions/calendar-cancel"
-  status = 200
-  force = true
-
 # ===== Static asset caching =====
 [[headers]]
   for = "/*.html"
@@ -229,7 +181,6 @@
     referrer-policy = "strict-origin-when-cross-origin"
     permissions-policy = "geolocation=(self), camera=(self)"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
-    content-security-policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.brevo.com https://api.stripe.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
 
 # ===== CORS for functions =====
 [[headers]]

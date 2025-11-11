@@ -60,7 +60,6 @@ async function loadAllSubmissions(supabase){
         name: obj.eventName || obj.name || '',
         description: obj.description || '',
         category: obj.category || '',
-        subcategory: obj.subcategory || obj.subCategory || obj.subcategoryKey || obj.subCategoryKey || '',
         start: obj.start || obj.starts_at || null,
         end: obj.end || obj.ends_at || null,
         url: obj.url || '',
@@ -184,18 +183,13 @@ async function fetchEventbrite({ q, center, radiusKm, size=50 }){
 }
 
 /* --------------------- filter/sort/paginate --------------------- */
-function filterSortPaginate(items, { query, categories, subcategories, center, radiusKm, page, size }){
+function filterSortPaginate(items, { query, category, center, radiusKm, page, size }){
   const q = norm(query);
-  const catList = Array.isArray(categories) ? categories.filter(Boolean).map(norm) : [];
-  const subList = Array.isArray(subcategories) ? subcategories.filter(Boolean).map(norm) : [];
+  const cat = norm(category);
 
   let out = items.filter(e=>{
     const matchQ = !q || [e.name, e.description, e.venue?.address].some(v => norm(v).includes(q));
-    const eCat = norm(e.category);
-    const eSub = norm(e.subcategory || e.subCategory || e.subcategoryKey || '');
-    const tags = Array.isArray(e.tags) ? e.tags.map(t=>norm(t)) : [];
-    const matchC = !catList.length || catList.some(c => eCat === c || eCat.includes(c));
-    const matchS = !subList.length || subList.some(s => eSub === s || tags.includes(s));
+    const matchC = !cat || norm(e.category).includes(cat);
     let matchG = true, dist = null;
     if (center && Number.isFinite(center.lat) && Number.isFinite(center.lon) &&
         Number.isFinite(e.venue?.lat) && Number.isFinite(e.venue?.lon)){
@@ -203,7 +197,7 @@ function filterSortPaginate(items, { query, categories, subcategories, center, r
       matchG = dist != null && dist <= (Number(radiusKm) || 30);
     }
     e._distanceKm = dist;
-    return matchQ && matchC && matchS && matchG;
+    return matchQ && matchC && matchG;
   });
 
   const now = Date.now();
@@ -258,15 +252,7 @@ export const handler = async (event) => {
   }
 
   const query    = toStr(params.q || params.query || '');
-  // Multi category/subcategory support (comma separated lists)
-  const categories = [];
-  if (params.categories) {
-    String(params.categories).split(/[\s,]+/).forEach(v=>{ if (v) categories.push(v); });
-  } else if (params.category) { categories.push(String(params.category)); }
-  const subcategories = [];
-  if (params.subcategories) {
-    String(params.subcategories).split(/[\s,]+/).forEach(v=>{ if (v) subcategories.push(v); });
-  } else if (params.subcategory) { subcategories.push(String(params.subcategory)); }
+  const category = toStr(params.category || '');
   let center     = params.center && Number.isFinite(params.center.lat) && Number.isFinite(params.center.lon)
     ? { lat:Number(params.center.lat), lon:Number(params.center.lon) }
     : null;
@@ -298,8 +284,8 @@ export const handler = async (event) => {
     const bigResults = await Promise.allSettled(bigFetches);
     bigResults.forEach(r => { if (r.status === 'fulfilled' && Array.isArray(r.value)) items.push(...r.value); });
 
-    const result = filterSortPaginate(items, { query, categories, subcategories, center, radiusKm, page, size });
-    return json({ ok:true, ...result, center, categories, subcategories });
+    const result = filterSortPaginate(items, { query, category, center, radiusKm, page, size });
+    return json({ ok:true, ...result, center });
   }catch(e){
     return json({ ok:false, error:String(e?.message || e) }, 500);
   }

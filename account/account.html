@@ -23,15 +23,8 @@
       </section>
       <hr>
       <section id="subscriptionSection">
-        <h2 id="subscription">Naročnina / Premium</h2>
+        <h2>Naročnina</h2>
         <div id="subscriptionInfo" class="muted">Nalaganje...</div>
-        <div id="premiumManageBox" style="display:none;margin-top:12px;padding:12px 14px;border:1px solid #e6eef7;border-radius:12px;background:#f9fcff;font-size:14px;line-height:1.45;">
-          <div id="premiumStatusLine" style="font-weight:700;margin-bottom:6px;color:#0b1b2b;">Premium aktivno</div>
-          <div style="font-size:12px;color:#5b6b7b;margin-bottom:10px;">Prekineš lahko kadarkoli – dostop ostane do izteka obdobja. Če je bil nakup preko Google Play / Apple Store, upravljaj naročnino v trgovini (Google Play / Apple naročnine).</div>
-          <button id="btnCancelPremium" class="btn bad" style="background:#d64c4c;color:#fff;font-weight:800;padding:8px 14px;border:none;border-radius:10px;cursor:pointer;">Prekini Premium</button>
-          <button id="btnOpenPortal" class="btn" style="margin-left:8px;background:#0bbbd6;color:#fff;font-weight:800;padding:8px 14px;border:none;border-radius:10px;cursor:pointer;">Stripe portal</button>
-          <div id="premiumCancelMsg" class="muted" style="margin-top:8px;font-size:12px;"></div>
-        </div>
       </section>
     </div>
   </main>
@@ -44,59 +37,6 @@
         if(!email){ document.getElementById('profileMsg').textContent='Vnesi email.'; return; }
         localStorage.setItem('user_email', email);
         document.getElementById('profileMsg').textContent='Shranjeno.';
-      };
-
-      async function loadPremium(){
-        const email = localStorage.getItem('user_email');
-        if(!email){ document.getElementById('subscriptionInfo').textContent='Ni prijavljenega uporabnika.'; return; }
-        try{
-          const r = await fetch(`/api/my?email=${encodeURIComponent(email)}`).then(x=>x.json());
-          if(r && r.ok){
-            if(r.premium){
-              const until = r.premium_until ? new Date(r.premium_until) : null;
-              const untilStr = until && !isNaN(until.getTime()) ? until.toLocaleDateString('sl-SI',{day:'2-digit',month:'2-digit',year:'numeric'}) : '';
-              document.getElementById('subscriptionInfo').textContent = 'Premium aktivno ' + (untilStr?('(do '+untilStr+')'):'');
-              const box = document.getElementById('premiumManageBox');
-              const line = document.getElementById('premiumStatusLine');
-              if(box){ box.style.display='block'; }
-              if(line){ line.textContent = 'Premium aktivno ' + (untilStr?('(do '+untilStr+')'):''); }
-              document.getElementById('btnCancelPremium').style.display='inline-block';
-            } else {
-              document.getElementById('subscriptionInfo').textContent='Premium ni aktiven.';
-            }
-          } else {
-            document.getElementById('subscriptionInfo').textContent='Napaka pri nalaganju.';
-          }
-        }catch(e){ document.getElementById('subscriptionInfo').textContent='Napaka.'; }
-      }
-      loadPremium();
-
-      document.getElementById('btnCancelPremium').onclick = async ()=>{
-        const email = localStorage.getItem('user_email');
-        if(!email){ return; }
-        const msg = document.getElementById('premiumCancelMsg');
-        if(!confirm('Res želiš prekiniti Premium? Dostop se bo onemogočil.')) return;
-        msg.textContent='Poteka preklic...';
-        try{
-          const r = await fetch('/api/premium-cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})}).then(x=>x.json());
-          if(r && r.ok){
-            msg.textContent='Premium preklican. Dostop bo odstranjen v kratkem.';
-            document.getElementById('subscriptionInfo').textContent='Premium preklican.';
-            document.getElementById('btnCancelPremium').disabled=true;
-          } else {
-            msg.textContent='Preklic ni uspel.';
-          }
-        }catch(e){ msg.textContent='Napaka pri preklicu.'; }
-      };
-
-      document.getElementById('btnOpenPortal').onclick = async ()=>{
-        const email = localStorage.getItem('user_email');
-        if(!email){ alert('Ni e-pošte. Prijavite se.'); return; }
-        try{
-          const r = await fetch('/api/billing-portal',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email }) }).then(x=>x.json());
-          if(r && r.ok && r.url){ window.location.href = r.url; }
-          else{ alert('Portal ni na voljo.'); }
-        }catch(e){ alert('Napaka pri odpiranju portala.'); }
       };
     });
   </script>

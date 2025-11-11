@@ -1,25 +1,4 @@
 let topMap=null, topMarkers=[];
-
-function ensureLiveMarkerStyles(){
-  if(document.getElementById('liveMarkerStyles')) return;
-  const st=document.createElement('style'); st.id='liveMarkerStyles';
-  st.textContent=`.mk{width:16px;height:16px;border-radius:50%;background:#ff6b6b;border:2px solid #fff;box-shadow:0 0 0 2px rgba(0,0,0,.15)}
-  .mk-live{background:#2ecc71;animation:pulseLive 1.8s infinite}
-  @keyframes pulseLive{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}`;
-  document.head.appendChild(st);
-}
-
-function isLive(e){
-  try{
-    const now=Date.now();
-    const startMs=new Date(e.start).getTime();
-    if(!isFinite(startMs)) return false;
-    const endMs=isFinite(new Date(e.end).getTime())?new Date(e.end).getTime():startMs+2*3600_000; // assume 2h if no end
-    // live if started and not ended OR starts within next 2h
-    return (startMs <= now && now <= endMs) || (startMs > now && (startMs - now) <= 2*3600_000);
-  }catch{return false;}
-}
-
 export function refreshTopMap(){
   const node=document.getElementById("map"); if(!node) return;
   if(!topMap){
@@ -28,16 +7,12 @@ export function refreshTopMap(){
   }
 }
 export function clearMarkers(arr){ try{arr.forEach(m=>m.remove());}catch{} }
-export function setMarkersOn(map, items){
-  ensureLiveMarkerStyles();
-  const liveIcon=L.divIcon({className:'live-outer', html:'<div class="mk mk-live"></div>', iconSize:[16,16]});
-  const normalIcon=L.divIcon({className:'normal-outer', html:'<div class="mk"></div>', iconSize:[16,16]});
+export function setMarkersOn(map, items, filtered){
   const ms=[];
   items.forEach(e=>{
     const lat=e.venue?.lat, lon=e.venue?.lon;
     if(Number.isFinite(+lat) && Number.isFinite(+lon)){
-      const icon=isLive(e)?liveIcon:normalIcon;
-      const m=L.marker([+lat,+lon], { icon }).addTo(map);
+      const m=L.marker([+lat,+lon]).addTo(map);
       const id=(e.id?`ev-${String(e.id).replace(/[^a-z0-9]/gi,'')}`:`ev-${(e.name||'').toLowerCase().replace(/[^a-z0-9]/g,'')}-${(e.start||'').replace(/[^0-9]/g,'')}`).slice(0,64);
       m.bindPopup(`<a href="#${id}">${(e.name||"Dogodek").toString().slice(0,80)}</a>`);
       m.on('click',()=>{

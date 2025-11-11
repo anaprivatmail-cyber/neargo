@@ -36,17 +36,6 @@ async function loadPrefs(){
     try{ const { data: pu } = await supa.from('premium_users').select('email,premium_until').in('email', emails); const now=Date.now(); (pu||[]).forEach(r=>{ if(r.email && r.premium_until && new Date(r.premium_until).getTime()>now) premiumEmails.add(r.email); }); }catch{}
     prefs = prefs.filter(p=>premiumEmails.has(p.email));
   }
-  // Optional targeted audience filter: EARLY_NOTIFY_MIN_POINTS
-  const minPoints = Number(process.env.EARLY_NOTIFY_MIN_POINTS || 0);
-  if (minPoints > 0 && prefs.length){
-    const emails = prefs.map(p=>p.email).filter(Boolean);
-    try{
-      const { data: up } = await supa.from('user_points').select('email,points').in('email', emails);
-      const allowed = new Set();
-      (up||[]).forEach(r=>{ if(r?.email && Number(r.points||0) >= minPoints) allowed.add(r.email); });
-      prefs = prefs.filter(p=> allowed.has(p.email));
-    }catch{/* ignore missing table */}
-  }
   return prefs;
 }
 async function withinWindow(offer){

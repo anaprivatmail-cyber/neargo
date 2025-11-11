@@ -48,20 +48,6 @@ async function getEarlyNotifyPrefs(){
     } catch(e){ /* table may not exist yet */ }
     prefs = prefs.filter(p=>premiumEmails.has(p.email));
   }
-  // Optional targeted audience filter by points: EARLY_NOTIFY_MIN_POINTS (e.g., 500)
-  const minPoints = Number(process.env.EARLY_NOTIFY_MIN_POINTS || 0);
-  if (minPoints > 0 && prefs.length){
-    const emails = prefs.map(p=>p.email).filter(Boolean);
-    try{
-      const { data: up } = await supa
-        .from('user_points')
-        .select('email,points')
-        .in('email', emails);
-      const ok = new Set();
-      (up||[]).forEach(r=>{ if(r?.email && Number(r.points||0) >= minPoints) ok.add(r.email); });
-      prefs = prefs.filter(p=> ok.has(p.email));
-    }catch(e){ /* table may not exist; ignore and keep prefs */ }
-  }
   return prefs;
 }
 

@@ -344,16 +344,7 @@
 
 		document.getElementById("forgotPasswordLink")?.addEventListener("click", (event) => {
 			event.preventDefault();
-			// Pass intended return path to forgot-password flow
-			const params = new URLSearchParams(window.location.search);
-			const rawNext = params.get("next");
-			const base = "/forgot-password.html";
-			if (rawNext) {
-				window.location.href = `${base}?return=${encodeURIComponent(rawNext)}`;
-			} else {
-				// fallback to default next used by login
-				window.location.href = `${base}?return=${encodeURIComponent("/organizers.html")}`;
-			}
+			window.location.href = "/forgot-password.html";
 		});
 
 		const setStatus = (message = "", tone = "info") => {

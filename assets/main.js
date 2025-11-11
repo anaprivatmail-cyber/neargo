@@ -52,21 +52,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 4) zaženi tvoj app (vsa logika, ki je bila prej v indexu)
   if (typeof window.appInit === 'function') window.appInit();
 
-  // Global interaction feedback: add/remove 'pressed' class to buttons for consistent visual response
-  (function enhancePressFeedback(){
-    const add = e => {
-      const btn = e.target.closest && e.target.closest('button, .btn, .cta, .mode, .pill');
-      if(btn){ btn.classList.add('pressed'); }
-    };
-    const remove = e => {
-      document.querySelectorAll('.pressed').forEach(node => node.classList.remove('pressed'));
-    };
-    document.addEventListener('pointerdown', add, { passive:true });
-    document.addEventListener('pointerup', remove, { passive:true });
-    document.addEventListener('pointerleave', remove, { passive:true });
-    document.addEventListener('keyup', e => { if(e.key===' '||e.key==='Enter') remove(e); }, { passive:true });
-  })();
-
   // Testni login debug
   import('./supabase-client.js').then(({ testSignInEmail, testSignInGoogle, testSignUpEmail }) => {
     const btnEmail = document.getElementById('btnTestEmailLogin');

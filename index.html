@@ -1175,7 +1175,20 @@ function addToCalendar(o){
 (function(){
   var t=$("#toast");
   function show(msg, ok){ if(ok===undefined) ok=true; if(!t) return; t.textContent=msg; t.className="toast "+(ok?"ok":"bad"); t.style.display="flex"; setTimeout(function(){ t.style.display="none"; },4000); }
-  if(location.hash==="#success"){ show("Plačilo uspešno ✅ — predmet je poslan na e-pošto.", true); history.replaceState(null,"",location.pathname+location.search); }
+  if(location.hash==="#success"){ 
+    try{
+      var u = new URL(location.href);
+      var cs = u.searchParams.get('cs');
+      if (cs){
+        fetch('/api/finalize-checkout?cs='+encodeURIComponent(cs)).catch(function(){});
+        // odstrani cs iz url
+        u.searchParams.delete('cs');
+        history.replaceState(null, "", u.pathname + (u.search?('?'+u.searchParams.toString()):'') );
+      }
+    }catch(e){}
+    show("Plačilo uspešno ✅ — predmet je poslan na e-pošto.", true); 
+    history.replaceState(null,"",location.pathname+location.search); 
+  }
   if(location.hash==="#cancel"){ show("Plačilo preklicano. ❌", false); history.replaceState(null,"",location.pathname+location.search); }
   window._toast=show;
 })();

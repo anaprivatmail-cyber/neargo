@@ -26,8 +26,17 @@ export const handler = async (event) => {
     }
 
     const payload = JSON.parse(event.body || "{}");
-    const successUrl = payload.successUrl || `${PUBLIC_BASE_URL || ""}/#success`;
+    const successUrlRaw = payload.successUrl || `${PUBLIC_BASE_URL || ""}/#success`;
     const cancelUrl  = payload.cancelUrl  || `${PUBLIC_BASE_URL || ""}/#cancel`;
+    const addParam = (url, key, val) => {
+      try{
+        const u = new URL(url, PUBLIC_BASE_URL || (typeof location!=="undefined"?location.origin:undefined) || "http://localhost");
+        u.searchParams.set(key, val);
+        return u.toString();
+      }catch{ return url + (url.includes('?') ? '&' : '?') + encodeURIComponent(key) + '=' + encodeURIComponent(val); }
+    };
+    // Always include session id placeholder for post-success fallback finalization
+    const successUrl = addParam(successUrlRaw, 'cs', '{CHECKOUT_SESSION_ID}');
     const metadata   = payload.metadata || {};
     // Poskusi pridobiti email iz Authorization (Supabase), če ga ni v metadata
     if (!metadata.email) {
@@ -56,7 +65,7 @@ export const handler = async (event) => {
         customer_creation: "always",
         // Če imamo e-pošto iz prijave jo vnesi, da uporabnik ne rabi ponovno tipkati
         customer_email: metadata.email || undefined,
-        success_url: successUrl,
+  success_url: successUrl,
         cancel_url: cancelUrl,
         line_items: [
           {
@@ -94,7 +103,7 @@ export const handler = async (event) => {
         payment_method_types: ["card"],
         customer_creation: "always",
         customer_email: metadata.email || undefined,
-        success_url: successUrl,
+  success_url: successUrl,
         cancel_url: cancelUrl,
         line_items: [
           {
@@ -123,7 +132,7 @@ export const handler = async (event) => {
         payment_method_types: ["card"],
         customer_creation: "always",
         customer_email: email || undefined,
-        success_url: successUrl,
+  success_url: successUrl,
         cancel_url: cancelUrl,
         line_items: [
           {
@@ -167,7 +176,7 @@ export const handler = async (event) => {
         payment_method_types: ["card"],
         customer_creation: "always",
         customer_email: metadata.email || undefined,
-        success_url: successUrl,
+  success_url: successUrl,
         cancel_url: cancelUrl,
         line_items: items,
         payment_intent_data: { description: firstName },

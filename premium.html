@@ -157,6 +157,21 @@ document.getElementById('premiumEmailForm')?.addEventListener('submit', async fu
 		confirmation.style.color = 'red';
 	}
 });
+// Fallback: če webhook ne pride, dokončaj nakup preko finalize-checkout (cs param)
+(function(){
+	if (location.hash === '#success') {
+		try {
+			const u = new URL(location.href);
+			const cs = u.searchParams.get('cs');
+			if (cs) {
+				fetch('/api/finalize-checkout?cs=' + encodeURIComponent(cs))
+					.then(r => r.json().catch(()=>({})))
+					.then(j => console.log('[premium] finalize-checkout odgovor:', j))
+					.catch(err => console.warn('[premium] finalize-checkout napaka', err));
+			}
+		} catch (e) {}
+	}
+})();
 </script>
 </body>
 </html>

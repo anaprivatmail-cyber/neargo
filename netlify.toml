@@ -121,6 +121,13 @@
   status = 200
   force = true
 
+# Fallback finalization when Stripe webhook isn't delivered
+[[redirects]]
+  from = "/api/finalize-checkout"
+  to   = "/.netlify/functions/finalize-checkout"
+  status = 200
+  force = true
+
 # === GEO WORKER: ročni klic prek /api ===
 [[redirects]]
   from = "/api/geo-worker"

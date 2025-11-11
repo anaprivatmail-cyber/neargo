@@ -122,7 +122,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'posel-networking',
       label: 'Posel & networking',
-      emoji: '�',
+      emoji: '🤝',
       icon: 'service.svg',
       aliases: ['poslovni', 'business', 'b2b', 'za-podjetja'],
       sub: [
@@ -182,7 +182,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'wellness',
       label: 'Wellness',
-      emoji: '�‍♀️',
+      emoji: '🧖‍♀️',
       icon: 'wellness.svg',
       aliases: ['spa', 'wellness', 'relax'],
       sub: [
@@ -226,7 +226,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'kulinarka-catering',
       label: 'Kulinarka & catering',
-      emoji: '�️',
+      emoji: '🍽️',
       icon: 'food.svg',
       aliases: ['kulinarika-catering', 'catering', 'kulinarika', 'kulinarične storitve'],
       sub: [
@@ -287,7 +287,7 @@ export const CATEGORY_SOURCE = {
     {
       key: 'poslovne',
       label: 'Poslovne storitve',
-      emoji: '�',
+      emoji: '💼',
       icon: 'service.svg',
       aliases: ['poslovne-storitve', 'business', 'b2b'],
       sub: [

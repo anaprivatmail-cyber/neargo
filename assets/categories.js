@@ -1,4 +1,4 @@
-import { CATEGORY_SOURCE, EVENT_CATEGORY_SOURCE, SERVICE_CATEGORY_SOURCE } from './data/categories/index.js';
+import { CATEGORY_SOURCE, EVENT_CATEGORY_SOURCE, SERVICE_CATEGORY_SOURCE } from './data/categories/index.js?v=20251111a';
 
 const ICON_BASE = '/assets/icons';
 

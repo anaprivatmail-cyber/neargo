@@ -43,7 +43,7 @@
         <h1 style="margin:0;font-size:20px">Moje</h1>
         <a href="/" style="color:#0bbbd6;font-weight:800;text-decoration:none">Domov</a>
       </div>
-      <div class="row" style="gap:8px">
+      <div class="row" id="identityRow" style="gap:8px">
         <input id="email" placeholder="tvoj e-mail" style="flex:1">
         <button id="save" class="btn" style="background:#0bbbd6;color:#fff;border:0">Shrani</button>
         <button id="load" class="btn" style="border:0">Naloži</button>
@@ -76,17 +76,32 @@
     const $ = s => document.querySelector(s);
     const msg = $("#msg"), emailInput = $("#email"), list = $("#list");
 
-    // prefill iz localStorage
-    emailInput.value = localStorage.getItem("user_email") || "";
-
-    $("#save").onclick = ()=>{
-      const em = emailInput.value.trim();
-      if(!em){ msg.textContent = "Vnesi e-pošto."; return; }
-      localStorage.setItem("user_email", em);
-      msg.textContent = "Shranjeno.";
-    };
-
-    $("#load").onclick = load;
+    // Poveži se s Supabase in uporabi prijavljen email (ni več ročnega vnosa)
+    (async function initIdentity(){
+      try{
+        const mod = await import('/assets/supabase-client.js');
+        const supabase = mod.supabase || window.supabase;
+        let session = null;
+        if (supabase?.auth?.getSession){
+          const { data } = await supabase.auth.getSession();
+          session = data?.session || null;
+        }
+        const emailFromSession = (session?.user?.email || '').trim();
+        if (emailFromSession){
+          emailInput.value = emailFromSession;
+          // skrij identitetni row, ker mail dobimo iz prijave
+          const row = document.getElementById('identityRow'); if (row) row.style.display = 'none';
+          // avtomatsko naloži
+          await load({ token: session?.access_token });
+        }else{
+          // brez seje: preusmeri na prijavo
+          window.location.href = '/login.html?next='+encodeURIComponent(window.location.pathname);
+        }
+      }catch(e){
+        // fallback na localStorage, če res ni seje
+        emailInput.value = localStorage.getItem('user_email') || '';
+      }
+    })();
 
     // tabs
     const tabs = document.querySelectorAll('#tabs [data-tab]');
@@ -156,12 +171,14 @@
       }).join("");
     }
 
-    async function load(){
+    async function load(opts){
       list.innerHTML = ""; msg.textContent = "";
       const em = emailInput.value.trim();
-      if(!em){ msg.textContent = "Vnesi e-pošto in klikni Naloži."; return; }
+      if(!em){ msg.textContent = "Prijavite se za ogled vstopnic/kuponov."; return; }
       let url = `/.netlify/functions/my?email=${encodeURIComponent(em)}`;
       const headers = { "accept":"application/json" };
+      // Če imamo Supabase access token, ga pošljemo (backend lahko email razbere tudi iz tokena)
+      if (opts?.token) headers['Authorization'] = `Bearer ${opts.token}`;
       try{
         const r = await fetch(url, { headers });
         const data = await r.json().catch(()=> ({}));
@@ -175,8 +192,6 @@
       }catch(e){
       // ...obstoječa obravnava napake...
     }
-  if (emailInput.value.trim()) load();
-
     };
   </script>
 </body>

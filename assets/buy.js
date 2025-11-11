@@ -53,16 +53,32 @@ export function initBuy(){
       try{
         const kind=btn.dataset.kind||"ticket"; 
         let payload;
+        // Pridobi e-pošto iz prijave (Supabase) – ne zahtevamo ročnega vnosa
+        let sessionEmail = '';
+        let accessToken = '';
+        try {
+          if (window.supabase?.auth?.getSession) {
+            const { data } = await window.supabase.auth.getSession();
+            sessionEmail = (data?.session?.user?.email || '').trim();
+            accessToken = (data?.session?.access_token || '').trim();
+          }
+        } catch {}
+        if (!sessionEmail) {
+          // fallback na localStorage (nastavljeno ob prijavi)
+            try { sessionEmail = (localStorage.getItem('user_email')||'').trim(); } catch {}
+        }
         if(kind==="coupon"){
           // podpora za FREE kupon preko data-free="1"
           if (btn.dataset.free === '1') {
             const freeBody = {
-              email: (localStorage.getItem('user_email')||'').trim(),
+              email: sessionEmail,
               event_id: btn.dataset.eid || '',
               event_title: decodeURIComponent(btn.dataset.name||'Dogodek'),
               display_benefit: decodeURIComponent(btn.dataset.benefit||'Brezplačno')
             };
-            const fr = await fetch('/api/free-coupon', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(freeBody) })
+            const headers = {'Content-Type':'application/json'};
+            if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+            const fr = await fetch('/api/free-coupon', { method:'POST', headers, body: JSON.stringify(freeBody) })
                        .then(r=>r.json()).catch(()=>({}));
             if(fr && fr.ok){ window._toast?.('Kupon izdan ✅', true); location.href = '/my.html#success'; }
             else { alert('Napaka pri izdaji brezplačnega kupona'); }
@@ -71,7 +87,7 @@ export function initBuy(){
           payload={
             type:"coupon",
             metadata:{type:"coupon",event_title:decodeURIComponent(btn.dataset.name||"Dogodek"),
-            display_benefit:decodeURIComponent(btn.dataset.benefit||"")},
+            display_benefit:decodeURIComponent(btn.dataset.benefit||""), email: sessionEmail},
             successUrl:`${location.origin}/#success`,
             cancelUrl:`${location.origin}/#cancel`
           };
@@ -83,12 +99,14 @@ export function initBuy(){
               amount:Number(btn.dataset.price||0),
               currency:"eur", quantity:1
             }],
-            metadata:{ image_url:btn.dataset.img||"", event_id:btn.dataset.eid||"" },
+            metadata:{ image_url:btn.dataset.img||"", event_id:btn.dataset.eid||"", email: sessionEmail },
             successUrl:`${location.origin}/#success`,
             cancelUrl:`${location.origin}/#cancel`
           };
         }
-        const r=await fetch("/api/checkout",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+  const headers = {'Content-Type':'application/json'};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  const r=await fetch("/api/checkout",{method:"POST",headers,body:JSON.stringify(payload)})
                   .then(x=>x.json()).catch(()=>({}));
         if(r && r.ok && r.url){ location.href=r.url; } 
         else { alert("Plačilnega okna ni bilo mogoče odpreti."); }

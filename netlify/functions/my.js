@@ -21,8 +21,20 @@ export const handler = async (event) => {
     if (event.httpMethod !== "GET")     return bad("use_get", 405);
 
     const qs    = event.queryStringParameters || {};
-    const email = (qs.email || "").trim();
-    if (!email) return bad("missing_email");
+    let email = (qs.email || "").trim();
+    if (!email) {
+      // Poskusi iz Authorization: Bearer <supabase access token>
+      const auth = event.headers?.authorization || event.headers?.Authorization || "";
+      const m = auth.match(/^Bearer\s+(.+)$/i);
+      if (m) {
+        try{
+          const token = m[1];
+          const { data, error } = await supa.auth.getUser(token);
+          if (!error && data?.user?.email) email = data.user.email.trim();
+        }catch{}
+      }
+    }
+    if (!email) return bad("missing_email", 401);
 
     // Premium flag (active if premium_users has future premium_until or 'premium' ticket exists)
   let isPremium = false;

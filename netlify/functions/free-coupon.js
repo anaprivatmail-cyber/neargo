@@ -54,7 +54,18 @@ export const handler = async (event) => {
     if (event.httpMethod !== "POST")   return bad("use_post", 405);
 
     const body = JSON.parse(event.body || "{}");
-    const email = (body.email || body.buyerEmail || "").trim();
+    let email = (body.email || body.buyerEmail || "").trim();
+    if (!email){
+      const auth = event.headers?.authorization || event.headers?.Authorization || "";
+      const m = auth.match(/^Bearer\s+(.+)$/i);
+      if (m){
+        try{
+          const token = m[1];
+          const { data, error } = await supa.auth.getUser(token);
+          if (!error && data?.user?.email) email = (data.user.email||'').trim();
+        }catch{}
+      }
+    }
     const eventId = body.event_id || body.eventId || null;
     const eventTitle = body.event_title || body.title || "Dogodek";
     const displayBenefit = body.display_benefit || body.benefit || body.freebie_text || "Brezplačno";

@@ -55,127 +55,86 @@
         </div>
         <div>
           <label>Kategorija</label>
+          <div class="inline" style="display:flex;gap:8px;align-items:center;margin:6px 0 8px">
+            <button type="button" id="typeEvent" class="btn link" style="padding:6px 10px;border-radius:999px;font-weight:800">Dogodek</button>
+            <button type="button" id="typeService" class="btn link" style="padding:6px 10px;border-radius:999px;font-weight:800">Storitev</button>
+          </div>
           <div id="editCategoryChips" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"></div>
+          <div id="editSubcategoryWrap" style="display:none;margin-top:8px">
+            <label style="font-weight:700;font-size:13px">Podkategorija (neobvezno)</label>
+            <select id="subcategory" style="min-height:40px;border-radius:12px;border:1px solid var(--border);background:#fff;padding:8px 12px;font-size:14px">
+              <option value="">Podkategorija (neobvezno)</option>
+            </select>
+          </div>
+          <input type="hidden" id="entryType" value="event">
           <input type="hidden" id="category">
           <script>
           (function(){
-            let wrapEl = null;
-            let inputEl = null;
-            let cache = [];
-
-            const normalizeList = (list) => {
-              if (!Array.isArray(list)) return [];
-              return list
-                .filter((cat) => cat && cat.key)
-                .map((cat) => ({
-                  key: cat.key,
-                  label: cat.label || cat.key,
-                  emoji: cat.emoji || '✨'
-                }));
-            };
-
-            const getCanonicalList = () => {
-              const published = window.NearGoCategories;
-              if (published && Array.isArray(published.events) && published.events.length) {
-                return normalizeList(published.events);
-              }
-              const bootstrap = window.NearGoCategoryBootstrap;
-              if (bootstrap && Array.isArray(bootstrap.events) && bootstrap.events.length) {
-                return normalizeList(bootstrap.events);
-              }
-              const source = window.NearGoCategorySource;
-              if (source && Array.isArray(source.events) && source.events.length) {
-                return normalizeList(source.events);
-              }
-              return [];
-            };
-
-            const toggleLabel = (chip, show) => {
-              const label = chip.querySelector('.cat-label');
-              if (!label) return;
-              if (show) {
-                label.style.display = 'inline';
-              } else if (!chip.classList.contains('active')) {
-                label.style.display = 'none';
-              }
-            };
-
-            const setActive = (key) => {
-              if (!wrapEl || !inputEl) return;
-              const buttons = Array.from(wrapEl.querySelectorAll('.cat'));
-              let found = false;
-              buttons.forEach((btn) => {
-                const match = btn.dataset.cat === key;
-                btn.classList.toggle('active', match);
-                toggleLabel(btn, match);
-                if (match) found = true;
-              });
-              if (!found && buttons.length) {
-                buttons[0].classList.add('active');
-                toggleLabel(buttons[0], true);
-                inputEl.value = buttons[0].dataset.cat;
-                return;
-              }
-              if (found) inputEl.value = key;
-            };
-
-            window.NearGoEditCategoryChips = {
-              setActive
-            };
-
-            const buildChip = (cat) => {
-              const chip = document.createElement('button');
-              chip.className = 'chip cat';
-              chip.type = 'button';
-              chip.dataset.cat = cat.key;
-
-              const iconSpan = document.createElement('span');
-              iconSpan.className = 'cat-icon';
-              iconSpan.textContent = cat.emoji || '✨';
-
-              const labelSpan = document.createElement('span');
-              labelSpan.className = 'cat-label';
-              labelSpan.textContent = cat.label || cat.key;
-              labelSpan.style.display = 'none';
-
-              chip.append(iconSpan, labelSpan);
-
-              chip.addEventListener('mouseenter', () => toggleLabel(chip, true));
-              chip.addEventListener('mouseleave', () => toggleLabel(chip, false));
-              chip.addEventListener('touchstart', () => toggleLabel(chip, true));
-              chip.addEventListener('touchend', () => toggleLabel(chip, false));
-              chip.addEventListener('click', () => setActive(cat.key));
-
-              return chip;
-            };
-
-            const render = (cats) => {
-              if (!wrapEl || !inputEl) return;
-              wrapEl.innerHTML = '';
-              cache = normalizeList(cats && cats.length ? cats : getCanonicalList());
-              cache.forEach((cat) => {
-                wrapEl.appendChild(buildChip(cat));
-              });
-              const current = inputEl.value || (cache[0] && cache[0].key) || '';
-              setActive(current);
-            };
-
-            const init = () => {
-              wrapEl = document.getElementById('editCategoryChips');
-              inputEl = document.getElementById('category');
-              if (!wrapEl || !inputEl) return;
-              render(getCanonicalList());
-            };
-
-            if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', init, { once: true });
-            } else {
-              init();
+            let wrapEl, catInput, subSel, subWrap, entryTypeInput, btnEvent, btnService;
+            const normList = (list)=> Array.isArray(list)? list.filter(c=>c&&c.key).map(c=>({key:c.key,label:c.label||c.key,emoji:c.emoji||'✨', sub:Array.isArray(c.sub)?c.sub.map(s=>({key:s.key,label:s.label})):[]})) : [];
+            function sourceFor(mode){
+              const pub=window.NearGoCategories, boot=window.NearGoCategoryBootstrap, src=window.NearGoCategorySource;
+              const pick=(x)=> (x && Array.isArray(x[mode]) && x[mode].length) ? normList(x[mode]) : null;
+              return pick(pub) || pick(boot) || pick(src) || [];
             }
-
-            document.addEventListener('neargo:categories-ready', () => {
-              render(getCanonicalList());
-            }, { once: true });
+            function setType(mode){
+              entryTypeInput.value = (mode==='services')?'service':'event';
+              btnEvent.classList.toggle('active', mode==='events');
+              btnService.classList.toggle('active', mode==='services');
+              renderChips(mode);
+            }
+            function toggleLabel(node,show){ const l=node.querySelector('.cat-label'); if(!l) return; if(show) l.style.display='inline'; else if(!node.classList.contains('active')) l.style.display='none'; }
+            function buildChip(cat){
+              const chip=document.createElement('button'); chip.className='chip cat'; chip.type='button'; chip.dataset.cat=cat.key;
+              const icon=document.createElement('span'); icon.className='cat-icon'; icon.textContent=cat.emoji||'✨';
+              const lbl=document.createElement('span'); lbl.className='cat-label'; lbl.textContent=cat.label||cat.key; lbl.style.display='none';
+              chip.append(icon,lbl);
+              chip.addEventListener('mouseenter', ()=>toggleLabel(chip,true));
+              chip.addEventListener('mouseleave', ()=>toggleLabel(chip,false));
+              chip.addEventListener('touchstart', ()=>toggleLabel(chip,true));
+              chip.addEventListener('touchend', ()=>toggleLabel(chip,false));
+              chip.addEventListener('click', ()=> setActive(cat.key));
+              return chip;
+            }
+            let currentMode='events', currentList=[];
+            function populateSubs(catKey){
+              if(!subSel||!subWrap) return;
+              const utils=window.NearGoCategoryUtils; let subs = utils?.getSubcategories ? (utils.getSubcategories(currentMode, catKey)||[]) : [];
+              if(!subs.length){ const found=currentList.find(c=>c.key===catKey); subs = Array.isArray(found?.sub) ? found.sub : []; }
+              subSel.innerHTML='';
+              const ph=document.createElement('option'); ph.value=''; ph.textContent='Podkategorija (neobvezno)'; subSel.appendChild(ph);
+              subs.forEach(s=>{ const o=document.createElement('option'); o.value=s.key; o.textContent=s.label; subSel.appendChild(o); });
+              const has = subs.length>0; subWrap.style.display = has? 'block':'none'; subSel.disabled = !has;
+            }
+            function setActive(key){
+              wrapEl.querySelectorAll('.cat').forEach(btn=>{ const m=(btn.dataset.cat===key); btn.classList.toggle('active', m); toggleLabel(btn, m); });
+              catInput.value = key;
+              populateSubs(key);
+            }
+            function renderChips(mode){
+              currentMode = mode; wrapEl.innerHTML=''; currentList = sourceFor(mode);
+              currentList.forEach(cat => wrapEl.appendChild(buildChip(cat)));
+              const initial = catInput.value || (currentList[0]?.key||'');
+              if(initial) setActive(initial);
+            }
+            function init(){
+              wrapEl=document.getElementById('editCategoryChips');
+              catInput=document.getElementById('category');
+              subSel=document.getElementById('subcategory');
+              subWrap=document.getElementById('editSubcategoryWrap');
+              entryTypeInput=document.getElementById('entryType');
+              btnEvent=document.getElementById('typeEvent');
+              btnService=document.getElementById('typeService');
+              if(!wrapEl||!catInput||!btnEvent||!btnService) return;
+              btnEvent.addEventListener('click', ()=>setType('events'));
+              btnService.addEventListener('click', ()=>setType('services'));
+              // default to event; real type will override after load()
+              setType('events');
+            }
+            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init, {once:true}); else init();
+            document.addEventListener('neargo:categories-ready', ()=>renderChips(currentMode));
+            // expose for loader to set active category
+            window.NearGoEditCategoryChips = { setActive };
           })();
           </script>
         </div>
@@ -239,7 +198,7 @@
       try{
         const url = "/.netlify/functions/provider-edit?action=load&token="+encodeURIComponent(token)+(key?("&key="+encodeURIComponent(key)):"");
         const r = await fetch(url);
-        const data = await r.json().catch(()=>({}));
+    const data = await r.json().catch(()=>({}));
         if(!r.ok || !data.ok){ msg.textContent = data.error || "Napaka pri nalaganju."; return; }
 
   const e = data.item||{};
@@ -248,8 +207,12 @@
         $("#city").value      = e.city||e.city2||"";
         $("#start").value     = e.start ? new Date(e.start).toISOString().slice(0,16) : "";
         $("#end").value       = e.end   ? new Date(e.end).toISOString().slice(0,16)   : "";
-        $("#category").value  = e.category||"";
-  window.NearGoEditCategoryChips?.setActive(e.category || "");
+    $("#entryType").value = (e.entryType||e.type)==='service' ? 'service' : 'event';
+    // set type buttons and render cats accordingly
+    if ((e.entryType||e.type)==='service') document.getElementById('typeService').click(); else document.getElementById('typeEvent').click();
+    $("#category").value  = e.category||"";
+    window.NearGoEditCategoryChips?.setActive(e.category || "");
+    if (document.getElementById('subcategory')) document.getElementById('subcategory').value = e.subcategory||e.subCategory||"";
         $("#url").value       = e.url||"";
         $("#offerType").value = e.offerType||e.saleType||"none";
         $("#price").value     = (e.price!=null? e.price : "");
@@ -271,7 +234,9 @@
           city:      $("#city").value.trim(),
           start:     $("#start").value ? new Date($("#start").value).toISOString() : null,
           end:       $("#end").value   ? new Date($("#end").value).toISOString()   : null,
+          entryType: $("#entryType").value,
           category:  $("#category").value,
+          subcategory: (document.getElementById('subcategory')?.value || ""),
           url:       $("#url").value.trim(),
           offerType: $("#offerType").value,
           price:     $("#price").value === "" ? null : Number($("#price").value),

@@ -1781,36 +1781,62 @@ document.addEventListener('click', function(ev){
     try{
       var kind=btn.getAttribute('data-kind')||"ticket"; 
       var payload;
-      if(kind==="coupon"){
-        var price=Number(btn.getAttribute('data-price')||0);
-        payload={
-          type:"coupon",
-          metadata:{type:"coupon", premium:IS_PREMIUM?1:0, event_title:decodeURIComponent(btn.getAttribute('data-name')||"Ponudba"),
-          display_benefit:decodeURIComponent(btn.getAttribute('data-benefit')||"")},
-          successUrl:location.origin+"/#success",
-          cancelUrl:location.origin+"/#cancel"
-        };
-        if(price>0){
-          payload.lineItems=[{name:"Kupon NearGo",description:"coupon",amount:price,currency:"eur",quantity:1}];
+      // pridobi prijavljenega uporabnika (Supabase)
+      var sessionEmail=""; var accessToken="";
+      try{
+        fetchSupabaseSession().then(function(sess){
+          sessionEmail = (sess && sess.user && sess.user.email) ? String(sess.user.email).trim() : (localStorage.getItem('user_email')||'').trim();
+          accessToken = (sess && sess.access_token) ? String(sess.access_token).trim() : '';
+        }).catch(function(){ sessionEmail=(localStorage.getItem('user_email')||'').trim(); });
+      }catch(_){ try{ sessionEmail=(localStorage.getItem('user_email')||'').trim(); }catch(__){} }
+
+      // Po kratkem timeoutu nadaljuj, da imamo session
+      setTimeout(function(){
+        if(kind==="coupon"){
+          var price=Number(btn.getAttribute('data-price')||0);
+          var baseMeta={ type:"coupon", premium:IS_PREMIUM?1:0, event_title:decodeURIComponent(btn.getAttribute('data-name')||"Ponudba"), display_benefit:decodeURIComponent(btn.getAttribute('data-benefit')||"") };
+          // brezplačen kupon (npr. Premium ugodnost) → brez Stripe
+          if(price<=0){
+            var freeBody={
+              email: sessionEmail,
+              event_id: btn.getAttribute('data-eid')||'',
+              event_title: decodeURIComponent(btn.getAttribute('data-name')||'Ponudba'),
+              display_benefit: decodeURIComponent(btn.getAttribute('data-benefit')||'Brezplačno')
+            };
+            var h1={'Content-Type':'application/json'}; if(accessToken) h1['Authorization']='Bearer '+accessToken;
+            fetch('/api/free-coupon',{method:'POST', headers:h1, body:JSON.stringify(freeBody)})
+              .then(function(r){return r.json();})
+              .then(function(fr){ if(fr && fr.ok){ if(window._toast) _toast('Kupon izdan ✅', true); location.href='/my.html#success'; } else { alert('Napaka pri izdaji brezplačnega kupona'); } })
+              .catch(function(){ alert('Napaka pri izdaji brezplačnega kupona'); })
+              .finally(function(){ btn.disabled=false; });
+            return;
+          }
+          payload={
+            type:"coupon",
+            metadata: Object.assign({}, baseMeta, { email: sessionEmail }),
+            successUrl:location.origin+"/#success",
+            cancelUrl:location.origin+"/#cancel"
+          };
+        }else{
+          payload={
+            lineItems:[{
+              name:decodeURIComponent(btn.getAttribute('data-name')||"Ponudba"),
+              description:kind,
+              amount:Number(btn.getAttribute('data-price')||0),
+              currency:"eur", quantity:1
+            }],
+            metadata:{ image_url:btn.getAttribute('data-img')||"", event_id:btn.getAttribute('data-eid')||"", email: sessionEmail },
+            successUrl:location.origin+"/#success",
+            cancelUrl:location.origin+"/#cancel"
+          };
         }
-      }else{
-        payload={
-          lineItems:[{
-            name:decodeURIComponent(btn.getAttribute('data-name')||"Ponudba"),
-            description:kind,
-            amount:Number(btn.getAttribute('data-price')||0),
-            currency:"eur", quantity:1
-          }],
-          metadata:{},
-          successUrl:location.origin+"/#success",
-          cancelUrl:location.origin+"/#cancel"
-        };
-      }
-      fetch("/api/checkout",{method:"POST",headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-        .then(function(x){return x.json();})
-        .then(function(r){ if(r && r.ok && r.url){ location.href=r.url; } else { alert("Plačilnega okna ni bilo mogoče odpreti."); } })
-        .catch(function(){ alert("Napaka pri plačilu."); })
-        .finally(function(){ btn.disabled=false; });
+        var headers={'Content-Type':'application/json'}; if(accessToken) headers['Authorization']='Bearer '+accessToken;
+        fetch("/api/checkout",{method:"POST",headers:headers,body:JSON.stringify(payload)})
+          .then(function(x){return x.json();})
+          .then(function(r){ if(r && r.ok && r.url){ location.href=r.url; } else { alert("Plačilnega okna ni bilo mogoče odpreti."); } })
+          .catch(function(){ alert("Napaka pri plačilu."); })
+          .finally(function(){ btn.disabled=false; });
+      }, 0);
     }catch(e){ alert("Napaka pri plačilu."); btn.disabled=false; }
     return;
   }

@@ -29,6 +29,20 @@ export const handler = async (event) => {
     const successUrl = payload.successUrl || `${PUBLIC_BASE_URL || ""}/#success`;
     const cancelUrl  = payload.cancelUrl  || `${PUBLIC_BASE_URL || ""}/#cancel`;
     const metadata   = payload.metadata || {};
+    // Poskusi pridobiti email iz Authorization (Supabase), če ga ni v metadata
+    if (!metadata.email) {
+      try{
+        const auth = event.headers?.authorization || event.headers?.Authorization || "";
+        const m = auth.match(/^Bearer\s+(.+)$/i);
+        if (m) {
+          // Lazy import to avoid adding global supabase dep here (we only need fetch of user)
+          const { createClient } = await import('@supabase/supabase-js');
+          const supa = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth:{ persistSession:false } });
+          const { data } = await supa.auth.getUser(m[1]);
+          if (data?.user?.email) metadata.email = (data.user.email||'').trim();
+        }
+      }catch{}
+    }
 
 
     // --- KU P O N -----------------------------------------------------------
@@ -40,6 +54,8 @@ export const handler = async (event) => {
         payment_method_types: ["card"],
         // vedno ustvari Customer in zberi email
         customer_creation: "always",
+        // Če imamo e-pošto iz prijave jo vnesi, da uporabnik ne rabi ponovno tipkati
+        customer_email: metadata.email || undefined,
         success_url: successUrl,
         cancel_url: cancelUrl,
         line_items: [
@@ -77,6 +93,7 @@ export const handler = async (event) => {
         mode: "payment",
         payment_method_types: ["card"],
         customer_creation: "always",
+        customer_email: metadata.email || undefined,
         success_url: successUrl,
         cancel_url: cancelUrl,
         line_items: [
@@ -105,6 +122,7 @@ export const handler = async (event) => {
         mode: "payment",
         payment_method_types: ["card"],
         customer_creation: "always",
+        customer_email: email || undefined,
         success_url: successUrl,
         cancel_url: cancelUrl,
         line_items: [
@@ -148,6 +166,7 @@ export const handler = async (event) => {
         mode: "payment",
         payment_method_types: ["card"],
         customer_creation: "always",
+        customer_email: metadata.email || undefined,
         success_url: successUrl,
         cancel_url: cancelUrl,
         line_items: items,

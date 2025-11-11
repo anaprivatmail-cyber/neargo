@@ -549,7 +549,8 @@ async function updateMonthlyCounter(){
 		const isPremium = !!(window.IS_PREMIUM);
 		if (!isPremium){ node.style.display='none'; return; }
 		const r = await fetch(`/api/early-notify-count?email=${encodeURIComponent(email)}`)
-			.then(x=>x.json()).catch(()=>null);
+			.then(function(res){ if(!res.ok) throw new Error('HTTP '+res.status); return res.json(); })
+			.catch(function(err){ console.warn('[notify] early-notify-count failed:', err); if(window._toast) _toast('Napaka pri preverjanju obvestil.', false); return null; });
 		if (!r || !r.ok){ node.style.display='none'; return; }
 		const sent = Number(r.sent||0);
 		const cap = Number(r.cap||25);

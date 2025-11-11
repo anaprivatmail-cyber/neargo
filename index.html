@@ -1452,9 +1452,9 @@ function filterEarlyAndStock(items){
 function loadFeatured(){
   var now=Date.now(); var internal=[], external=[];
   fetch("/api/provider-list?"+qs({featured:1, limit:200, mode:ACTIVE_MODE}))
-    .then(function(r){return r.json();})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
     .then(function(d){ internal=(d && d.results)?d.results:[]; })
-    .catch(function(){ internal=[]; })
+    .catch(function(err){ console.error('[featured] provider-list failed:', err); internal=[]; if(window._toast) _toast('Unable to load provider list', false); })
     .finally(function(){
       fetch("/api/search?"+qs({size:200,page:0}))
         .then(function(r){return r.json();})
@@ -1932,7 +1932,7 @@ function loadAllForTopMap(){
   if(!topMap) return;
   clearMarkers(topMarkers);
   Promise.all([
-    fetch('/api/provider-list?'+qs({size:500,page:0, mode:ACTIVE_MODE})).then(function(r){return r.json();}).catch(function(){return {};}),
+  fetch('/api/provider-list?'+qs({size:500,page:0, mode:ACTIVE_MODE})).then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }).catch(function(err){ console.warn('[map] provider-list failed:', err); return {}; }),
     fetch('/api/search?'+qs({size:500,page:0})).then(function(r){return r.json();}).catch(function(){return {};})
   ]).then(function(res){
     var intRes=res[0]||{}, extRes=res[1]||{};

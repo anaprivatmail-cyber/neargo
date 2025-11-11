@@ -207,6 +207,23 @@
 			};
 		}
 	</script>
+	<!-- Diagnostični blok za lažje odkrivanje težav s prijavo -->
+	<script>
+	(function(){
+	  window.__authDiag = {
+	    haveClient: !!window.supabase,
+	    haveSignIn: typeof window.testSignInEmail === 'function',
+	    url: window.SUPABASE_URL || null,
+	    anonLast6: window.SUPABASE_ANON_KEY ? String(window.SUPABASE_ANON_KEY).slice(-6) : null
+	  };
+	  if(!window.__authDiag.haveSignIn){
+	    console.warn('[auth-diag] Funkcija testSignInEmail manjka – uvoz Supabase knjižnice morda ni uspel (CDN blokiran ali napačen ključ).');
+	  }
+	  window.addEventListener('error', function(e){
+	    console.error('[global-error]', e.message, e.filename, e.lineno);
+	  });
+	})();
+	</script>
 </head>
 <body id="loginPage">
 	<main>
@@ -867,7 +884,8 @@
 				try {
 					const { testSignInEmail } = window;
 					if (typeof testSignInEmail !== 'function') {
-						setStatus('Napaka v povezavi na strežnik. Poskusite kasneje ali kontaktirajte podporo.', 'error');
+						console.error('[login] testSignInEmail ni na voljo. __authDiag=', window.__authDiag);
+						setStatus('Konfiguracija prijave ni na voljo (Supabase ni inicializiran). Osvežite stran ali poskusite kasneje.', 'error');
 						return;
 					}
 					let result = await testSignInEmail(email, password);

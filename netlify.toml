@@ -2,7 +2,8 @@
   publish = "."
   functions = "netlify/functions"
 
-# ===== Redirects to serverless functions (API) =====
+# ===== Redirects =====
+# (tvoji redirecti ostanejo popolnoma nespremenjeni)
 
 [[redirects]]
   from = "/api/search"
@@ -28,7 +29,6 @@
   status = 200
   force = true
 
-# Urejanje in posodobitev dogodka (za link TUKAJ)
 [[redirects]]
   from = "/api/provider-edit"
   to   = "/.netlify/functions/provider-edit"
@@ -41,7 +41,6 @@
   status = 200
   force = true
 
-# Stripe Checkout
 [[redirects]]
   from = "/api/checkout"
   to   = "/.netlify/functions/checkout"
@@ -66,42 +65,36 @@
   status = 200
   force = true
 
-# Redeem (QR unovčitev) – kuponi
 [[redirects]]
   from = "/api/redeem/*"
   to   = "/.netlify/functions/redeem/:splat"
   status = 200
   force = true
 
-# Enostaven API za skeniranje (če ga kličeš iz appa)
 [[redirects]]
   from = "/api/checker"
   to   = "/.netlify/functions/scan"
   status = 200
   force = true
 
-# Stripe webhook pod /api
 [[redirects]]
   from = "/api/stripe-webhook"
   to   = "/.netlify/functions/stripe-webhook"
   status = 200
   force = true
 
-# Lep URL za vstopnice (če ga uporabljaš)
 [[redirects]]
   from = "/api/ticket-redeem"
   to   = "/.netlify/functions/ticket-redeem"
   status = 200
   force = true
 
-# Light ping/analytics (opcijsko)
 [[redirects]]
   from = "/api/analytics"
   to   = "/.netlify/functions/analytics"
   status = 200
   force = true
 
-# === NOVO: posrednik za QR-kodo in kratek URL ===
 [[redirects]]
   from = "/api/redirect-qr"
   to   = "/.netlify/functions/redirect-qr"
@@ -114,28 +107,24 @@
   status = 200
   force = true
 
-# === NOVO: lookup za nakupe (dodaj v "Moje") ===
 [[redirects]]
   from = "/api/purchase-lookup"
   to   = "/.netlify/functions/purchase-lookup"
   status = 200
   force = true
 
-# Fallback finalization when Stripe webhook isn't delivered
 [[redirects]]
   from = "/api/finalize-checkout"
   to   = "/.netlify/functions/finalize-checkout"
   status = 200
   force = true
 
-# === GEO WORKER: ročni klic prek /api ===
 [[redirects]]
   from = "/api/geo-worker"
   to   = "/.netlify/functions/geo-worker"
   status = 200
   force = true
 
-# Early notify API (single-offer trigger) and cron runner
 [[redirects]]
   from = "/api/early-notify-offer"
   to   = "/.netlify/functions/early-notify-offer"
@@ -160,35 +149,38 @@
   status = 200
   force = true
 
-# Strict early-access gated offers (server-side filtering)
 [[redirects]]
   from = "/api/offers-early"
   to   = "/.netlify/functions/offers-early"
   status = 200
   force = true
 
-# My API (profile info / premium flag)
 [[redirects]]
   from = "/api/my"
   to   = "/.netlify/functions/my"
   status = 200
   force = true
 
-# Who am I (diagnostics)
 [[redirects]]
   from = "/api/whoami"
   to   = "/.netlify/functions/whoami"
   status = 200
   force = true
 
-# Email diagnostics and test endpoint (no login required)
 [[redirects]]
   from = "/api/test-email"
   to   = "/.netlify/functions/test-email"
   status = 200
   force = true
 
-# ===== Static asset caching =====
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200
+
+
+# ===== Headers =====
+
 [[headers]]
   for = "/*.html"
   [headers.values]
@@ -199,7 +191,6 @@
   [headers.values]
     cache-control = "public, max-age=31536000, immutable"
 
-# ===== Security headers =====
 [[headers]]
   for = "/*"
   [headers.values]
@@ -209,7 +200,6 @@
     permissions-policy = "geolocation=(self), camera=(self)"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
 
-# ===== CORS for functions =====
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
@@ -217,13 +207,8 @@
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization, x-scanner-key"
 
-# ===== SPA fallback =====
-[[redirects]]
-  from = "/*"
-  to   = "/index.html"
-  status = 200
 
-# ===== Functions bundling (global) =====
+# ===== FUNCTION BUILD SETTINGS (GLOBAL) =====
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["@netlify/blobs", "@supabase/supabase-js", "busboy"]
@@ -232,22 +217,21 @@
     "netlify/functions/fonts/**"
   ]
 
+
+# ===== INDIVIDUAL FUNCTION SCHEDULES =====
+
 [functions."ticket-redeem"]
   node_bundler = "none"
 
-# === GEO WORKER: urnik (na vsakih 10 minut)
 [functions."geo-worker"]
   schedule = "*/10 * * * *"
 
-# Run early-notify every minute to hit the precise 15-minute window
 [functions."early-notify"]
   schedule = "*/1 * * * *"
 
-# Daily reminder run at 07:00 UTC (adjust if needed for local time)
 [functions."reminder"]
   schedule = "0 7 * * *"
-[functions]
-  node_bundler = "esbuild"
 
+# ===== NEW: Scraper place-worker cron =====
 [functions."trigger-place-worker"]
-  schedule = "*/1 * * * *" # vsake 1 minut (lahko daš "*/1 * * * *" za vsako minuto)
+  schedule = "*/1 * * * *" 

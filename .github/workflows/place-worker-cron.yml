@@ -21,8 +21,7 @@ jobs:
         run: |
           echo "Calling Supabase function..."
 
-          HTTP_STATUS=$(curl -s -o response.txt -w "%{http_code}" \
-            -X POST "$FUNCTION_URL" \
+          HTTP_STATUS=$(curl -s -o response.txt -w "%{http_code}" -X POST "$FUNCTION_URL" \
             -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
             -H "Content-Type: application/json" \
             --data '{}')

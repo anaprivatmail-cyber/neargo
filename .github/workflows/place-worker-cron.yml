@@ -1,0 +1,32 @@
+name: place-worker cron
+
+on:
+  schedule:
+    - cron: "*/1 * * * *"   # vsakih 1 minuto
+  workflow_dispatch:         # da ga lahko ročno zaženeš iz UI
+
+jobs:
+  call-place-worker:
+    runs-on: ubuntu-latest
+
+    concurrency:
+      group: place-worker-cron
+      cancel-in-progress: false
+
+    steps:
+      - name: Call Supabase place-worker function
+        env:
+          FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Calling $FUNCTION_URL"
+
+          STATUS=$(curl -s -o /tmp/resp.txt -w "%{http_code}" \
+            -X POST "$FUNCTION_URL" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            --data '{}')
+
+          echo "HTTP status: $STATUS"
+          echo "Response body:"
+          cat /tmp/resp.txt || true

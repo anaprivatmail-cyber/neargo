@@ -1,0 +1,40 @@
+name: place-worker-cron-v2
+
+on:
+  schedule:
+    - cron: "*/1 * * * *"
+  workflow_dispatch:
+
+jobs:
+  call-place-worker:
+    runs-on: ubuntu-latest
+
+    concurrency:
+      group: place-worker-cron-v2
+      cancel-in-progress: false
+
+    steps:
+      - name: Call Supabase place-worker function
+        env:
+          FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Calling Supabase function..."
+
+          HTTP_STATUS=$(curl -s -o response.txt -w "%{http_code}" -X POST "$FUNCTION_URL" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            --data '{}')
+
+          echo "Response body:"
+          cat response.txt
+
+          echo "HTTP status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Success"
+            exit 0
+          else
+            echo "Failed"
+            exit 1
+          fi

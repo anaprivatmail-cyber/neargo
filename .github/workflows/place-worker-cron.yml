@@ -1,9 +1,9 @@
-name: place-worker cron
+name: place-worker-cron
 
 on:
   schedule:
-    - cron: "*/1 * * * *"   # vsakih 1 minuto
-  workflow_dispatch:         # ročni zagon iz GitHub UI
+    - cron: "*/1 * * * *"
+  workflow_dispatch:
 
 jobs:
   call-place-worker:
@@ -38,3 +38,4 @@ jobs:
             echo "Failed with HTTP status $STATUS"
             exit 1
           fi
+

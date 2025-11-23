@@ -3,7 +3,6 @@
   functions = "netlify/functions"
 
 # ===== Redirects =====
-# (tvoji redirecti ostanejo popolnoma nespremenjeni)
 
 [[redirects]]
   from = "/api/search"
@@ -178,7 +177,6 @@
   to   = "/index.html"
   status = 200
 
-
 # ===== Headers =====
 
 [[headers]]
@@ -234,4 +232,4 @@
 
 # ===== NEW: Scraper place-worker cron =====
 [functions."trigger-place-worker"]
-  schedule = "*/1 * * * *" 
+  schedule = "*/1 * * * *"

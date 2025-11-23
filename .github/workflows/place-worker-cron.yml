@@ -1,26 +1,41 @@
-run: |
-  echo "Calling Supabase function..."
+name: place-worker-cron
 
-  # Perform the request in one single-line curl command
-  HTTP_STATUS=$(curl -s -o response.txt -w "%{http_code}" \
-    -X POST "$FUNCTION_URL" \
-    -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
-    -H "Content-Type: application/json" \
-    --data '{}')
+on:
+  schedule:
+    - cron: "*/1 * * * *"
+  workflow_dispatch:
 
-  # Print response body
-  echo "Response body:"
-  cat response.txt
+jobs:
+  call-place-worker:
+    runs-on: ubuntu-latest
 
-  # Print HTTP status
-  echo "HTTP status: $HTTP_STATUS"
+    concurrency:
+      group: place-worker-cron
+      cancel-in-progress: false
 
-  # Determine success or failure
-  if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
-    echo "Success"
-    exit 0
-  else
-    echo "Failed"
-    exit 1
-  fi
+    steps:
+      - name: Call Supabase place-worker function
+        env:
+          FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Calling Supabase function..."
 
+          HTTP_STATUS=$(curl -s -o response.txt -w "%{http_code}" \
+            -X POST "$FUNCTION_URL" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            --data '{}')
+
+          echo "Response body:"
+          cat response.txt
+
+          echo "HTTP status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "Success"
+            exit 0
+          else
+            echo "Failed"
+            exit 1
+          fi

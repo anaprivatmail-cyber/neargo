@@ -18,10 +18,9 @@ jobs:
         env:
           FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-              run: |
+        run: |
           echo "Calling Supabase function..."
 
-          # Perform the request in one single-line curl command
           HTTP_STATUS=$(curl -s -o response.txt -w "%{http_code}" -X POST "$FUNCTION_URL" \
             -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
             -H "Content-Type: application/json" \

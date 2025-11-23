@@ -246,3 +246,8 @@
 # Daily reminder run at 07:00 UTC (adjust if needed for local time)
 [functions."reminder"]
   schedule = "0 7 * * *"
+[functions]
+  node_bundler = "esbuild"
+
+[functions."trigger-place-worker"]
+  schedule = "*/1 * * * *" # vsake 1 minut (lahko daš "*/1 * * * *" za vsako minuto)

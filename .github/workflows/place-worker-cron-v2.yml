@@ -2,8 +2,8 @@ name: place-worker-cron-v2
 
 on:
   schedule:
-    - cron: "*/1 * * * *"
-  workflow_dispatch:
+    - cron: "*/1 * * * *"  # Run every 1 minute
+  workflow_dispatch:        # Manual trigger
 
 jobs:
   call-place-worker:
@@ -17,24 +17,28 @@ jobs:
       - name: Call Supabase place-worker function
         env:
           FUNCTION_URL: ${{ secrets.SUPABASE_FUNCTION_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           echo "Calling Supabase function..."
 
-          HTTP_STATUS=$(curl -s -o response.txt -w "%{http_code}" -X POST "$FUNCTION_URL" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+          # Send POST to Supabase Edge Function
+          HTTP_STATUS=$(curl -s -o response.txt -w "%{http_code}" \
+            -X POST "$FUNCTION_URL" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE" \
             -H "Content-Type: application/json" \
-            --data '{}')
+            --data '{"source":"github-cron"}')
 
           echo "Response body:"
           cat response.txt
-
+          echo ""
           echo "HTTP status: $HTTP_STATUS"
 
+          # Check HTTP code
           if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
-            echo "Success"
+            echo "Supabase function executed successfully."
             exit 0
           else
-            echo "Failed"
+            echo "Supabase function failed."
             exit 1
           fi
+
